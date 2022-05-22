@@ -10,6 +10,18 @@ Secondary goals:
 - Implementation of marching cubes algorithm for terrain generation.
 
 ## dependencies
+[Rust](https://doc.rust-lang.org/book/)
+
+ECS: 
+- [specs](https://github.com/amethyst/specs)
+- [tutorial](https://specs.amethyst.rs/docs/tutorials/)
+
+Graphics (can be changed, open for other options):
+- [vulkano](https://github.com/vulkano-rs/vulkano)
+- [tutorial](https://vulkano.rs/guide/introduction)
+
+Window and input handler:
+- [winit](https://github.com/rust-windowing/winit)
 
 ## plan
 ### phase 0 - setup
