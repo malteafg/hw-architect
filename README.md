@@ -11,8 +11,11 @@ Secondary goals:
 
 ## building and running
 ### desktop
-Use ```cargo build``` to compile the code. To run the hw-architect ```cargo run```, which will also recompile the code.
-https://rustwasm.github.io/wasm-pack/installer/
+Use ```cargo build``` to (re)compile the code. To run hw-architect use ```cargo run```, which will also (re)compile the code.
+
+### web (wasm)
+Install [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/). Use ```wasm-pack build --release --target web``` to compile the code to wasm. In the root of the repo use ```python3 -m http.server``` and navigate to localhost:8000 in a browser.
+
 
 ## dependencies
 [Rust](https://doc.rust-lang.org/book/)
@@ -21,12 +24,16 @@ ECS:
 - [specs](https://github.com/amethyst/specs)
 - [tutorial](https://specs.amethyst.rs/docs/tutorials/)
 
+Window and input handler:
+- [winit](https://github.com/rust-windowing/winit)
+
+Graphics
+- [wgpu](https://github.com/gfx-rs/wgpu)
+- [tutorial](https://sotrh.github.io/learn-wgpu/#what-is-wgpu)
+
 Graphics (can be changed, open for other options):
 - [vulkano](https://github.com/vulkano-rs/vulkano)
 - [tutorial](https://vulkano.rs/guide/introduction)
-
-Window and input handler:
-- [winit](https://github.com/rust-windowing/winit)
 
 ## plan
 ### phase 0 - setup
