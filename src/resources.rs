@@ -30,6 +30,7 @@ pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
             let path = std::path::Path::new(env!("OUT_DIR"))
                 .join("res")
                 .join(file_name);
+            println!("{}", path.clone().into_os_string().into_string().unwrap());
             let txt = std::fs::read_to_string(path)?;
         }
     }
@@ -218,4 +219,3 @@ pub async fn load_model(
 
     Ok(model::Model { meshes, materials })
 }
-

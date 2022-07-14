@@ -11,7 +11,7 @@ Secondary goals:
 
 ## building and running
 ### desktop
-Use ```cargo build``` to (re)compile the code. To run hw-architect use ```cargo run```, which will also (re)compile the code.
+Use ```cargo build``` to (re)compile the code. To run hw-architect use ```cargo run```, which will also (re)compile the code. Install hw-architect locally using ```cargo install --path .```.
 
 ### web (wasm)
 Install [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/). Use ```wasm-pack build --release --target web``` to compile the code to wasm. In the root of the repo use ```python3 -m http.server``` and navigate to localhost:8000 in a browser.
