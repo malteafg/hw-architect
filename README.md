@@ -1,4 +1,4 @@
-# hw-architecht
+# hw-architect
 
 Primary goal:
 - An intuitive powerful tool for building roads.
@@ -8,6 +8,11 @@ Secondary goals:
 - Structured using ECS (entity, component, system)
 - Decoupled graphics backend, such that it can be replaced without compromising the rest of the code.
 - Implementation of marching cubes algorithm for terrain generation.
+
+## building and running
+### desktop
+Use ```cargo build``` to compile the code. To run the hw-architect ```cargo run```, which will also recompile the code.
+https://rustwasm.github.io/wasm-pack/installer/
 
 ## dependencies
 [Rust](https://doc.rust-lang.org/book/)
