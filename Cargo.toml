@@ -21,6 +21,7 @@ cgmath = "0.18"
 tobj = { version = "3.2.1", features = [
   "async",
 ]}
+yaml-rust = "0.4"
 instant = "0.1"
 # Specific for web assembly
 cfg-if = "1"
