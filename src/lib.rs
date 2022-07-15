@@ -659,7 +659,7 @@ pub async fn run() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
     window.set_title("Highway Architect");
-    window.set_inner_size(PhysicalSize::new(config.sizex, config.sizey));
+    window.set_inner_size(PhysicalSize::new(config.window.width, config.window.height));
 
     #[cfg(target_arch = "wasm32")]
     {
