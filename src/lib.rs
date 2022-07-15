@@ -12,6 +12,7 @@ use cgmath::prelude::*;
 use wgpu::util::DeviceExt;
 
 mod camera;
+mod configuration;
 mod model;
 mod resources;
 mod texture;
@@ -651,11 +652,14 @@ pub async fn run() {
         }
     }
 
+    // load configuration
+    let config = configuration::load_config().await.unwrap();
+
     // create event_loop and window
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
     window.set_title("Highway Architect");
-    window.set_inner_size(PhysicalSize::new(1920.0f32, 1080.0f32));
+    window.set_inner_size(PhysicalSize::new(config.sizex, config.sizey));
 
     #[cfg(target_arch = "wasm32")]
     {
