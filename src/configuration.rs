@@ -1,85 +1,73 @@
 use crate::resources;
 use anyhow::anyhow;
+use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
-use serde_yaml::*;
-use std::fmt::Display;
 use std::fs;
-use yaml_rust::{YamlEmitter, YamlLoader};
+use yaml_rust::{Yaml, YamlLoader};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct Window {
+pub struct WindowConfig {
     pub width: i32,
     pub height: i32,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Config {
-    pub window: Window,
+    pub window: WindowConfig,
 }
 
-// macro_rules! update_conf {
-//     ( $( $e:ident ),* ) => {
-//         $(
-//             e = e;
-//         )*
-//     };
-// }
+impl Config {
+    fn update_from_yaml(self: Self, yaml: Vec<Yaml>) -> Config {
+        let doc = &yaml[0]; // Multi document support, doc is a yaml::Yaml
+
+        let width = doc["window"]["width"]
+            .as_i64()
+            .unwrap_or(self.window.width as i64) as i32;
+        let height = doc["window"]["height"]
+            .as_i64()
+            .unwrap_or(self.window.height as i64) as i32;
+
+        let window = WindowConfig { width, height };
+
+        log::warn!("Some info");
+        Config { window }
+    }
+}
+
+fn load_user_config_to_yaml() -> anyhow::Result<Vec<Yaml>> {
+    ProjectDirs::from("com", "simaflux", "hw-architect")
+        .and_then(|proj_dirs| {
+            let config_dir = proj_dirs.config_dir();
+            let config_file = fs::read_to_string(config_dir.join("config.yml")).ok()?;
+            dbg!(config_dir);
+            let docs = YamlLoader::load_from_str(&config_file).ok()?;
+            Some(docs)
+        })
+        .ok_or(anyhow!("failed to update with user config"))
+}
+
+#[cfg(debug_assertions)]
+fn load_dev_config_to_yaml() -> anyhow::Result<Vec<Yaml>> {
+    let config_file = fs::read_to_string("config.yml")?;
+    let docs = YamlLoader::load_from_str(&config_file)?;
+    Ok(docs)
+}
 
 pub async fn load_config() -> anyhow::Result<Config> {
     let file = resources::load_string("baseconfig.yml").await?;
-    let base_conf: Config = serde_yaml::from_str(&file)?;
+    let base_config: Config = serde_yaml::from_str(&file)?;
 
-    // let docs = YamlLoader::load_from_str(&file).unwrap();
-    // let doc = &docs[0]; // Multi document support, doc is a yaml::Yaml
-
-    // println!("yaml content:\n{:?}", doc);
-
-    // let mut sizex = doc["window"]["dimensions"]["x"].as_i64().unwrap() as i32;
-    // let mut sizey = doc["window"]["dimensions"]["y"].as_i64().unwrap() as i32;
-
-    match resources::load_string("config.yml").await {
-        Ok(user_conf) => {
-            // update_conf!(width);
-            Ok(base_conf)
-        }
-        Err(_) => Ok(base_conf),
-    }
-    // let docs = YamlLoader::load_from_str(&file).unwrap();
-    // let doc = &docs[0]; // Multi document support, doc is a yaml::Yaml
-
-    // println!("yaml content:\n{:?}", doc);
-
-    // sizex = if let Some(res) = doc["window"]["dimensions"]["x"].as_i64() {
-    //     res as i32
-    // } else {
-    //     sizex
-    // };
-    // sizey = if let Some(res) = doc["window"]["dimensions"]["y"].as_i64() {
-    //     res as i32
-    // } else {
-    //     sizey
-    // };
-
-    // Debug support
-
-    // // Index access for map & array
-    // assert_eq!(doc["foo"][0].as_str().unwrap(), "list1");
-    // assert_eq!(doc["bar"][1].as_f64().unwrap(), 2.0);
-
-    // // Chained key/array access is checked and won't panic,
-    // // return BadValue if they are not exist.
-    // assert!(doc["INVALID_KEY"][100].is_badvalue());
-
-    // // Dump the YAML object
-    // let mut out_str = String::new();
-    // {
-    //     let mut emitter = YamlEmitter::new(&mut out_str);
-    //     emitter.dump(doc).unwrap(); // dump the YAML object to a String
-    // }
-    // println!("yaml output:\n{}", out_str);
-
-    // Ok(Config { sizex, sizey })
-    // Err(anyhow!("aosit"))
+    log::warn!("Some info");
+    let config = match load_user_config_to_yaml() {
+        Ok(yaml) => base_config.update_from_yaml(yaml),
+        _ => base_config,
+    };
+    #[cfg(debug_assertions)]
+    let config = match load_dev_config_to_yaml() {
+        Ok(yaml) => config.update_from_yaml(yaml),
+        _ => config,
+    };
+    Ok(config)
 }
 
 #[cfg(test)]
@@ -93,7 +81,7 @@ mod tests {
     #[ignore]
     fn write_baseconfig() {
         let baseconfig = Config {
-            window: Window {
+            window: WindowConfig {
                 width: 1920,
                 height: 1080,
             },

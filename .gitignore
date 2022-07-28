@@ -1,4 +1,4 @@
 /target
 /pkg
-/res/config.yml
+config.yml
 Cargo.lock

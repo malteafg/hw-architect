@@ -22,6 +22,7 @@ pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
     cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
             let url = format_url(file_name);
+            // dbg!(url.clone());
             let txt = reqwest::get(url)
                 .await?
                 .text()

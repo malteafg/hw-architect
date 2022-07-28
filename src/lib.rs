@@ -654,6 +654,7 @@ pub async fn run() {
 
     // load configuration
     let config = configuration::load_config().await.unwrap();
+    log::warn!("Pogaoisremsstsatrrd");
 
     // create event_loop and window
     let event_loop = EventLoop::new();
@@ -665,7 +666,7 @@ pub async fn run() {
     {
         // Winit prevents sizing with CSS, so we have to set
         // the size manually when on web.
-        window.set_inner_size(PhysicalSize::new(1600, 900));
+        window.set_inner_size(PhysicalSize::new(config.window.width, config.window.height));
 
         use winit::platform::web::WindowExtWebSys;
         web_sys::window()
