@@ -14,7 +14,7 @@ Secondary goals:
 Use ```cargo build``` to (re)compile the code. To run hw-architect use ```cargo run```, which will also (re)compile the code. Install hw-architect locally using ```cargo install --path .```.
 
 ### web (wasm)
-Install [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/). Use ```wasm-pack build --release --target web --dev``` to compile the code to wasm. In the root of the repo use ```python3 -m http.server``` and navigate to localhost:8000 in a browser.
+Install [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/). Use ```wasm-pack build app/ --out-dir ../pkg --target web --dev``` to compile the code to wasm. In the root of the repo use ```python3 -m http.server``` and navigate to localhost:8000 in a browser.
 
 
 ## dependencies

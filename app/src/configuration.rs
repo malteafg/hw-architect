@@ -17,47 +17,51 @@ pub struct Config {
 }
 
 impl Config {
-    fn update_from_yaml(self: Self, yaml: Vec<Yaml>) -> Config {
-        let doc = &yaml[0]; // Multi document support, doc is a yaml::Yaml
-
-        let width = doc["window"]["width"]
+    fn update_from_yaml(self: Self, yaml: Yaml) -> Config {
+        let width = yaml["window"]["width"]
             .as_i64()
             .unwrap_or(self.window.width as i64) as i32;
-        let height = doc["window"]["height"]
+        let height = yaml["window"]["height"]
             .as_i64()
             .unwrap_or(self.window.height as i64) as i32;
 
         let window = WindowConfig { width, height };
 
-        log::warn!("Some info");
         Config { window }
     }
 }
 
-fn load_user_config_to_yaml() -> anyhow::Result<Vec<Yaml>> {
+fn load_user_config_to_yaml() -> anyhow::Result<Yaml> {
     ProjectDirs::from("com", "simaflux", "hw-architect")
         .and_then(|proj_dirs| {
             let config_dir = proj_dirs.config_dir();
             let config_file = fs::read_to_string(config_dir.join("config.yml")).ok()?;
             dbg!(config_dir);
             let docs = YamlLoader::load_from_str(&config_file).ok()?;
-            Some(docs)
+            if docs.len() < 1 {
+                None
+            } else {
+                Some(docs[0].clone())
+            }
         })
         .ok_or(anyhow!("failed to update with user config"))
 }
 
 #[cfg(debug_assertions)]
-fn load_dev_config_to_yaml() -> anyhow::Result<Vec<Yaml>> {
+fn load_dev_config_to_yaml() -> anyhow::Result<Yaml> {
     let config_file = fs::read_to_string("config.yml")?;
     let docs = YamlLoader::load_from_str(&config_file)?;
-    Ok(docs)
+    if docs.len() < 1 {
+        Err(anyhow!("no contents in dev config"))
+    } else {
+        Ok(docs[0].clone())
+    }
 }
 
 pub async fn load_config() -> anyhow::Result<Config> {
     let file = resources::load_string("baseconfig.yml").await?;
     let base_config: Config = serde_yaml::from_str(&file)?;
 
-    log::warn!("Some info");
     let config = match load_user_config_to_yaml() {
         Ok(yaml) => base_config.update_from_yaml(yaml),
         _ => base_config,

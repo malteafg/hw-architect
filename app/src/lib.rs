@@ -654,7 +654,6 @@ pub async fn run() {
 
     // load configuration
     let config = configuration::load_config().await.unwrap();
-    log::warn!("Pogaoisremsstsatrrd");
 
     // create event_loop and window
     let event_loop = EventLoop::new();
