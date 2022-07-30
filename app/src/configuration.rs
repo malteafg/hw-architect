@@ -1,6 +1,6 @@
-use crate::resources;
 use anyhow::anyhow;
 use directories::ProjectDirs;
+use graphics::resources;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use yaml_rust::{Yaml, YamlLoader};

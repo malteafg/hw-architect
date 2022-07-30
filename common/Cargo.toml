@@ -1,5 +1,5 @@
 [package]
-name = "hw-architect"
+name = "common"
 version = "0.1.0"
 edition = "2021"
 
@@ -26,8 +26,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.8"
 instant = "0.1"
 directories = "4.0"
-graphics = { path = "../graphics"  }
-common = { path = "../common"}
 # Specific for web assembly
 cfg-if = "1"
 

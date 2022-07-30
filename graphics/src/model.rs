@@ -1,7 +1,6 @@
 use crate::texture;
 use std::ops::Range;
 
-// model.rs
 pub trait Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
 }

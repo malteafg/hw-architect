@@ -1,6 +1,7 @@
 [workspace]
 members = [
-"app"
+"app",
+"graphics"
 ]
 default-members = [
 "app"
