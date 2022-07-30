@@ -36,7 +36,6 @@ fn load_user_config_to_yaml() -> anyhow::Result<Yaml> {
         .and_then(|proj_dirs| {
             let config_dir = proj_dirs.config_dir();
             let config_file = fs::read_to_string(config_dir.join("config.yml")).ok()?;
-            dbg!(config_dir);
             let docs = YamlLoader::load_from_str(&config_file).ok()?;
             if docs.len() < 1 {
                 None
