@@ -1,65 +1,9 @@
 use std::io::{BufReader, Cursor};
 
-use cfg_if::cfg_if;
 use wgpu::util::DeviceExt;
 
 use crate::{model, texture};
-
-#[cfg(target_arch = "wasm32")]
-fn format_url(file_name: &str) -> reqwest::Url {
-    let window = web_sys::window().unwrap();
-    let location = window.location();
-    let base = reqwest::Url::parse(&format!(
-        "{}/{}/",
-        location.origin().unwrap(),
-        option_env!("RES_PATH").unwrap_or("app/res"),
-    ))
-    .unwrap();
-    base.join(file_name).unwrap()
-}
-
-pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
-    cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
-            let url = format_url(file_name);
-            // dbg!(url.clone());
-            let txt = reqwest::get(url)
-                .await?
-                .text()
-                .await?;
-        } else {
-            // let path = std::path::Path::new(env!("OUT_DIR"))
-            //     .join("res")
-            //     .join(file_name);
-            // println!("{}", path.clone().into_os_string().into_string().unwrap());
-            let path = std::path::Path::new("res").join(file_name);
-            let txt = std::fs::read_to_string(path)?;
-        }
-    }
-
-    Ok(txt)
-}
-
-pub async fn load_binary(file_name: &str) -> anyhow::Result<Vec<u8>> {
-    cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
-            let url = format_url(file_name);
-            let data = reqwest::get(url)
-                .await?
-                .bytes()
-                .await?
-                .to_vec();
-        } else {
-            // let path = std::path::Path::new(env!("OUT_DIR"))
-            //     .join("res")
-            //     .join(file_name);
-            let path = std::path::Path::new("res").join(file_name);
-            let data = std::fs::read(path)?;
-        }
-    }
-
-    Ok(data)
-}
+use common::loader;
 
 pub async fn load_texture(
     file_name: &str,
@@ -67,7 +11,7 @@ pub async fn load_texture(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
 ) -> anyhow::Result<texture::Texture> {
-    let data = load_binary(file_name).await?;
+    let data = loader::load_binary(file_name).await?;
     texture::Texture::from_bytes(device, queue, &data, file_name, is_normal_map)
 }
 
@@ -77,7 +21,7 @@ pub async fn load_model(
     queue: &wgpu::Queue,
     layout: &wgpu::BindGroupLayout,
 ) -> anyhow::Result<model::Model> {
-    let obj_text = load_string(file_name).await?;
+    let obj_text = loader::load_string(file_name).await?;
     let obj_cursor = Cursor::new(obj_text);
     let mut obj_reader = BufReader::new(obj_cursor);
 
@@ -89,7 +33,7 @@ pub async fn load_model(
             ..Default::default()
         },
         |p| async move {
-            let mat_text = load_string(&p).await.unwrap();
+            let mat_text = loader::load_string(&p).await.unwrap();
             tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mat_text)))
         },
     )
@@ -132,7 +76,6 @@ pub async fn load_model(
                 .collect::<Vec<_>>();
 
             let indices = &m.mesh.indices;
-            dbg!(indices);
             let mut triangles_included = vec![0; vertices.len()];
 
             // Calculate tangents and bitangets. We're going to

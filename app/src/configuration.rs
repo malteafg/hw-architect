@@ -1,6 +1,6 @@
 use anyhow::anyhow;
+use common::loader;
 use directories::ProjectDirs;
-use graphics::resources;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use yaml_rust::{Yaml, YamlLoader};
@@ -58,7 +58,7 @@ fn load_dev_config_to_yaml() -> anyhow::Result<Yaml> {
 }
 
 pub async fn load_config() -> anyhow::Result<Config> {
-    let file = resources::load_string("baseconfig.yml").await?;
+    let file = loader::load_string("baseconfig.yml").await?;
     let base_config: Config = serde_yaml::from_str(&file)?;
 
     let config = match load_user_config_to_yaml() {
