@@ -267,6 +267,7 @@ pub struct CameraController {
     progress: f32,
     progression_speed: f32,
     progression_function: fn(f32) -> f32,
+    move_init: bool,
 }
 
 impl CameraController {
@@ -283,6 +284,7 @@ impl CameraController {
             progress: 0.0,
             progression_speed: 0.0,
             progression_function: CameraController::smooth_move,
+            move_init: false,
         }
     }
 
@@ -312,6 +314,7 @@ impl CameraController {
         self.next_dist = restrainf(d, MIN_CAMERA_DIST, MAX_CAMERA_DIST);
         self.progression_speed = speed;
         self.progression_function = func;
+        self.move_init = true;
     }
 
     fn stop_move_progression(&mut self) {
@@ -319,11 +322,8 @@ impl CameraController {
         self.progress = 0.0;
     }
 
-    pub fn process_keyboard(&mut self, key: VirtualKeyCode, state: ElementState) -> bool {
+    pub fn process_keyboard(&mut self, _modifiers: crate::input::Modifiers, key: VirtualKeyCode, state: ElementState) -> bool {
         let pressed = state == ElementState::Pressed;
-
-        
-
         let key_matched = match key {
             VirtualKeyCode::W | VirtualKeyCode::Up => {
                 self.input[0] = pressed;
@@ -350,7 +350,7 @@ impl CameraController {
                 true
             }
             VirtualKeyCode::Space => {
-                self.move_camera(Vector3::new(0.0, 0.0, 0.0), Rad(PI / 4.0), Rad(1.0), 100.0, 0.6, CameraController::polynomial_move);
+                self.move_camera(Vector3::new(0.0, 0.0, 0.0), Rad(PI / 4.0), Rad(1.0), 100.0, 1.0, CameraController::polynomial_move);
                 false
             }
             _ => false,
@@ -392,16 +392,22 @@ impl CameraController {
     }
 
     fn update_progress(&mut self, camera: &mut Camera, dt: f32) {
+
+        if self.move_init {
+            self.move_init = false;
+            self.progression_speed *=  36.0 / (300.0 + camera.target.distance(self.next_target) + (camera.dist_to_target - self.next_dist).abs()).sqrt();
+
+            let yaw_diff = (self.next_yaw.0 - camera.yaw.0).abs();
+            if yaw_diff.abs() >= PI {            
+                camera.yaw = camera.yaw.normalize();
+                let dir = if camera.yaw > self.next_yaw {-1.0} else {1.0};
+                camera.yaw += if (self.next_yaw.0 - camera.yaw.0).abs() > PI {Rad(dir * PI)} else {Rad(0.0)};
+            }
+        }
+
         let old_progress = (self.progression_function)(self.progress);
         self.progress = f32::min(self.progress + self.progression_speed * dt, 1.0);
         let new_progress    = (self.progression_function)(self.progress);
-
-        let yaw_diff = (self.next_yaw.0 - camera.yaw.0).abs();
-        if yaw_diff.abs() >= PI {            
-            camera.yaw = camera.yaw.normalize();
-            let dir = if camera.yaw > self.next_yaw {-1.0} else {1.0};
-            camera.yaw += if (self.next_yaw.0 - camera.yaw.0).abs() > PI {Rad(dir * PI)} else {Rad(0.0)};
-        }
 
         camera.pitch = Rad(interpolate(old_progress, new_progress, camera.pitch.0, self.next_pitch.0));
         camera.yaw = Rad(interpolate(old_progress, new_progress, camera.yaw.0, self.next_yaw.0));

@@ -17,6 +17,7 @@ struct State {
     camera: camera::Camera,
     camera_controller: camera::CameraController,
     mouse_pressed: bool,
+    modifiers: common::input::Modifiers,
 }
 
 impl State {
@@ -31,11 +32,24 @@ impl State {
             camera,
             camera_controller,
             mouse_pressed: false,
+            modifiers: common::input::Modifiers{
+                ctrl: false,
+                alt: false,
+                shift: false,
+            },
         }
     }
 
     fn input(&mut self, event: &WindowEvent) -> bool {
         match event {
+            WindowEvent::ModifiersChanged (m) => {
+                self.modifiers = common::input::Modifiers{
+                    ctrl: m.ctrl(),
+                    alt: m.alt(),
+                    shift: m.shift(),
+                };
+                true
+            },
             WindowEvent::KeyboardInput {
                 input:
                     KeyboardInput {
@@ -44,7 +58,7 @@ impl State {
                         ..
                     },
                 ..
-            } => self.camera_controller.process_keyboard(*key, *state),
+            } => self.camera_controller.process_keyboard(self.modifiers, *key, *state),
             WindowEvent::MouseWheel { delta, .. } => {
                 self.camera_controller.process_scroll(delta);
                 true
