@@ -6,6 +6,8 @@ use winit::{dpi::PhysicalSize, window::Window};
 
 use common::camera;
 
+use crate::{model, resources, terrain, texture};
+
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     1.0, 0.0, 0.0, 0.0,
@@ -14,7 +16,7 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     0.0, 0.0, 0.5, 1.0,
 );
 
-// We need this for Rust to store our data correctly for the shaders
+// We need this for Rust to store our data correlctly for the shaders
 #[repr(C)]
 // This is so we can store this in a buffer
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -149,6 +151,8 @@ pub struct GfxState {
     light_buffer: wgpu::Buffer,
     light_bind_group: wgpu::BindGroup,
     light_render_pipeline: wgpu::RenderPipeline,
+    terrain_mesh: terrain::TerrainMesh,
+    terrain_render_pipeline: wgpu::RenderPipeline,
 }
 
 fn create_render_pipeline(
@@ -158,11 +162,12 @@ fn create_render_pipeline(
     depth_format: Option<wgpu::TextureFormat>,
     vertex_layouts: &[wgpu::VertexBufferLayout],
     shader: wgpu::ShaderModuleDescriptor,
+    name: &str,
 ) -> wgpu::RenderPipeline {
     let shader = device.create_shader_module(shader);
 
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("Render Pipeline"),
+        label: Some(&name),
         layout: Some(layout),
         vertex: wgpu::VertexState {
             module: &shader,
@@ -299,7 +304,7 @@ impl GfxState {
             });
 
         let projection =
-            camera::Projection::new(size.width, size.height, cgmath::Deg(45.0), 0.1, 100.0);
+            camera::Projection::new(size.width, size.height, cgmath::Deg(45.0), 0.1, 1000.0);
         let camera_uniform = CameraUniform::new();
         // camera_uniform.update_view_proj(&camera, &projection);
 
@@ -364,10 +369,10 @@ impl GfxState {
         });
 
         let depth_texture =
-            super::texture::Texture::create_depth_texture(&device, &config, "depth_texture");
+            texture::Texture::create_depth_texture(&device, &config, "depth_texture");
 
         let obj_model =
-            super::resources::load_model("cube.obj", &device, &queue, &texture_bind_group_layout)
+            resources::load_model("cube.obj", &device, &queue, &texture_bind_group_layout)
                 .await
                 .unwrap();
 
@@ -408,8 +413,8 @@ impl GfxState {
             label: None,
         });
 
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        let render_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[
                     &texture_bind_group_layout,
@@ -419,18 +424,18 @@ impl GfxState {
                 push_constant_ranges: &[],
             });
 
-        let render_pipeline = {
             let shader = wgpu::ShaderModuleDescriptor {
                 label: Some("Normal Shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
             };
             create_render_pipeline(
                 &device,
-                &render_pipeline_layout,
+                &layout,
                 config.format,
-                Some(super::texture::Texture::DEPTH_FORMAT),
-                &[super::model::ModelVertex::desc(), InstanceRaw::desc()],
+                Some(texture::Texture::DEPTH_FORMAT),
+                &[model::ModelVertex::desc(), InstanceRaw::desc()],
                 shader,
+                "Render Pipeline",
             )
         };
 
@@ -448,9 +453,32 @@ impl GfxState {
                 &device,
                 &layout,
                 config.format,
-                Some(super::texture::Texture::DEPTH_FORMAT),
-                &[super::model::ModelVertex::desc()],
+                Some(texture::Texture::DEPTH_FORMAT),
+                &[model::ModelVertex::desc()],
                 shader,
+                "Light Pipeline",
+            )
+        };
+
+        let terrain_mesh = terrain::TerrainMesh::new(&device);
+        let terrain_render_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Terrain Pipeline Layout"),
+                bind_group_layouts: &[&camera_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+            let shader = wgpu::ShaderModuleDescriptor {
+                label: Some("Terrain Shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("terrain.wgsl").into()),
+            };
+            create_render_pipeline(
+                &device,
+                &layout,
+                config.format,
+                Some(texture::Texture::DEPTH_FORMAT),
+                &[terrain::TerrainVertex::desc()],
+                shader,
+                "Terrain Pipeline",
             )
         };
 
@@ -473,6 +501,8 @@ impl GfxState {
             light_buffer,
             light_bind_group,
             light_render_pipeline,
+            terrain_mesh,
+            terrain_render_pipeline,
         }
     }
 
@@ -526,8 +556,16 @@ impl GfxState {
             //     0..self.instances.len() as u32,
             //     &self.camera_bind_group,
             // );
-            use super::model::{DrawLight, DrawModel};
-            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+            use model::{DrawLight, DrawModel};
+
+            render_pass.set_pipeline(&self.terrain_render_pipeline);
+            render_pass.set_vertex_buffer(0, self.terrain_mesh.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(
+                self.terrain_mesh.index_buffer.slice(..),
+                wgpu::IndexFormat::Uint32,
+            );
+            render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+            render_pass.draw_indexed(0..self.terrain_mesh.size as u32, 0, 0..1);
 
             render_pass.set_pipeline(&self.light_render_pipeline);
             render_pass.draw_light_model(
@@ -536,6 +574,7 @@ impl GfxState {
                 &self.light_bind_group,
             );
 
+            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.draw_model_instanced(
                 &self.obj_model,
@@ -561,11 +600,8 @@ impl GfxState {
             self.projection.resize(new_size.width, new_size.height);
         }
 
-        self.depth_texture = super::texture::Texture::create_depth_texture(
-            &self.device,
-            &self.config,
-            "depth_texture",
-        );
+        self.depth_texture =
+            texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
     }
 
     pub fn update(&mut self, dt: instant::Duration, camera: &camera::Camera) {
