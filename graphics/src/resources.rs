@@ -132,6 +132,7 @@ pub async fn load_model(
                 .collect::<Vec<_>>();
 
             let indices = &m.mesh.indices;
+            dbg!(indices);
             let mut triangles_included = vec![0; vertices.len()];
 
             // Calculate tangents and bitangets. We're going to
