@@ -350,7 +350,7 @@ impl CameraController {
                 true
             }
             VirtualKeyCode::Space => {
-                self.move_camera(Vector3::new(0.0, 0.0, 0.0), Rad(PI / 4.0), Rad(1.0), 100.0, 0.6, CameraController::momentum_move);
+                self.move_camera(Vector3::new(0.0, 0.0, 0.0), Rad(PI / 4.0), Rad(1.0), 100.0, 0.6, CameraController::polynomial_move);
                 false
             }
             _ => false,
