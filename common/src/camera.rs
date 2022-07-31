@@ -445,6 +445,10 @@ impl CameraController {
             camera.target = camera.target + (calc_direction_vector(camera.yaw.0 - FRAC_PI_2) * speed * (self.velocity[3] as f32))
         }
 
+        if camera.target.magnitude() > 500.0 {
+            camera.target = camera.target.normalize() * 500.0;
+        }
+
         if self.velocity[4] > 0 {
             camera.yaw = Rad(center(camera.yaw.0 + (self.velocity[4] as f32) * 5.0 * CAMERA_MOVE_SPEED * dt, PI));
         }
