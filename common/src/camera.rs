@@ -166,8 +166,8 @@ use winit::event::*;
 
 const MIN_CAMERA_PITCH: f32 = 0.15;
 const MAX_CAMERA_PITCH: f32 = 1.5;
-const MIN_CAMERA_DIST: f32 = 10.0;
-const MAX_CAMERA_DIST: f32 = 100.0;
+const MIN_CAMERA_DIST: f32 = 30.0;
+const MAX_CAMERA_DIST: f32 = 700.0;
 const MAX_CAMERA_SPEED: f32 = 10.0;
 const CAMERA_MOVE_SPEED: f32 = 0.05;
 const CAMERA_MOVE_SMOOTH_FACTOR: f32 = 10.0;
@@ -350,7 +350,7 @@ impl CameraController {
                 true
             }
             VirtualKeyCode::Space => {
-                self.move_camera(Vector3::new(0.0, 0.0, 0.0), Rad(PI / 4.0), Rad(1.0), 20.0, 0.6, CameraController::momentum_move);
+                self.move_camera(Vector3::new(0.0, 0.0, 0.0), Rad(PI / 4.0), Rad(1.0), 100.0, 0.6, CameraController::polynomial_move);
                 false
             }
             _ => false,
@@ -365,7 +365,7 @@ impl CameraController {
     }
 
     pub fn process_mouse(&mut self, mouse_dx: f64, mouse_dy: f64) {
-        self.delta_yaw += Rad(MOUSE_SENSITIVITY * mouse_dx as f32);
+        self.delta_yaw += Rad(-MOUSE_SENSITIVITY * mouse_dx as f32);
         self.delta_pitch += Rad(MOUSE_SENSITIVITY * mouse_dy as f32);
         self.stop_move_progression();
     }
@@ -377,7 +377,7 @@ impl CameraController {
             MouseScrollDelta::PixelDelta(PhysicalPosition { y: scroll, .. }) => -*scroll as f32,
         };
 
-        self.velocity[7] -= (2.0 * scroll) as i32;
+        self.velocity[7] += (2.0 * scroll) as i32;
         self.stop_move_progression();
     }
 
