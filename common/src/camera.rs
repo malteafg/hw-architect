@@ -301,7 +301,8 @@ impl CameraController {
     }
 
     pub fn momentum_move(f: f32) -> f32 {
-        15.0 * f.powi(3) - 25.0 * f.powi(4) + 11.0 * f.powi(5)
+        let a = 5.2; //6 is extremely cartoony, 5.2 is balanced
+        a*f.powi(3) + 60.0 * f.powi(4) + (-3.0 * a - 184.0)*f.powi(5) + (2.0 * a + 195.0)*f.powi(6) - 70.0 * f.powi(7)
     }
 
     pub fn move_camera(&mut self, target: Vector3<f32>, p: Rad<f32>, y: Rad<f32>, d: f32, speed: f32, func: fn(f32) -> f32) {
@@ -349,7 +350,7 @@ impl CameraController {
                 true
             }
             VirtualKeyCode::Space => {
-                self.move_camera(Vector3::new(0.0, 0.0, 0.0), Rad(PI / 4.0), Rad(1.0), 20.0, 1.2, CameraController::polynomial_move);
+                self.move_camera(Vector3::new(0.0, 0.0, 0.0), Rad(PI / 4.0), Rad(1.0), 20.0, 0.6, CameraController::momentum_move);
                 false
             }
             _ => false,
