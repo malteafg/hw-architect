@@ -1,4 +1,4 @@
-use cgmath::prelude::*;
+use cgmath::*;
 use wgpu::util::DeviceExt;
 
 use super::model::Vertex;
@@ -34,7 +34,7 @@ impl CameraUniform {
     }
 
     fn update_view_proj(&mut self, camera: &camera::Camera, projection: &camera::Projection) {
-        self.view_position = camera.position.to_homogeneous().into();
+        self.view_position = camera.calc_pos().to_homogeneous().into();
         self.view_proj = (projection.calc_matrix() * camera.calc_matrix()).into();
     }
 }

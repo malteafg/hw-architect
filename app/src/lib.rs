@@ -23,8 +23,8 @@ impl State {
     async fn new(window: &Window) -> Self {
         let gfx = GfxState::new(&window).await;
 
-        let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
-        let camera_controller = camera::CameraController::new(4.0, 0.4);
+        let camera = camera::Camera::new((0.0, 0.0, 0.0), cgmath::Deg(0.0), cgmath::Deg(30.0), 20.0);
+        let camera_controller = camera::CameraController::new();
 
         Self {
             gfx,
