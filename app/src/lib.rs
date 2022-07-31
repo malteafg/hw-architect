@@ -114,7 +114,7 @@ pub async fn run() {
         match event {
             Event::MainEventsCleared => window.request_redraw(),
             Event::DeviceEvent {
-                event: DeviceEvent::MouseMotion{ delta, },
+                event: DeviceEvent::MouseMotion{ delta,  },
                 .. // We're not using device_id currently
             } => if state.mouse_pressed {
                 state.camera_controller.process_mouse(delta.0, delta.1)
