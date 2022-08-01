@@ -21,11 +21,12 @@ cgmath = "0.18"
 tobj = { version = "3.2.1", features = [
   "async",
 ]}
-yaml-rust = "0.4"
-serde = { version = "1.0", features = ["derive"] }
-serde_yaml = "0.8"
 instant = "0.1"
 directories = "4.0"
+strum = "0.13.0"
+strum_macros = "0.13.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.8"
 # Specific for web assembly
 cfg-if = "1"
 

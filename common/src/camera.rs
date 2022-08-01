@@ -1,3 +1,4 @@
+use crate::input::{Action, KeyAction};
 use cgmath::*;
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::time::Duration;
@@ -124,45 +125,43 @@ use winit::event::*;
 // };
 
 /*
-     // Move forward/backward and left/right
-        let (yaw_sin, yaw_cos) = camera.yaw.0.sin_cos();
-        let forward = Vector3::new(yaw_cos, 0.0, yaw_sin).normalize();
-        let right = Vector3::new(-yaw_sin, 0.0, yaw_cos).normalize();
-        camera.target += forward * (self.amount_forward - self.amount_backward) * self.speed * dt;
-        camera.target += right * (self.amount_right - self.amount_left) * self.speed * dt;
+// Move forward/backward and left/right
+   let (yaw_sin, yaw_cos) = camera.yaw.0.sin_cos();
+   let forward = Vector3::new(yaw_cos, 0.0, yaw_sin).normalize();
+   let right = Vector3::new(-yaw_sin, 0.0, yaw_cos).normalize();
+   camera.target += forward * (self.amount_forward - self.amount_backward) * self.speed * dt;
+   camera.target += right * (self.amount_right - self.amount_left) * self.speed * dt;
 
-        // Move in/out (aka. "zoom")
-        // Note: this isn't an actual zoom. The camera's position
-        // changes when zooming. I've added this to make it easier
-        // to get closer to an object you want to focus on.
-        let (pitch_sin, pitch_cos) = camera.pitch.0.sin_cos();
-        let scrollward =
-            Vector3::new(pitch_cos * yaw_cos, pitch_sin, pitch_cos * yaw_sin).normalize();
-        camera.target += scrollward * self.scroll * self.speed * self.sensitivity * dt;
-        self.scroll = 0.0;
+   // Move in/out (aka. "zoom")
+   // Note: this isn't an actual zoom. The camera's position
+   // changes when zooming. I've added this to make it easier
+   // to get closer to an object you want to focus on.
+   let (pitch_sin, pitch_cos) = camera.pitch.0.sin_cos();
+   let scrollward =
+       Vector3::new(pitch_cos * yaw_cos, pitch_sin, pitch_cos * yaw_sin).normalize();
+   camera.target += scrollward * self.scroll * self.speed * self.sensitivity * dt;
+   self.scroll = 0.0;
 
-        // Move up/down. Since we don't use roll, we can just
-        // modify the y coordinate directly.
-        camera.target.y += (self.amount_up - self.amount_down) * self.speed * dt;
+   // Move up/down. Since we don't use roll, we can just
+   // modify the y coordinate directly.
+   camera.target.y += (self.amount_up - self.amount_down) * self.speed * dt;
 
-        // Rotate
-        camera.yaw += Rad(self.rotate_horizontal) * self.sensitivity * dt;
-        camera.pitch += Rad(-self.rotate_vertical) * self.sensitivity * dt;
+   // Rotate
+   camera.yaw += Rad(self.rotate_horizontal) * self.sensitivity * dt;
+   camera.pitch += Rad(-self.rotate_vertical) * self.sensitivity * dt;
 
-        // If process_mouse isn't called every frame, these values
-        // will not get set to zero, and the camera will rotate
-        // when moving in a non cardinal direction.
-        self.rotate_horizontal = 0.0;
-        self.rotate_vertical = 0.0;
+   // If process_mouse isn't called every frame, these values
+   // will not get set to zero, and the camera will rotate
+   // when moving in a non cardinal direction.
+   self.rotate_horizontal = 0.0;
+   self.rotate_vertical = 0.0;
 
-        // Keep the camera's angle from going too high/low.
-        if camera.pitch < -Rad(SAFE_FRAC_PI_2) {
-            camera.pitch = -Rad(SAFE_FRAC_PI_2);
-        } else if camera.pitch > Rad(SAFE_FRAC_PI_2) {
-            camera.pitch = Rad(SAFE_FRAC_PI_2);
-        } */
-
-
+   // Keep the camera's angle from going too high/low.
+   if camera.pitch < -Rad(SAFE_FRAC_PI_2) {
+       camera.pitch = -Rad(SAFE_FRAC_PI_2);
+   } else if camera.pitch > Rad(SAFE_FRAC_PI_2) {
+       camera.pitch = Rad(SAFE_FRAC_PI_2);
+   } */
 
 const MIN_CAMERA_PITCH: f32 = 0.15;
 const MAX_CAMERA_PITCH: f32 = 1.5;
@@ -212,8 +211,12 @@ impl Camera {
         let (sin_pitch, cos_pitch) = self.pitch.0.sin_cos();
         let (sin_yaw, cos_yaw) = self.yaw.0.sin_cos();
 
-        EuclideanSpace::from_vec(self.target + (Vector3::new(-cos_yaw, 0.0, -sin_yaw) * cos_pitch + 
-                       Vector3::new(0.0, sin_pitch, 0.0)) * self.dist_to_target)
+        EuclideanSpace::from_vec(
+            self.target
+                + (Vector3::new(-cos_yaw, 0.0, -sin_yaw) * cos_pitch
+                    + Vector3::new(0.0, sin_pitch, 0.0))
+                    * self.dist_to_target,
+        )
     }
 
     pub fn calc_matrix(&self) -> Matrix4<f32> {
@@ -293,9 +296,12 @@ impl CameraController {
     }
 
     pub fn smooth_move(f: f32) -> f32 {
-        (CAMERA_MOVE_SMOOTH_FACTOR + 1.0) / 2.0 * (2.0 * f - 1.0) / 
-        f32::sqrt(CAMERA_MOVE_SMOOTH_FACTOR.powi(2) * ((2.0 * f - 1.0).powi(2) - 1.0) + (CAMERA_MOVE_SMOOTH_FACTOR + 1.0).powi(2)) + 
-        0.5
+        (CAMERA_MOVE_SMOOTH_FACTOR + 1.0) / 2.0 * (2.0 * f - 1.0)
+            / f32::sqrt(
+                CAMERA_MOVE_SMOOTH_FACTOR.powi(2) * ((2.0 * f - 1.0).powi(2) - 1.0)
+                    + (CAMERA_MOVE_SMOOTH_FACTOR + 1.0).powi(2),
+            )
+            + 0.5
     }
 
     pub fn polynomial_move(f: f32) -> f32 {
@@ -304,10 +310,22 @@ impl CameraController {
 
     pub fn momentum_move(f: f32) -> f32 {
         let a = 5.2; //6 is extremely cartoony, 5.2 is balanced
-        a*f.powi(3) + 60.0 * f.powi(4) + (-3.0 * a - 184.0)*f.powi(5) + (2.0 * a + 195.0)*f.powi(6) - 70.0 * f.powi(7)
+        a * f.powi(3)
+            + 60.0 * f.powi(4)
+            + (-3.0 * a - 184.0) * f.powi(5)
+            + (2.0 * a + 195.0) * f.powi(6)
+            - 70.0 * f.powi(7)
     }
 
-    pub fn move_camera(&mut self, target: Vector3<f32>, p: Rad<f32>, y: Rad<f32>, d: f32, speed: f32, func: fn(f32) -> f32) {
+    pub fn move_camera(
+        &mut self,
+        target: Vector3<f32>,
+        p: Rad<f32>,
+        y: Rad<f32>,
+        d: f32,
+        speed: f32,
+        func: fn(f32) -> f32,
+    ) {
         self.next_target = target;
         self.next_pitch = Rad(restrainf(p.0, MIN_CAMERA_PITCH, MAX_CAMERA_PITCH));
         self.next_yaw = y.normalize();
@@ -322,46 +340,51 @@ impl CameraController {
         self.progress = 0.0;
     }
 
-    pub fn process_keyboard(&mut self, _modifiers: crate::input::Modifiers, key: VirtualKeyCode, state: ElementState) -> bool {
-        let pressed = state == ElementState::Pressed;
-        let key_matched = match key {
-            VirtualKeyCode::W | VirtualKeyCode::Up => {
+    pub fn process_keyboard(&mut self, key: KeyAction) -> bool {
+        match key {
+            (Action::CameraUp, pressed) => {
                 self.input[0] = pressed;
                 true
             }
-            VirtualKeyCode::S | VirtualKeyCode::Down => {
+            (Action::CameraDown, pressed) => {
                 self.input[1] = pressed;
                 true
             }
-            VirtualKeyCode::A | VirtualKeyCode::Left => {
+            (Action::CameraLeft, pressed) => {
                 self.input[2] = pressed;
                 true
             }
-            VirtualKeyCode::D | VirtualKeyCode::Right => {
+            (Action::CameraRight, pressed) => {
                 self.input[3] = pressed;
                 true
             }
-            VirtualKeyCode::Q => {
+            (Action::CameraRotateLeft, pressed) => {
                 self.input[4] = pressed;
                 true
             }
-            VirtualKeyCode::E => {
+            (Action::CameraRotateRight, pressed) => {
                 self.input[5] = pressed;
                 true
             }
-            VirtualKeyCode::Space => {
-                self.move_camera(Vector3::new(0.0, 0.0, 0.0), Rad(PI / 4.0), Rad(1.0), 100.0, 1.0, CameraController::polynomial_move);
-                false
-            }
-            _ => false,
-        };
-
-
-        if pressed && key_matched {
-            self.stop_move_progression();
+            // VirtualKeyCode::Space => {
+            //     self.move_camera(
+            //         Vector3::new(0.0, 0.0, 0.0),
+            //         Rad(PI / 4.0),
+            //         Rad(1.0),
+            //         100.0,
+            //         1.0,
+            //         CameraController::polynomial_move,
+            //     );
+            //     false
+            // }
+            // _ => false,
         }
 
-        key_matched
+        // if pressed && key_matched {
+        //     self.stop_move_progression();
+        // }
+
+        // key_matched
     }
 
     pub fn process_mouse(&mut self, mouse_dx: f64, mouse_dy: f64) {
@@ -388,31 +411,58 @@ impl CameraController {
             self.update_progress(camera, dt)
         } else {
             self.update_manuel(camera, dt)
-        }   
+        }
     }
 
     fn update_progress(&mut self, camera: &mut Camera, dt: f32) {
-
         if self.move_init {
             self.move_init = false;
-            self.progression_speed *=  36.0 / (300.0 + camera.target.distance(self.next_target) + (camera.dist_to_target - self.next_dist).abs()).sqrt();
+            self.progression_speed *= 36.0
+                / (300.0
+                    + camera.target.distance(self.next_target)
+                    + (camera.dist_to_target - self.next_dist).abs())
+                .sqrt();
 
             let yaw_diff = (self.next_yaw.0 - camera.yaw.0).abs();
-            if yaw_diff.abs() >= PI {            
+            if yaw_diff.abs() >= PI {
                 camera.yaw = camera.yaw.normalize();
-                let dir = if camera.yaw > self.next_yaw {-1.0} else {1.0};
-                camera.yaw += if (self.next_yaw.0 - camera.yaw.0).abs() > PI {Rad(dir * PI)} else {Rad(0.0)};
+                let dir = if camera.yaw > self.next_yaw {
+                    -1.0
+                } else {
+                    1.0
+                };
+                camera.yaw += if (self.next_yaw.0 - camera.yaw.0).abs() > PI {
+                    Rad(dir * PI)
+                } else {
+                    Rad(0.0)
+                };
             }
         }
 
         let old_progress = (self.progression_function)(self.progress);
         self.progress = f32::min(self.progress + self.progression_speed * dt, 1.0);
-        let new_progress    = (self.progression_function)(self.progress);
+        let new_progress = (self.progression_function)(self.progress);
 
-        camera.pitch = Rad(interpolate(old_progress, new_progress, camera.pitch.0, self.next_pitch.0));
-        camera.yaw = Rad(interpolate(old_progress, new_progress, camera.yaw.0, self.next_yaw.0));
-        camera.dist_to_target = interpolate(old_progress, new_progress, camera.dist_to_target, self.next_dist);
-        camera.target = interpolate_vector(old_progress, new_progress, camera.target, self.next_target);
+        camera.pitch = Rad(interpolate(
+            old_progress,
+            new_progress,
+            camera.pitch.0,
+            self.next_pitch.0,
+        ));
+        camera.yaw = Rad(interpolate(
+            old_progress,
+            new_progress,
+            camera.yaw.0,
+            self.next_yaw.0,
+        ));
+        camera.dist_to_target = interpolate(
+            old_progress,
+            new_progress,
+            camera.dist_to_target,
+            self.next_dist,
+        );
+        camera.target =
+            interpolate_vector(old_progress, new_progress, camera.target, self.next_target);
 
         if self.progress >= 1.0 {
             self.stop_move_progression()
@@ -420,29 +470,44 @@ impl CameraController {
     }
 
     fn update_manuel(&mut self, camera: &mut Camera, dt: f32) {
-
         camera.yaw = Rad(center(camera.yaw.0 - self.delta_yaw.0, PI));
-        camera.pitch = Rad(restrainf(camera.pitch.0 + self.delta_pitch.0, MIN_CAMERA_PITCH, MAX_CAMERA_PITCH));
+        camera.pitch = Rad(restrainf(
+            camera.pitch.0 + self.delta_pitch.0,
+            MIN_CAMERA_PITCH,
+            MAX_CAMERA_PITCH,
+        ));
 
         self.delta_yaw = Rad(0.0);
         self.delta_pitch = Rad(0.0);
 
         for i in 0..NUM_OF_MOVE_BUTTONS as usize {
-            self.velocity[i] = restrain(self.velocity[i] + bool_to_int(self.input[i]), 0, MAX_CAMERA_SPEED as i32);
+            self.velocity[i] = restrain(
+                self.velocity[i] + bool_to_int(self.input[i]),
+                0,
+                MAX_CAMERA_SPEED as i32,
+            );
         }
 
         let speed = CAMERA_MOVE_SPEED * camera.dist_to_target * dt;
         if self.velocity[0] > 0 {
-            camera.target = camera.target + (calc_direction_vector(camera.yaw.0 + PI) * speed * (self.velocity[0] as f32))
+            camera.target = camera.target
+                + (calc_direction_vector(camera.yaw.0 + PI) * speed * (self.velocity[0] as f32))
         }
         if self.velocity[1] > 0 {
-            camera.target = camera.target + (calc_direction_vector(camera.yaw.0) * speed * (self.velocity[1] as f32))
+            camera.target = camera.target
+                + (calc_direction_vector(camera.yaw.0) * speed * (self.velocity[1] as f32))
         }
         if self.velocity[2] > 0 {
-            camera.target = camera.target + (calc_direction_vector(camera.yaw.0 + FRAC_PI_2) * speed * (self.velocity[2] as f32))
+            camera.target = camera.target
+                + (calc_direction_vector(camera.yaw.0 + FRAC_PI_2)
+                    * speed
+                    * (self.velocity[2] as f32))
         }
         if self.velocity[3] > 0 {
-            camera.target = camera.target + (calc_direction_vector(camera.yaw.0 - FRAC_PI_2) * speed * (self.velocity[3] as f32))
+            camera.target = camera.target
+                + (calc_direction_vector(camera.yaw.0 - FRAC_PI_2)
+                    * speed
+                    * (self.velocity[3] as f32))
         }
 
         if camera.target.magnitude() > 500.0 {
@@ -450,36 +515,66 @@ impl CameraController {
         }
 
         if self.velocity[4] > 0 {
-            camera.yaw = Rad(center(camera.yaw.0 + (self.velocity[4] as f32) * 5.0 * CAMERA_MOVE_SPEED * dt, PI));
+            camera.yaw = Rad(center(
+                camera.yaw.0 + (self.velocity[4] as f32) * 5.0 * CAMERA_MOVE_SPEED * dt,
+                PI,
+            ));
         }
         if self.velocity[5] > 0 {
-            camera.yaw = Rad(center(camera.yaw.0 - (self.velocity[5] as f32) * 5.0 * CAMERA_MOVE_SPEED * dt, PI));
+            camera.yaw = Rad(center(
+                camera.yaw.0 - (self.velocity[5] as f32) * 5.0 * CAMERA_MOVE_SPEED * dt,
+                PI,
+            ));
         }
-        
+
         if self.velocity[6] != 0 || self.velocity[7] != 0 {
-            self.velocity[6] += if self.velocity[7] > 0 || (self.velocity[7] == 0 && self.velocity[6] < 0) {1} else {-1};
+            self.velocity[6] +=
+                if self.velocity[7] > 0 || (self.velocity[7] == 0 && self.velocity[6] < 0) {
+                    1
+                } else {
+                    -1
+                };
             let dist = new_dist(camera.dist_to_target, conseq_sum(self.velocity[6]));
 
-            if self.velocity[6].abs() as f32 >= (self.velocity[7].abs() as f32).sqrt() || 
-              dist < MIN_CAMERA_DIST || dist > MAX_CAMERA_DIST {
+            if self.velocity[6].abs() as f32 >= (self.velocity[7].abs() as f32).sqrt()
+                || dist < MIN_CAMERA_DIST
+                || dist > MAX_CAMERA_DIST
+            {
                 self.velocity[7] = 0;
             }
-            camera.dist_to_target = restrainf(new_dist(camera.dist_to_target, self.velocity[6]), MIN_CAMERA_DIST, MAX_CAMERA_DIST);
+            camera.dist_to_target = restrainf(
+                new_dist(camera.dist_to_target, self.velocity[6]),
+                MIN_CAMERA_DIST,
+                MAX_CAMERA_DIST,
+            );
         }
-
     }
-
 }
 
 /// Interpolates between an intermidary vector and the target vector
 fn interpolate(old_progress: f32, new_progress: f32, old_value: f32, target_value: f32) -> f32 {
-    if old_progress == 1.0 {old_value} else
-    {target_value * new_progress + (old_value - target_value * old_progress) * ((1.0 - new_progress)/(1.0 - old_progress))}
+    if old_progress == 1.0 {
+        old_value
+    } else {
+        target_value * new_progress
+            + (old_value - target_value * old_progress)
+                * ((1.0 - new_progress) / (1.0 - old_progress))
+    }
 }
 
-fn interpolate_vector(old_progress: f32, new_progress: f32, old_vector: Vector3<f32>, target_vector: Vector3<f32>) -> Vector3<f32> {
-    if old_progress == 1.0 {old_vector} else
-    {target_vector * new_progress + (old_vector - target_vector * old_progress) * ((1.0 - new_progress)/(1.0 - old_progress))}
+fn interpolate_vector(
+    old_progress: f32,
+    new_progress: f32,
+    old_vector: Vector3<f32>,
+    target_vector: Vector3<f32>,
+) -> Vector3<f32> {
+    if old_progress == 1.0 {
+        old_vector
+    } else {
+        target_vector * new_progress
+            + (old_vector - target_vector * old_progress)
+                * ((1.0 - new_progress) / (1.0 - old_progress))
+    }
 }
 
 fn restrain(value: i32, min: i32, max: i32) -> i32 {
@@ -491,21 +586,33 @@ fn restrainf(value: f32, min: f32, max: f32) -> f32 {
 }
 
 fn bool_to_int(b: bool) -> i32 {
-    if b {1} else {-1}
+    if b {
+        1
+    } else {
+        -1
+    }
 }
 
 fn calc_direction_vector(angle: f32) -> Vector3<f32> {
     let (sin_yaw, cos_yaw) = angle.sin_cos();
-    Vector3::new(-cos_yaw, 0.0,  -sin_yaw)
+    Vector3::new(-cos_yaw, 0.0, -sin_yaw)
 }
 
 fn center(v: f32, r: f32) -> f32 {
     let f = v % (2.0 * r);
-    if f > r {f - 2.0 * r} else if f < -r {f + 2.0 * r} else {f}
+    if f > r {
+        f - 2.0 * r
+    } else if f < -r {
+        f + 2.0 * r
+    } else {
+        f
+    }
 }
 
 fn new_dist(dist: f32, velocity: i32) -> f32 {
     dist * f32::powf(1.03, velocity as f32)
 }
-    
-fn conseq_sum(value: i32) -> i32 {value * (value.abs() + 1) / 2}
+
+fn conseq_sum(value: i32) -> i32 {
+    value * (value.abs() + 1) / 2
+}

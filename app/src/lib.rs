@@ -9,7 +9,7 @@ use winit::{
 };
 
 mod configuration;
-use common::camera;
+use common::{camera, input};
 use graphics::graphics::*;
 
 struct State {
@@ -17,14 +17,14 @@ struct State {
     camera: camera::Camera,
     camera_controller: camera::CameraController,
     mouse_pressed: bool,
-    modifiers: common::input::Modifiers,
 }
 
 impl State {
     async fn new(window: &Window) -> Self {
         let gfx = GfxState::new(&window).await;
 
-        let camera = camera::Camera::new((0.0, 0.0, 0.0), cgmath::Deg(2.0), cgmath::Deg(30.0), 100.0);
+        let camera =
+            camera::Camera::new((0.0, 0.0, 0.0), cgmath::Deg(2.0), cgmath::Deg(30.0), 100.0);
         let camera_controller = camera::CameraController::new();
 
         Self {
@@ -32,46 +32,28 @@ impl State {
             camera,
             camera_controller,
             mouse_pressed: false,
-            modifiers: common::input::Modifiers{
-                ctrl: false,
-                alt: false,
-                shift: false,
-            },
         }
     }
 
-    fn input(&mut self, event: &WindowEvent) -> bool {
-        match event {
-            WindowEvent::ModifiersChanged (m) => {
-                self.modifiers = common::input::Modifiers{
-                    ctrl: m.ctrl(),
-                    alt: m.alt(),
-                    shift: m.shift(),
-                };
-                true
-            },
-            WindowEvent::KeyboardInput {
-                input:
-                    KeyboardInput {
-                        virtual_keycode: Some(key),
-                        state,
-                        ..
-                    },
-                ..
-            } => self.camera_controller.process_keyboard(self.modifiers, *key, *state),
-            WindowEvent::MouseWheel { delta, .. } => {
-                self.camera_controller.process_scroll(delta);
-                true
+    fn input(&mut self, event: &WindowEvent, action: input::KeyAction) -> bool {
+        if !self.camera_controller.process_keyboard(action) {
+            match event {
+                WindowEvent::MouseWheel { delta, .. } => {
+                    self.camera_controller.process_scroll(delta);
+                    true
+                }
+                WindowEvent::MouseInput {
+                    button: MouseButton::Left,
+                    state,
+                    ..
+                } => {
+                    self.mouse_pressed = *state == ElementState::Pressed;
+                    true
+                }
+                _ => false,
             }
-            WindowEvent::MouseInput {
-                button: MouseButton::Left,
-                state,
-                ..
-            } => {
-                self.mouse_pressed = *state == ElementState::Pressed;
-                true
-            }
-            _ => false,
+        } else {
+            true
         }
     }
 
@@ -95,6 +77,8 @@ pub async fn run() {
 
     // load configuration
     let config = configuration::load_config().await.unwrap();
+    let key_map = configuration::load_key_map(config.key_map).await.unwrap();
+    let mut input_handler = input::InputHandler::new(key_map);
 
     // create event_loop and window
     let event_loop = EventLoop::new();
@@ -136,7 +120,10 @@ pub async fn run() {
             Event::WindowEvent {
                 ref event,
                 window_id,
-            } if window_id == window.id() && !state.input(event) => {
+            } if window_id == window.id() && !(match input_handler.process_input(event) {
+                    Some(action) => state.input(event, action),
+                    None => false,
+                }) => {
                 match event {
                     #[cfg(not(target_arch="wasm32"))]
                     WindowEvent::CloseRequested

@@ -1,0 +1,13 @@
+---
+camera_left:
+  - a
+camera_right:
+  - d
+camera_up:
+  - w
+camera_down:
+  - s
+camera_rotate_left:
+  - q
+camera_rotate_right:
+  - e
