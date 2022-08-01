@@ -39,6 +39,18 @@ impl State {
 
     fn mouse_input(&mut self, event: input::MouseEvent) {
         self.camera_controller.process_mouse(event);
+
+        match event {
+            input::MouseEvent::Left { pos, .. } => {
+                let (ray, pos) = self.gfx.calc_ray(&self.camera, pos);
+
+                let ground_pos = pos + ray * ( - pos.z / ray.z);
+                dbg!(ground_pos);
+
+            }
+            _ => {}
+        }
+        
     }
 
     fn update(&mut self, dt: instant::Duration) {

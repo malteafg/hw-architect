@@ -1,3 +1,5 @@
+use std::ops::Neg;
+
 use cgmath::*;
 use wgpu::util::DeviceExt;
 
@@ -626,5 +628,13 @@ impl GfxState {
             0,
             bytemuck::cast_slice(&[self.light_uniform]),
         );
+    }
+
+    pub fn calc_ray(&self, camera: &camera::Camera, mouse_pos: common::input::MousePos) -> (Vector3<f32>, Point3<f32>) {
+        let screen_vec = Vector4::new(1.0 - 2.0 * mouse_pos.x as f32 / self.size.width as f32, 
+                                        2.0 * mouse_pos.y as f32 / self.size.height as f32 - 1.0, 1.0, 1.0);
+        let eye_vec = self.projection.calc_matrix().invert().expect("Unable to cast ray, projection") * screen_vec;
+        let full_vec = camera.calc_matrix().invert().expect("Unable to cast ray, view") * Vector4::new(eye_vec.x, eye_vec.y, -1.0, 0.0);
+        (Vector3::new(full_vec.x, full_vec.y, full_vec.z).normalize().neg(), camera.calc_pos())
     }
 }
