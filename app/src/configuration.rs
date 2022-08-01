@@ -66,7 +66,7 @@ impl Config {
 }
 
 pub async fn load_config() -> anyhow::Result<Config> {
-    let config_file = loader::load_string("config/config.yml").await?;
+    let config_file = loader::load_string("config/base_config.yml").await?;
     let base_config: Config = serde_yaml::from_str(&config_file)?;
 
     let config = match load_user_config_to_yaml("config.yml") {
@@ -154,7 +154,7 @@ mod tests {
         let baseconfigyaml = serde_yaml::to_string(&baseconfig).unwrap().to_lowercase();
         println!("{}", baseconfigyaml);
 
-        let mut file = File::create("../res/config/config.yml").unwrap();
+        let mut file = File::create("../res/config/base_config.yml").unwrap();
         file.write_all(&baseconfigyaml.as_bytes()).unwrap();
     }
 
