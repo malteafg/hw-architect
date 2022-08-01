@@ -1,4 +1,5 @@
 use crate::input::{Action, KeyAction, MouseEvent};
+use crate::math_utils::VecPoint;
 use cgmath::*;
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::time::Duration;
@@ -51,12 +52,11 @@ impl Camera {
         let (sin_pitch, cos_pitch) = self.pitch.0.sin_cos();
         let (sin_yaw, cos_yaw) = self.yaw.0.sin_cos();
 
-        EuclideanSpace::from_vec(
-            self.target
-                + (Vector3::new(-cos_yaw, 0.0, -sin_yaw) * cos_pitch
-                    + Vector3::new(0.0, sin_pitch, 0.0))
-                    * self.dist_to_target,
-        )
+        (self.target
+            + (Vector3::new(-cos_yaw, 0.0, -sin_yaw) * cos_pitch
+                + Vector3::new(0.0, sin_pitch, 0.0))
+                * self.dist_to_target)
+            .to_point3()
     }
 
     pub fn calc_matrix(&self) -> Matrix4<f32> {
