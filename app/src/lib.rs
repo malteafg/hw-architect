@@ -23,7 +23,7 @@ impl State {
         let gfx = GfxState::new(&window).await;
 
         let camera =
-            camera::Camera::new((0.0, 0.0, 0.0), cgmath::Deg(2.0), cgmath::Deg(30.0), 100.0);
+            camera::Camera::new((0.0, 0.0, 0.0), cgmath::Deg(2.0), cgmath::Deg(0.0), 100.0);
         let camera_controller = camera::CameraController::new();
 
         Self {
@@ -39,6 +39,18 @@ impl State {
 
     fn mouse_input(&mut self, event: input::MouseEvent) {
         self.camera_controller.process_mouse(event);
+
+        match event {
+            input::MouseEvent::Left { pos, .. } => {
+                let (ray, pos) = self.gfx.calc_ray(&self.camera, pos);
+
+                let ground_pos = pos + ray * ( - pos.y / ray.y);
+                dbg!(ground_pos);
+
+            }
+            _ => {}
+        }
+        
     }
 
     fn update(&mut self, dt: instant::Duration) {
