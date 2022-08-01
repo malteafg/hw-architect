@@ -44,13 +44,11 @@ impl State {
             input::MouseEvent::Left { pos, .. } => {
                 let (ray, pos) = self.gfx.calc_ray(&self.camera, pos);
 
-                let ground_pos = pos + ray * ( - pos.y / ray.y);
+                let ground_pos = pos + ray * (-pos.y / ray.y);
                 dbg!(ground_pos);
-
             }
             _ => {}
         }
-        
     }
 
     fn update(&mut self, dt: instant::Duration) {
@@ -87,6 +85,7 @@ pub async fn run() {
         // Winit prevents sizing with CSS, so we have to set
         // the size manually when on web.
         window.set_inner_size(PhysicalSize::new(config.window.width, config.window.height));
+        window.set_outer_position(PhysicalPosition::new(0, 0));
 
         use winit::platform::web::WindowExtWebSys;
         web_sys::window()
