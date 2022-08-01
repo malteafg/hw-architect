@@ -2,7 +2,7 @@
 use wasm_bindgen::prelude::*;
 
 use winit::{
-    dpi::PhysicalSize,
+    dpi::{PhysicalPosition, PhysicalSize},
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
@@ -79,13 +79,13 @@ pub async fn run() {
     let window = WindowBuilder::new().build(&event_loop).unwrap();
     window.set_title("Highway Architect");
     window.set_inner_size(PhysicalSize::new(config.window.width, config.window.height));
+    window.set_outer_position(PhysicalPosition::new(0, 0));
 
     #[cfg(target_arch = "wasm32")]
     {
         // Winit prevents sizing with CSS, so we have to set
         // the size manually when on web.
         window.set_inner_size(PhysicalSize::new(config.window.width, config.window.height));
-        window.set_outer_position(PhysicalPosition::new(0, 0));
 
         use winit::platform::web::WindowExtWebSys;
         web_sys::window()
