@@ -11,3 +11,5 @@ camera_rotate_left:
   - q
 camera_rotate_right:
   - l
+exit:
+  - esc

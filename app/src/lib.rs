@@ -16,7 +16,6 @@ struct State {
     gfx: GfxState,
     camera: camera::Camera,
     camera_controller: camera::CameraController,
-    mouse_pressed: bool,
 }
 
 impl State {
@@ -31,30 +30,15 @@ impl State {
             gfx,
             camera,
             camera_controller,
-            mouse_pressed: false,
         }
     }
 
-    fn input(&mut self, event: &WindowEvent, action: input::KeyAction) -> bool {
-        if !self.camera_controller.process_keyboard(action) {
-            match event {
-                WindowEvent::MouseWheel { delta, .. } => {
-                    self.camera_controller.process_scroll(delta);
-                    true
-                }
-                WindowEvent::MouseInput {
-                    button: MouseButton::Left,
-                    state,
-                    ..
-                } => {
-                    self.mouse_pressed = *state == ElementState::Pressed;
-                    true
-                }
-                _ => false,
-            }
-        } else {
-            true
-        }
+    fn key_input(&mut self, action: input::KeyAction) {
+        self.camera_controller.process_keyboard(action);
+    }
+
+    fn mouse_input(&mut self, event: input::MouseEvent) {
+        self.camera_controller.process_mouse(event);
     }
 
     fn update(&mut self, dt: instant::Duration) {
@@ -109,33 +93,22 @@ pub async fn run() {
     let mut last_render_time = instant::Instant::now();
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
-        match event {
-            Event::MainEventsCleared => window.request_redraw(),
-            Event::DeviceEvent {
-                event: DeviceEvent::MouseMotion{ delta,  },
-                .. // We're not using device_id currently
-            } => if state.mouse_pressed {
-                state.camera_controller.process_mouse(delta.0, delta.1)
-            }
-            Event::WindowEvent {
-                ref event,
-                window_id,
-            } if window_id == window.id() && !(match input_handler.process_input(event) {
-                    Some(action) => state.input(event, action),
-                    None => false,
-                }) => {
-                match event {
-                    #[cfg(not(target_arch="wasm32"))]
-                    WindowEvent::CloseRequested
-                    | WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                state: ElementState::Pressed,
-                                virtual_keycode: Some(VirtualKeyCode::Escape),
-                                ..
-                            },
-                        ..
-                    } => *control_flow = ControlFlow::Exit,
+        use input::{Action, InputEvent};
+        match input_handler.process_input(&event, window.id()) {
+            InputEvent::KeyAction(a) => match a {
+                (Action::Exit, _) => *control_flow = ControlFlow::Exit,
+                _ => state.key_input(a),
+            },
+            InputEvent::MouseEvent(e) => state.mouse_input(e),
+            InputEvent::Absorb => {}
+            InputEvent::Proceed => match event {
+                Event::MainEventsCleared => window.request_redraw(),
+                Event::WindowEvent {
+                    ref event,
+                    window_id,
+                } if window_id == window.id() => match event {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                     WindowEvent::Resized(physical_size) => {
                         state.gfx.resize(*physical_size);
                     }
@@ -143,24 +116,26 @@ pub async fn run() {
                         state.gfx.resize(**new_inner_size);
                     }
                     _ => {}
+                },
+                Event::RedrawRequested(window_id) if window_id == window.id() => {
+                    let now = instant::Instant::now();
+                    let dt = now - last_render_time;
+                    last_render_time = now;
+                    state.update(dt);
+                    match state.gfx.render() {
+                        Ok(_) => {}
+                        // Reconfigure the surface if it's lost or outdated
+                        Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                            state.gfx.resize(state.gfx.size)
+                        }
+                        // The system is out of memory, we should probably quit
+                        Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
+                        // We're ignoring timeouts
+                        Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
+                    }
                 }
-            }
-            Event::RedrawRequested(window_id) if window_id == window.id() => {
-                let now = instant::Instant::now();
-                let dt = now - last_render_time;
-                last_render_time = now;
-                state.update(dt);
-                match state.gfx.render() {
-                    Ok(_) => {}
-                    // Reconfigure the surface if it's lost or outdated
-                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => state.gfx.resize(state.gfx.size),
-                    // The system is out of memory, we should probably quit
-                    Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                    // We're ignoring timeouts
-                    Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
-                }
-            }
-            _ => {}
+                _ => {}
+            },
         }
     });
 }
