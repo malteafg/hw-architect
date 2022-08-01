@@ -192,23 +192,3 @@ pub enum InputEvent {
     Absorb,
     Proceed,
 }
-
-// #[derive(EnumString, Display, PartialEq, Debug, Clone)]
-// #[strum(serialize_all = "snake_case")]
-// pub enum KeyMap {
-//     Qwerty,
-//     Wokmok,
-// }
-
-// impl fmt::Display for KeyAction {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         match self {
-//             KeyAction::CameraLeft(_) => write!(f, "camera_left"),
-//             KeyAction::CameraRight(_) => write!(f, "camera_right"),
-//             KeyAction::CameraUp(_) => write!(f, "camera_up"),
-//             KeyAction::CameraDown(_) => write!(f, "camera_down"),
-//             KeyAction::CameraRotateLeft(_) => write!(f, "camera_rotate_left"),
-//             KeyAction::CameraRotateRight(_) => write!(f, "camera_rotate_right"),
-//         }
-//     }
-// }

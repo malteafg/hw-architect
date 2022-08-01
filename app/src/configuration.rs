@@ -54,11 +54,10 @@ impl Config {
         let height = yaml["window"]["height"]
             .as_i64()
             .unwrap_or(self.window.height as i64) as i32;
-        let key_map = (yaml["key_map"].as_str())
-            .unwrap_or(&self.key_map.to_string())
-            .parse()
-            .ok()
-            .unwrap_or(self.key_map);
+        let key_map = match yaml["key_map"].as_str() {
+            Some("qwerty") | Some("wokmok") => "wokmok".to_string(),
+            _ => self.key_map,
+        };
 
         let window = WindowConfig { width, height };
 
