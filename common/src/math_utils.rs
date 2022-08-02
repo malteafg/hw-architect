@@ -116,8 +116,8 @@ impl One<f64> for f64 {
 
 use cgmath::{Quaternion, Rad};
 
-pub fn quart(angle: Rad<f32>, dir: Vector3<f32>) -> Quaternion<f32> {
-    let angle = angle.0 / 2.0;
+pub fn quart<A: Into<Rad<f32>>>(angle: A, dir: Vector3<f32>) -> Quaternion<f32> {
+    let angle = angle.into().0 / 2.0;
     let (sin, cos) = angle.sin_cos();
     let dir = dir.normalize();
     Quaternion::new(cos, dir.x * sin, dir.y * sin, dir.z * sin)
