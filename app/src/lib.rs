@@ -9,7 +9,7 @@ use winit::{
 };
 
 mod configuration;
-use common::{camera, input};
+use common::{camera, input, math_utils::VecPoint};
 use graphics::graphics::*;
 
 struct State {
@@ -43,10 +43,10 @@ impl State {
         match event {
             input::MouseEvent::Left { pos, .. } => {
                 let (ray, pos) = self.gfx.calc_ray(&self.camera, pos);
-
                 let ground_pos = pos + ray * (-pos.y / ray.y);
-                dbg!(ground_pos);
+                self.gfx.add_instance(ground_pos.to_vec3());
             }
+            input::MouseEvent::Right { .. } => self.gfx.remove_instance(),
             _ => {}
         }
     }

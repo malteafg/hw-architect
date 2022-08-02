@@ -1,4 +1,4 @@
-use cgmath::{Point2, Point3, Vector2, Vector3, Vector4};
+use cgmath::{InnerSpace, Point2, Point3, Vector2, Vector3, Vector4};
 
 pub trait VecPoint<A> {
     fn to_vec2(&self) -> Vector2<A>;
@@ -112,4 +112,13 @@ impl One<f64> for f64 {
     fn one() -> f64 {
         1.0
     }
+}
+
+use cgmath::{Quaternion, Rad};
+
+pub fn quart(angle: Rad<f32>, dir: Vector3<f32>) -> Quaternion<f32> {
+    let angle = angle.0 / 2.0;
+    let (sin, cos) = angle.sin_cos();
+    let dir = dir.normalize();
+    Quaternion::new(cos, dir.x * sin, dir.y * sin, dir.z * sin)
 }

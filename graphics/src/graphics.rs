@@ -4,9 +4,9 @@ use wgpu::util::DeviceExt;
 use super::model::Vertex;
 use winit::{dpi::PhysicalSize, window::Window};
 
-use common::camera;
+use common::{camera, math_utils};
 
-use crate::{model, resources, terrain, texture};
+use crate::{buffer, model, resources, terrain, texture};
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -118,7 +118,7 @@ impl Vertex for InstanceRaw {
     }
 }
 
-const NUM_INSTANCES_PER_ROW: u32 = 10;
+const NUM_INSTANCES_PER_ROW: u32 = 2;
 
 // lib.rs
 #[repr(C)]
@@ -144,9 +144,9 @@ pub struct GfxState {
     camera_bind_group: wgpu::BindGroup,
     projection: camera::Projection,
     instances: Vec<Instance>,
-    instance_buffer: wgpu::Buffer,
-    depth_texture: super::texture::Texture,
-    obj_model: super::model::Model,
+    instance_buffer: buffer::DBuffer,
+    depth_texture: texture::Texture,
+    obj_model: model::Model,
     light_uniform: LightUniform,
     light_buffer: wgpu::Buffer,
     light_bind_group: wgpu::BindGroup,
@@ -362,11 +362,9 @@ impl GfxState {
             .collect::<Vec<_>>();
 
         let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
-        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Instance Buffer"),
-            contents: bytemuck::cast_slice(&instance_data),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
+        let mut instance_buffer =
+            buffer::DBuffer::new("Instance Buffer", wgpu::BufferUsages::VERTEX, &device);
+        instance_buffer.write(&queue, &device, &bytemuck::cast_slice(&instance_data));
 
         let depth_texture =
             texture::Texture::create_depth_texture(&device, &config, "depth_texture");
@@ -574,15 +572,20 @@ impl GfxState {
                 &self.light_bind_group,
             );
 
-            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw_model_instanced(
-                &self.obj_model,
-                0..self.instances.len() as u32,
-                &self.camera_bind_group,
-                &self.light_bind_group, // NEW
-            );
-            //render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
+            match self.instance_buffer.get_buffer_slice() {
+                Some(buffer_slice) => {
+                    render_pass.set_vertex_buffer(1, buffer_slice);
+                    render_pass.set_pipeline(&self.render_pipeline);
+                    render_pass.draw_model_instanced(
+                        &self.obj_model,
+                        0..self.instances.len() as u32,
+                        &self.camera_bind_group,
+                        &self.light_bind_group, // NEW
+                    );
+                    //render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
+                }
+                None => {}
+            }
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -602,6 +605,42 @@ impl GfxState {
 
         self.depth_texture =
             texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
+    }
+
+    pub fn add_instance(&mut self, position: cgmath::Vector3<f32>) {
+        self.instances.push(Instance {
+            position,
+            rotation: math_utils::quart(
+                Rad(std::f32::consts::PI / 4.0),
+                Vector3::new(0.0, 1.0, 0.0),
+            ),
+        });
+        let instance_data = self
+            .instances
+            .iter()
+            .map(Instance::to_raw)
+            .collect::<Vec<_>>();
+        self.instance_buffer.write(
+            &self.queue,
+            &self.device,
+            &bytemuck::cast_slice(&instance_data),
+        );
+    }
+
+    pub fn remove_instance(&mut self) {
+        if self.instances.len() != 0 {
+            self.instances.remove(0);
+            let instance_data = self
+                .instances
+                .iter()
+                .map(Instance::to_raw)
+                .collect::<Vec<_>>();
+            self.instance_buffer.write(
+                &self.queue,
+                &self.device,
+                &bytemuck::cast_slice(&instance_data),
+            );
+        }
     }
 
     pub fn update(&mut self, dt: instant::Duration, camera: &camera::Camera) {
