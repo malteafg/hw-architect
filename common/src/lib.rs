@@ -7,3 +7,4 @@ pub mod camera;
 pub mod input;
 pub mod loader;
 pub mod math_utils;
+pub mod curves;
