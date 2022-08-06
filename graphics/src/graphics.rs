@@ -4,7 +4,7 @@ use wgpu::util::DeviceExt;
 use crate::vertex::Vertex;
 use winit::{dpi::PhysicalSize, window::Window};
 
-use common::{camera, math_utils, road};
+use common::{camera, loader, math_utils, road};
 
 use crate::{
     buffer::{self, VIBuffer},
@@ -159,6 +159,7 @@ pub struct GfxState {
     road_buffer: buffer::VIBuffer,
     road_tool_buffer: buffer::VIBuffer,
     road_render_pipeline: wgpu::RenderPipeline,
+    road_material: model::Material,
 }
 
 fn create_render_pipeline(
@@ -491,7 +492,7 @@ impl GfxState {
         let road_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("road_pipeline_layout"),
-                bind_group_layouts: &[&camera_bind_group_layout],
+                bind_group_layouts: &[&texture_bind_group_layout, &camera_bind_group_layout],
                 push_constant_ranges: &[],
             });
             let shader = wgpu::ShaderModuleDescriptor {
@@ -508,6 +509,23 @@ impl GfxState {
                 "road_render_pipeline",
             )
         };
+
+        let diffuse_bytes = loader::load_binary("road-diffuse.png").await.unwrap();
+        let diffuse_texture =
+            texture::Texture::from_bytes(&device, &queue, &diffuse_bytes, "road_diffuse", false)
+                .unwrap();
+        let normal_bytes = loader::load_binary("road-normal.png").await.unwrap();
+        let normal_texture =
+            texture::Texture::from_bytes(&device, &queue, &normal_bytes, "road_normal", true)
+                .unwrap();
+
+        let road_material = model::Material::new(
+            &device,
+            "road_material",
+            diffuse_texture,
+            normal_texture,
+            &texture_bind_group_layout,
+        );
 
         Self {
             surface,
@@ -533,6 +551,7 @@ impl GfxState {
             road_buffer,
             road_tool_buffer,
             road_render_pipeline,
+            road_material,
         }
     }
 
@@ -604,7 +623,8 @@ impl GfxState {
                 Ok((vertices, indices)) => {
                     render_pass.set_vertex_buffer(0, vertices);
                     render_pass.set_index_buffer(indices, wgpu::IndexFormat::Uint32);
-                    render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+                    render_pass.set_bind_group(0, &self.road_material.bind_group, &[]);
+                    render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
                     render_pass.draw_indexed(0..self.road_buffer.get_num_indices(), 0, 0..1);
                 }
                 _ => {}
@@ -613,7 +633,8 @@ impl GfxState {
                 Ok((vertices, indices)) => {
                     render_pass.set_vertex_buffer(0, vertices);
                     render_pass.set_index_buffer(indices, wgpu::IndexFormat::Uint32);
-                    render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+                    render_pass.set_bind_group(0, &self.road_material.bind_group, &[]);
+                    render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
                     render_pass.draw_indexed(0..self.road_tool_buffer.get_num_indices(), 0, 0..1);
                 }
                 _ => {}
