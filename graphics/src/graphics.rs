@@ -310,7 +310,7 @@ impl GfxState {
             });
 
         let projection =
-            camera::Projection::new(size.width, size.height, cgmath::Deg(45.0), 0.1, 2000.0);
+            camera::Projection::new(size.width, size.height, cgmath::Deg(45.0), 5.0, 2000.0);
         let camera_uniform = CameraUniform::new();
         // camera_uniform.update_view_proj(&camera, &projection);
 
