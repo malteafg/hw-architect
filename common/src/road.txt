@@ -54,4 +54,5 @@ fn remove_segment(NodeId) {
 // Segment?
 
 // RoadMesh (Mesh trait in Graphics?) (also lane markings, don't care about efficiency it just needs to be done)
-// 
+
+// Definitely add an IdManager that works generically such that id types can easily be constructed and their code reused

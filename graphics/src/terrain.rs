@@ -1,4 +1,3 @@
-use crate::model;
 use rand::prelude::*;
 use wgpu::util::DeviceExt;
 
@@ -7,28 +6,6 @@ use wgpu::util::DeviceExt;
 pub struct TerrainVertex {
     position: [f32; 3],
     color: [f32; 3],
-}
-
-impl model::Vertex for TerrainVertex {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        use std::mem;
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<TerrainVertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-            ],
-        }
-    }
 }
 
 pub struct TerrainMesh {
@@ -82,12 +59,12 @@ impl TerrainMesh {
             .collect::<Vec<_>>();
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Terrain Vertex Buffer"),
+            label: Some("terrain_vertex_buffer"),
             contents: bytemuck::cast_slice(&vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Terrain Index Buffer"),
+            label: Some("terrain_index_buffer"),
             contents: bytemuck::cast_slice(&indices),
             usage: wgpu::BufferUsages::INDEX,
         });

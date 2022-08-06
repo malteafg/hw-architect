@@ -4,3 +4,4 @@ mod model;
 pub mod resources;
 mod terrain;
 mod texture;
+mod vertex;

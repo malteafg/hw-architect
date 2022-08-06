@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use wgpu::util::DeviceExt;
 use wgpu::{Buffer, BufferSlice, BufferUsages, Device, Queue};
 
@@ -62,4 +63,80 @@ impl DBuffer {
             usage: self.usage,
         });
     }
+}
+
+pub struct VIBuffer {
+    vertex_buffer: DBuffer,
+    index_buffer: DBuffer,
+    num_indices: u32,
+}
+
+impl VIBuffer {
+    pub fn new(label: &str, device: &Device) -> Self {
+        let vertex_buffer = DBuffer::new(
+            &("vertex_".to_owned() + label),
+            BufferUsages::VERTEX,
+            &device,
+        );
+        let index_buffer =
+            DBuffer::new(&("index_".to_owned() + label), BufferUsages::INDEX, &device);
+
+        VIBuffer {
+            vertex_buffer,
+            index_buffer,
+            num_indices: 0,
+        }
+    }
+
+    pub fn write(
+        &mut self,
+        queue: &Queue,
+        device: &Device,
+        vertices: &[u8],
+        indices: &[u8],
+        num_indices: u32,
+    ) {
+        self.vertex_buffer.write(&queue, &device, &vertices);
+        self.index_buffer.write(&queue, &device, &indices);
+        self.num_indices = num_indices;
+    }
+
+    pub fn get_buffer_slice(&self) -> anyhow::Result<(BufferSlice, BufferSlice)> {
+        let vertices = self
+            .vertex_buffer
+            .get_buffer_slice()
+            .ok_or(anyhow!("no contents in vertex buffer"))?;
+        let indices = self
+            .index_buffer
+            .get_buffer_slice()
+            .ok_or(anyhow!("no contents in index buffer"))?;
+        Ok((vertices, indices))
+    }
+
+    pub fn get_num_indices(&self) -> u32 {
+        self.num_indices
+    }
+
+    // pub fn get_vertices(&self) -> Option<BufferSlice> {
+    //     self.vertex_buffer.get_buffer_slice()
+    // }
+
+    // pub fn get_indices(&self) -> Option<BufferSlice> {
+    //     self.index_buffer.get_buffer_slice()
+    // }
+
+    // pub fn bind(&mut self, render_pass: &wgpu::RenderPass) -> anyhow::Result<()> {
+    //     let vertices = self
+    //         .vertex_buffer
+    //         .get_buffer_slice()
+    //         .ok_or(anyhow!("no contents in vertex buffer"))?;
+    //     let indices = self
+    //         .index_buffer
+    //         .get_buffer_slice()
+    //         .ok_or(anyhow!("no contents in index buffer"))?;
+    //     render_pass.set_vertex_buffer(0, vertices);
+    //     render_pass.set_index_buffer(indices, wgpu::IndexFormat::Uint32);
+
+    //     Ok(())
+    // }
 }

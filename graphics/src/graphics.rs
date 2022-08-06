@@ -1,12 +1,15 @@
 use cgmath::*;
 use wgpu::util::DeviceExt;
 
-use super::model::Vertex;
+use crate::vertex::Vertex;
 use winit::{dpi::PhysicalSize, window::Window};
 
-use common::{camera, math_utils};
+use common::{camera, math_utils, road};
 
-use crate::{buffer, model, resources, terrain, texture};
+use crate::{
+    buffer::{self, VIBuffer},
+    model, resources, terrain, texture,
+};
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -153,6 +156,9 @@ pub struct GfxState {
     light_render_pipeline: wgpu::RenderPipeline,
     terrain_mesh: terrain::TerrainMesh,
     terrain_render_pipeline: wgpu::RenderPipeline,
+    road_buffer: buffer::VIBuffer,
+    road_tool_buffer: buffer::VIBuffer,
+    road_render_pipeline: wgpu::RenderPipeline,
 }
 
 fn create_render_pipeline(
@@ -461,12 +467,12 @@ impl GfxState {
         let terrain_mesh = terrain::TerrainMesh::new(&device);
         let terrain_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Terrain Pipeline Layout"),
+                label: Some("terrain_pipeline_layout"),
                 bind_group_layouts: &[&camera_bind_group_layout],
                 push_constant_ranges: &[],
             });
             let shader = wgpu::ShaderModuleDescriptor {
-                label: Some("Terrain Shader"),
+                label: Some("terrain_shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("terrain.wgsl").into()),
             };
             create_render_pipeline(
@@ -476,7 +482,30 @@ impl GfxState {
                 Some(texture::Texture::DEPTH_FORMAT),
                 &[terrain::TerrainVertex::desc()],
                 shader,
-                "Terrain Pipeline",
+                "terrain_pipeline",
+            )
+        };
+
+        let road_buffer = VIBuffer::new("road_buffer", &device);
+        let road_tool_buffer = VIBuffer::new("road_tool_buffer", &device);
+        let road_render_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("road_pipeline_layout"),
+                bind_group_layouts: &[&camera_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+            let shader = wgpu::ShaderModuleDescriptor {
+                label: Some("road_shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("road.wgsl").into()),
+            };
+            create_render_pipeline(
+                &device,
+                &layout,
+                config.format,
+                Some(texture::Texture::DEPTH_FORMAT),
+                &[road::RoadVertex::desc()],
+                shader,
+                "road_render_pipeline",
             )
         };
 
@@ -501,6 +530,9 @@ impl GfxState {
             light_render_pipeline,
             terrain_mesh,
             terrain_render_pipeline,
+            road_buffer,
+            road_tool_buffer,
+            road_render_pipeline,
         }
     }
 
@@ -556,6 +588,7 @@ impl GfxState {
             // );
             use model::{DrawLight, DrawModel};
 
+            // render terrain
             render_pass.set_pipeline(&self.terrain_render_pipeline);
             render_pass.set_vertex_buffer(0, self.terrain_mesh.vertex_buffer.slice(..));
             render_pass.set_index_buffer(
@@ -565,6 +598,28 @@ impl GfxState {
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.draw_indexed(0..self.terrain_mesh.size as u32, 0, 0..1);
 
+            // render roads
+            render_pass.set_pipeline(&self.road_render_pipeline);
+            match self.road_buffer.get_buffer_slice() {
+                Ok((vertices, indices)) => {
+                    render_pass.set_vertex_buffer(0, vertices);
+                    render_pass.set_index_buffer(indices, wgpu::IndexFormat::Uint32);
+                    render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+                    render_pass.draw_indexed(0..self.road_buffer.get_num_indices(), 0, 0..1);
+                }
+                _ => {}
+            }
+            match self.road_tool_buffer.get_buffer_slice() {
+                Ok((vertices, indices)) => {
+                    render_pass.set_vertex_buffer(0, vertices);
+                    render_pass.set_index_buffer(indices, wgpu::IndexFormat::Uint32);
+                    render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+                    render_pass.draw_indexed(0..self.road_tool_buffer.get_num_indices(), 0, 0..1);
+                }
+                _ => {}
+            }
+
+            // render light
             render_pass.set_pipeline(&self.light_render_pipeline);
             render_pass.draw_light_model(
                 &self.obj_model,
@@ -572,6 +627,7 @@ impl GfxState {
                 &self.light_bind_group,
             );
 
+            // render instances
             match self.instance_buffer.get_buffer_slice() {
                 Some(buffer_slice) => {
                     render_pass.set_vertex_buffer(1, buffer_slice);
@@ -580,7 +636,7 @@ impl GfxState {
                         &self.obj_model,
                         0..self.instances.len() as u32,
                         &self.camera_bind_group,
-                        &self.light_bind_group, // NEW
+                        &self.light_bind_group,
                     );
                     //render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
                 }
@@ -641,6 +697,26 @@ impl GfxState {
                 &bytemuck::cast_slice(&instance_data),
             );
         }
+    }
+
+    pub fn update_road_buffer(&mut self, mesh: common::road::RoadMesh) {
+        self.road_buffer.write(
+            &self.queue,
+            &self.device,
+            bytemuck::cast_slice(&mesh.vertices),
+            bytemuck::cast_slice(&mesh.indices),
+            mesh.indices.len() as u32,
+        );
+    }
+
+    pub fn update_road_tool_buffer(&mut self, mesh: common::road::RoadMesh) {
+        self.road_tool_buffer.write(
+            &self.queue,
+            &self.device,
+            bytemuck::cast_slice(&mesh.vertices),
+            bytemuck::cast_slice(&mesh.indices),
+            mesh.indices.len() as u32,
+        );
     }
 
     pub fn update(&mut self, dt: instant::Duration, camera: &camera::Camera) {
