@@ -75,7 +75,6 @@ impl ToolState {
     ) -> (Option<network::RoadMesh>, Option<network::RoadMesh>) {
         match (self.mode, event) {
             (Mode::SelectPos, input::MouseEvent::Left { .. }) => {
-                dbg!(self.mode.clone());
                 let start_pos = ground_pos;
                 let end_pos = ground_pos + Vector3::new(10.0, 0.0, 0.0);
                 let start_node = network::NodeDescriptor::NEW(network::Node::new(
@@ -103,7 +102,6 @@ impl ToolState {
                 (None, Some(mesh))
             }
             (Mode::SelectDir { pos }, input::MouseEvent::Left { .. }) => {
-                dbg!(self.mode.clone());
                 match self.road_generator.clone() {
                     Some(road) => match self.selected_road.curve_type {
                         CurveType::Straight => {
@@ -124,13 +122,11 @@ impl ToolState {
                     },
                     None => {
                         //fail
-                        println!("selectdirleft");
                         (None, None)
                     }
                 }
             }
             (Mode::Build { pos, dir }, input::MouseEvent::Left { .. }) => {
-                dbg!(self.mode.clone());
                 match self.road_generator.clone() {
                     Some(road) => match self.selected_road.curve_type {
                         CurveType::Straight => {
@@ -148,10 +144,23 @@ impl ToolState {
                     },
                     None => {
                         //fail
-                        println!("buildleft");
                         (None, None)
                     }
                 }
+            }
+            (Mode::SelectDir { pos }, input::MouseEvent::Right { .. }) => {
+                self.road_generator = None;
+                self.mode = Mode::SelectPos;
+                (None, None)
+            }
+            (Mode::Build { pos, dir }, input::MouseEvent::Right { .. }) => {
+                match self.selected_road.curve_type {
+                    CurveType::Straight => {}
+                    CurveType::Curved => {}
+                }
+                self.road_generator = None;
+                self.mode = Mode::SelectPos;
+                (None, None)
             }
             (Mode::SelectDir { .. }, input::MouseEvent::Moved { .. }) => {
                 match &mut self.road_generator.clone() {
@@ -193,10 +202,7 @@ impl ToolState {
                         self.road_generator = Some(road.clone());
                         (None, Some(mesh))
                     }
-                    None => {
-                        println!("nonenone");
-                        (None, None)
-                    }
+                    None => (None, None),
                 }
             }
             (_, _) => (None, None),
