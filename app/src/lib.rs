@@ -1,4 +1,4 @@
-use cgmath::Vector3;
+use cgmath::{Point3, Vector3};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -10,15 +10,16 @@ use winit::{
 };
 
 mod configuration;
-use common::{camera, input, math_utils::VecPoint, road};
+use common::road::network;
+use common::road::tool;
+use common::{camera, input, math_utils::VecPoint};
 use graphics::graphics::*;
 
 struct State {
     gfx: GfxState,
     camera: camera::Camera,
     camera_controller: camera::CameraController,
-    road_generator: Option<road::RoadGenerator>,
-    road_graph: road::RoadGraph,
+    road_tool: tool::ToolState,
 }
 
 impl State {
@@ -33,8 +34,7 @@ impl State {
             gfx,
             camera,
             camera_controller,
-            road_generator: None,
-            road_graph: road::RoadGraph::new(),
+            road_tool: tool::ToolState::new(),
         }
     }
 
@@ -44,61 +44,30 @@ impl State {
 
     fn mouse_input(&mut self, event: input::MouseEvent) {
         self.camera_controller.process_mouse(event);
+        let mut ground_pos = Point3::<f32>::new(0.0, 0.0, 0.0);
+        match event {
+            input::MouseEvent::Left { pos, .. } | input::MouseEvent::Moved { pos, .. } => {
+                let (ray, pos) = self.gfx.calc_ray(&self.camera, pos);
+                ground_pos = pos + ray * (-pos.y / ray.y);
+            }
+            _ => {}
+        };
+
+        let (road_mesh, road_tool_mesh) = self.road_tool.mouse_input(event, ground_pos.to_vec3());
+        match road_mesh {
+            Some(mesh) => self.gfx.update_road_buffer(mesh),
+            None => {}
+        };
+        match road_tool_mesh {
+            Some(mesh) => self.gfx.update_road_tool_buffer(mesh),
+            None => {}
+        };
 
         match event {
             input::MouseEvent::Left { pos, .. } => {
-                let (ray, pos) = self.gfx.calc_ray(&self.camera, pos);
-                let ground_pos = pos + ray * (-pos.y / ray.y);
-
-                match self.road_generator.clone() {
-                    Some(road) => {
-                        let road_mesh = self.road_graph.add_road(road);
-                        self.gfx.update_road_buffer(road_mesh);
-                        self.road_generator = None;
-                    }
-                    None => {
-                        let start_pos = ground_pos.to_vec3();
-                        let end_pos = ground_pos.to_vec3() + Vector3::new(10.0, 0.0, 0.0);
-                        let start_node = road::NodeDescriptor::NEW(road::Node::new(
-                            ground_pos.to_vec3(),
-                            Vector3::new(1.0, 0.0, 0.0),
-                        ));
-                        let end_node = road::NodeDescriptor::NEW(road::Node::new(
-                            ground_pos.to_vec3() + Vector3::new(10.0, 0.0, 0.0),
-                            Vector3::new(1.0, 0.0, 0.0),
-                        ));
-                        let mesh = road::generate_mesh(start_pos, end_pos);
-                        self.road_generator = Some(road::RoadGenerator::new(
-                            start_node,
-                            start_pos,
-                            end_node,
-                            mesh.clone(),
-                        ));
-                        self.gfx.update_road_tool_buffer(mesh);
-                    }
-                };
-
                 // self.gfx.add_instance(ground_pos.to_vec3());
             }
             input::MouseEvent::Right { .. } => self.gfx.remove_instance(),
-            input::MouseEvent::Moved { pos, .. } => match &mut self.road_generator.clone() {
-                Some(road) => {
-                    let (ray, pos) = self.gfx.calc_ray(&self.camera, pos);
-                    let ground_pos = pos + ray * (-pos.y / ray.y);
-
-                    let end_pos = ground_pos.to_vec3();
-                    let end_node = road::NodeDescriptor::NEW(road::Node::new(
-                        end_pos,
-                        Vector3::new(1.0, 0.0, 0.0),
-                    ));
-                    let mesh = road::generate_mesh(road.start_pos, end_pos);
-
-                    road.update(end_node, mesh.clone());
-                    self.road_generator = Some(road.clone());
-                    self.gfx.update_road_tool_buffer(mesh);
-                }
-                None => {}
-            },
             _ => {}
         }
     }

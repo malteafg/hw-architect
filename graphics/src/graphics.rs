@@ -4,7 +4,8 @@ use wgpu::util::DeviceExt;
 use crate::vertex::Vertex;
 use winit::{dpi::PhysicalSize, window::Window};
 
-use common::{camera, loader, math_utils, road};
+use common::road::network as road;
+use common::{camera, loader, math_utils};
 
 use crate::{
     buffer::{self, VIBuffer},
@@ -720,7 +721,7 @@ impl GfxState {
         }
     }
 
-    pub fn update_road_buffer(&mut self, mesh: common::road::RoadMesh) {
+    pub fn update_road_buffer(&mut self, mesh: road::RoadMesh) {
         self.road_buffer.write(
             &self.queue,
             &self.device,
@@ -730,7 +731,7 @@ impl GfxState {
         );
     }
 
-    pub fn update_road_tool_buffer(&mut self, mesh: common::road::RoadMesh) {
+    pub fn update_road_tool_buffer(&mut self, mesh: road::RoadMesh) {
         self.road_tool_buffer.write(
             &self.queue,
             &self.device,
