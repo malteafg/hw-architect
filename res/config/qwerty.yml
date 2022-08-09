@@ -11,5 +11,17 @@ camera_rotate_left:
   - q
 camera_rotate_right:
   - e
+cycle_road_type:
+  - c
+one_lane:
+  - '1'
+two_lane:
+  - '2'
+three_lane:
+  - '3'
+four_lane:
+  - '4'
+five_lane:
+  - '5'
 exit:
   - esc

@@ -145,6 +145,11 @@ pub fn parse_key_code(key: &String) -> anyhow::Result<VirtualKeyCode> {
         "x" => Ok(VirtualKeyCode::X),
         "y" => Ok(VirtualKeyCode::Y),
         "z" => Ok(VirtualKeyCode::Z),
+        "1" => Ok(VirtualKeyCode::Key1),
+        "2" => Ok(VirtualKeyCode::Key2),
+        "3" => Ok(VirtualKeyCode::Key3),
+        "4" => Ok(VirtualKeyCode::Key4),
+        "5" => Ok(VirtualKeyCode::Key5),
         "esc" => Ok(VirtualKeyCode::Escape),
         _ => Err(anyhow::anyhow!(format!("could not parse key: {}", key))),
     }
@@ -161,6 +166,12 @@ pub enum Action {
     CameraDown,
     CameraRotateLeft,
     CameraRotateRight,
+    CycleRoadType,
+    OneLane,
+    TwoLane,
+    ThreeLane,
+    FourLane,
+    FiveLane,
     Exit,
 }
 

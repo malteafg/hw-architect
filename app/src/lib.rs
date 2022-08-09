@@ -1,4 +1,4 @@
-use cgmath::{Point3, Vector3};
+use cgmath::Point3;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -10,7 +10,6 @@ use winit::{
 };
 
 mod configuration;
-use common::road::network;
 use common::road::tool;
 use common::{camera, input, math_utils::VecPoint};
 use graphics::graphics::*;
@@ -40,6 +39,7 @@ impl State {
 
     fn key_input(&mut self, action: input::KeyAction) {
         self.camera_controller.process_keyboard(action);
+        self.road_tool.process_keyboard(action);
     }
 
     fn mouse_input(&mut self, event: input::MouseEvent) {
@@ -64,7 +64,7 @@ impl State {
         };
 
         match event {
-            input::MouseEvent::Left { pos, .. } => {
+            input::MouseEvent::Left { .. } => {
                 // self.gfx.add_instance(ground_pos.to_vec3());
             }
             input::MouseEvent::Right { .. } => self.gfx.remove_instance(),
