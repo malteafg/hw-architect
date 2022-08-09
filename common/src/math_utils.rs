@@ -122,3 +122,28 @@ pub fn quart<A: Into<Rad<f32>>>(angle: A, dir: Vector3<f32>) -> Quaternion<f32> 
     let dir = dir.normalize();
     Quaternion::new(cos, dir.x * sin, dir.y * sin, dir.z * sin)
 }
+
+pub fn proj(vector: Vector3<f32>, target: Vector3<f32>) -> Vector3<f32> {
+    target * (vector.dot(target) / target.magnitude2())
+}
+
+pub fn anti_proj(vector: Vector3<f32>, target: Vector3<f32>) -> Vector3<f32> {
+    vector - proj(vector, target)
+}
+
+pub fn mirror(vector: Vector3<f32>, mirror_normal: Vector3<f32>) -> Vector3<f32> {
+    vector - proj(vector, mirror_normal) * 2.0
+}
+
+pub fn ndot(a: Vector3<f32>, b: Vector3<f32>) -> f32 {
+    a.normalize().dot(b.normalize())
+}
+
+pub fn intersects_in_xz(d1: Vector3<f32>, d2: Vector3<f32>) -> bool {
+    d2.x * d1.z - d2.z * d1.x != 0.0
+}
+
+pub fn intersection_in_xz(v1: Vector3<f32>, d1: Vector3<f32>, v2: Vector3<f32>, d2: Vector3<f32>) -> Vector3<f32> {
+    v2 + (d2 * ((v2.z - v1.z) * d1.x - (v2.x - v1.x) * d1.z) / 
+                (d2.x * d1.z - d2.z * d1.x))
+} 
