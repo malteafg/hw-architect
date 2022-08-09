@@ -187,8 +187,8 @@ impl ToolState {
             (Mode::Build { pos, dir }, input::MouseEvent::Moved { .. }) => {
                 match &mut self.road_generator.clone() {
                     Some(road) => {
-                        let (g_points, end_dir) = curves::circle(road.start_pos, dir, pos);
-                        dbg!(g_points.clone());
+                        let (g_points, end_dir) = curves::circle(road.start_pos, dir, ground_pos);
+                        //dbg!(g_points.clone());
                         let end_node =
                             network::NodeDescriptor::NEW(network::Node::new(pos, end_dir));
                         let mesh = generator::generate_mesh(
