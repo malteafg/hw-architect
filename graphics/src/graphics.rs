@@ -122,7 +122,7 @@ impl Vertex for InstanceRaw {
     }
 }
 
-const NUM_INSTANCES_PER_ROW: u32 = 2;
+const NUM_INSTANCES_PER_ROW: u32 = 1;
 
 // lib.rs
 #[repr(C)]

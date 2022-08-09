@@ -59,7 +59,10 @@ impl State {
             None => {}
         };
         match road_tool_mesh {
-            Some(mesh) => self.gfx.update_road_tool_buffer(mesh),
+            Some(mesh) => {
+                dbg!(mesh.clone());
+                self.gfx.update_road_tool_buffer(mesh)
+            }
             None => {}
         };
 
