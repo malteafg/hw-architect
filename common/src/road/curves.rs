@@ -5,8 +5,43 @@ use cgmath::*;
 
 const PRETTY_CLOSE: f32 = 0.97;
 const CLOSE_ENOUGH: f32 = 0.95;
+const COS_45: f32 = 0.7071067812; //aka sqrt(0.5)
 
 const MIN_SEGMENT_LENGTH: f32 = 10.0;
+
+pub fn three_quarter_circle_curve(
+    pos1: Vector3<f32>,
+    dir1: Vector3<f32>,
+    pos2: Vector3<f32>,
+) -> Vec<(Vec<Vector3<f32>>, Vector3<f32>)> {
+    let projected_point = three_quarter_projection(pos1, dir1, pos2);
+    if dot(pos2 - pos1, dir1) > 0.0 {
+        vec![circle(pos1, dir1, projected_point)]
+    } else {
+        let modPoint = curve_mid_point(pos1, dir1, projected_point);
+        vec![circle(pos1, dir1, modPoint), circle(modPoint, pos2 - pos1, projected_point)]
+    }
+}
+
+fn three_quarter_projection(
+    pos1: Vector3<f32>,
+    dir1: Vector3<f32>,
+    pos2: Vector3<f32>,
+) -> Vector3<f32> {
+    let diff = pos2 - pos1;
+    let proj_length = dot(diff, dir1) / dir1.magnitude();
+    if proj_length >= - COS_45 * diff.magnitude() {
+        pos2
+    } else {
+        proj(diff, dir1) + anti_proj(diff, dir1).normalize() * proj_length
+    }
+}
+
+fn curve_mid_point(pos1: Vector3<f32>, dir: Vector3<f32>, pos2: Vector3<f32>) -> Vector3<f32> {
+    let diff = pos2 - pos1;
+    let dir2 = dir.normalize() + diff.normalize();
+    pos1 + (dir2 * (diff.magnitude2() / 2.0 / dot(dir2, diff)))
+}
 
 pub fn circle(
     pos1: Vector3<f32>,
