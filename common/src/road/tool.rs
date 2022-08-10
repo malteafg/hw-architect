@@ -155,12 +155,17 @@ impl ToolState {
             }
             (Mode::Build { pos, dir }, input::MouseEvent::Right { .. }) => {
                 match self.selected_road.curve_type {
-                    CurveType::Straight => {}
-                    CurveType::Curved => {}
+                    CurveType::Straight => {
+                        self.road_generator = None;
+                        self.mode = Mode::SelectPos;
+                        (None, None)
+                    }
+                    CurveType::Curved => {
+                        self.road_generator = None;
+                        self.mode = Mode::SelectDir { pos };
+                        (None, None)
+                    }
                 }
-                self.road_generator = None;
-                self.mode = Mode::SelectPos;
-                (None, None)
             }
             (Mode::SelectDir { .. }, input::MouseEvent::Moved { .. }) => {
                 match &mut self.road_generator.clone() {
@@ -187,8 +192,8 @@ impl ToolState {
             (Mode::Build { pos, dir }, input::MouseEvent::Moved { .. }) => {
                 match &mut self.road_generator.clone() {
                     Some(road) => {
-                        let (g_points, end_dir) = curves::circle(road.start_pos, dir, pos);
-                        dbg!(g_points.clone());
+                        let (g_points, end_dir) = curves::circle(road.start_pos, dir, ground_pos);
+                        //dbg!(g_points.clone());
                         let end_node =
                             network::NodeDescriptor::NEW(network::Node::new(pos, end_dir));
                         let mesh = generator::generate_mesh(
