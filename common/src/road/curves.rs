@@ -203,8 +203,8 @@ pub fn calc_bezier_dir(guide_points: Vec<Vector3<f32>>, t: f32) -> Vector3<f32> 
     let mut r = (1.0 - t).powi(guide_points.len() as i32 - 2);
     let mut l = 1.0;
     let mut i: i32 = 0;
-    for p in 0..(guide_points.len() - 2) {
-        v = v + guide_points[p + 1] - guide_points[p] * l * r;
+    for p in 0..(guide_points.len() - 1) {
+        v = v + (guide_points[p + 1] - guide_points[p]) * l * r;
         if t == 1.0 {
             if i == guide_points.len() as i32 - 3 {
                 r = 1.0;
@@ -217,5 +217,6 @@ pub fn calc_bezier_dir(guide_points: Vec<Vector3<f32>>, t: f32) -> Vector3<f32> 
         l *= (guide_points.len() as f32 - 1.0) / (1.0 + i as f32) - 1.0;
         i += 1;
     }
-    v * guide_points.len() as f32
+    let result = v * guide_points.len() as f32;
+    result
 }
