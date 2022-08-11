@@ -1,4 +1,3 @@
-use cgmath::Point3;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -10,10 +9,10 @@ use winit::{
 };
 
 mod configuration;
+use cgmath::*;
 use common::road::tool;
 use common::{camera, input, math_utils::VecPoint};
 use graphics::graphics::*;
-use cgmath::*;
 
 struct State {
     gfx: GfxState,
@@ -50,7 +49,10 @@ impl State {
     fn mouse_input(&mut self, event: input::MouseEvent) {
         self.camera_controller.process_mouse(event);
         match event {
-            input::MouseEvent::Dragged { pos, .. } | input::MouseEvent::Moved { pos, .. } => {
+            input::MouseEvent::LeftDragged(_)
+            | input::MouseEvent::Moved(_)
+            | input::MouseEvent::MiddleDragged(_)
+            | input::MouseEvent::RightDragged(_) => {
                 self.update_ground_pos();
             }
             _ => {}
@@ -66,23 +68,27 @@ impl State {
             None => {}
         };
 
-        match event {
-            input::MouseEvent::Left { .. } => {
-                // self.gfx.add_instance(ground_pos.to_vec3());
-            }
-            input::MouseEvent::Right { .. } => self.gfx.remove_instance(),
-            _ => {}
-        }
+        // match event {
+        //     input::MouseEvent::LeftClick => {
+        //         self.gfx.add_instance(ground_pos.to_vec3());
+        //     }
+        //     input::MouseEvent::RightClick => self.gfx.remove_instance(),
+        //     _ => {}
+        // }
     }
 
     fn update(&mut self, dt: instant::Duration) {
         let camera_moved = self.camera_controller.update_camera(&mut self.camera, dt);
-        if camera_moved { self.update_ground_pos(); }
+        if camera_moved {
+            self.update_ground_pos();
+        }
         self.gfx.update(dt, &self.camera);
     }
-    
+
     fn update_ground_pos(&mut self) {
-        let (ray, pos) = self.gfx.calc_ray(&self.camera, self.input_handler.get_mouse_pos());
+        let (ray, pos) = self
+            .gfx
+            .calc_ray(&self.camera, self.input_handler.get_mouse_pos());
         let ground_pos = pos + ray * (-pos.y / ray.y);
         self.ground_pos = ground_pos.to_vec3();
         let road_tool_mesh = self.road_tool.update_ground_pos(self.ground_pos);
@@ -108,7 +114,7 @@ pub async fn run() {
     // load configuration
     let config = configuration::load_config().await.unwrap();
     let key_map = configuration::load_key_map(config.key_map).await.unwrap();
-    let mut input_handler = input::InputHandler::new(key_map);
+    let input_handler = input::InputHandler::new(key_map);
 
     // create event_loop and window
     let event_loop = EventLoop::new();

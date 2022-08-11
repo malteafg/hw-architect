@@ -70,7 +70,7 @@ impl ToolState {
         let empty_mesh = Some(generator::empty_mesh());
 
         match (self.mode, event) {
-            (Mode::SelectPos, MouseEvent::Left { .. }) => {
+            (Mode::SelectPos, MouseEvent::LeftClick) => {
                 // if snapped node add Some(dir) instead of None
                 let road_generator = RoadGenerator::new(ground_pos, self.selected_road, None);
                 let road_mesh = road_generator.get_mesh();
@@ -78,7 +78,7 @@ impl ToolState {
                 self.mode = Mode::SelectDir;
                 (None, Some(road_mesh))
             }
-            (Mode::SelectDir, MouseEvent::Left { .. }) => {
+            (Mode::SelectDir, MouseEvent::LeftClick) => {
                 match self.road_generator.as_mut() {
                     Some(road_generator) => match self.selected_road.curve_type {
                         CurveType::Straight => {
@@ -100,7 +100,7 @@ impl ToolState {
                     }
                 }
             }
-            (Mode::Build, MouseEvent::Left { .. }) => {
+            (Mode::Build, MouseEvent::LeftClick) => {
                 match self.road_generator.clone() {
                     Some(road_generator) => match self.selected_road.curve_type {
                         CurveType::Straight => {
@@ -122,12 +122,12 @@ impl ToolState {
                     }
                 }
             }
-            (Mode::SelectDir, MouseEvent::Right { .. }) => {
+            (Mode::SelectDir, MouseEvent::RightClick) => {
                 self.road_generator = None;
                 self.mode = Mode::SelectPos;
                 (None, empty_mesh)
             }
-            (Mode::Build, MouseEvent::Right { .. }) => {
+            (Mode::Build, MouseEvent::RightClick) => {
                 match self.selected_road.curve_type {
                     CurveType::Straight => {
                         self.road_generator = None;

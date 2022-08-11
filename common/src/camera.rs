@@ -222,7 +222,7 @@ impl CameraController {
 
     pub fn process_mouse(&mut self, event: MouseEvent) {
         match event {
-            MouseEvent::Dragged { delta, .. } => {
+            MouseEvent::MiddleDragged(delta) => {
                 self.delta_yaw += Rad(-MOUSE_SENSITIVITY * delta.dx as f32);
                 self.delta_pitch += Rad(MOUSE_SENSITIVITY * delta.dy as f32);
                 self.stop_move_progression();
