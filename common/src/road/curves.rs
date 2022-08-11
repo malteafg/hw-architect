@@ -9,6 +9,22 @@ const COS_45: f32 = 0.7071067812; //aka sqrt(0.5)
 
 const MIN_SEGMENT_LENGTH: f32 = 10.0;
 
+// Notable functions:
+// - three_quarter_circle_curve
+// - double_snap_curve_case
+// - match_double_snap_curve_case
+// - guide_points_and_direction
+//
+// for double snap call "double_snap_curve_case" to get the enum
+// then call "match_double_snap_curve_case" with the enum 
+// to get the guidepoints
+// 
+// for both three quarter circle and double snap, call 
+// "guide_points_and_direction" with the guidepoints
+// to get a vec of tuples with both guidepoints and the direction
+// for the new nodes
+
+
 pub fn guide_points_and_direction(guide_points: Vec<Vec<Vector3<f32>>>) -> Vec<(Vec<Vector3<f32>>, Vector3<f32>)> {
     let mut result: Vec<(Vec<Vector3<f32>>, Vector3<f32>)> = Vec::new(); 
     for curve in guide_points.iter() {
