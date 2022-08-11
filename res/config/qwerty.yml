@@ -14,14 +14,16 @@ camera_rotate_right:
 cycle_road_type:
   - c
 one_lane:
-  - '1'
+  - "1"
 two_lane:
-  - '2'
+  - "2"
 three_lane:
-  - '3'
+  - "3"
 four_lane:
-  - '4'
+  - "4"
 five_lane:
-  - '5'
+  - "5"
+six_lane:
+  - "6"
 exit:
   - esc

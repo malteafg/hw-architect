@@ -2,12 +2,14 @@ use super::curves;
 use super::network::*;
 use super::LANE_WIDTH;
 use cgmath::*;
+use crate::math_utils;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct RoadGenerator {
     nodes: Vec<(Vector3<f32>, Vector3<f32>)>,
     segments: Vec<(Segment, RoadMesh)>,
     start_node_locked: bool,
+    is_init: bool,
     start_road_type: RoadType,
 }
 
@@ -33,11 +35,15 @@ impl RoadGenerator {
             nodes,
             segments,
             start_node_locked,
+            is_init: true,
             start_road_type: selected_road,
         }
     }
 
     pub fn update_pos(&mut self, ground_pos: Vector3<f32>) {
+        if !self.is_init {
+            return;
+        }
         let (start_pos, start_dir) = self.get_start_node();
         let end_pos = ground_pos;
 
@@ -45,7 +51,16 @@ impl RoadGenerator {
         if self.start_node_locked {
             match curve_type {
                 CurveType::Straight => {
-                    // TODO project ground pos onto dir of road
+                    let end_pos = math_utils::proj(ground_pos - start_pos, start_dir) + start_pos;
+                    let end_pos = if (ground_pos - start_pos).dot(start_dir) / start_dir.magnitude() > 10.0 {
+                        end_pos
+                    } else {
+                        start_pos + start_dir * 10.0
+                    };
+                    let mesh = generate_straight_mesh(start_pos, end_pos, self.start_road_type);
+
+                    self.nodes = vec![(start_pos, start_dir), (end_pos, start_dir)];
+                    self.segments = vec![(Segment::new(curve_type), mesh)];
                 }
                 CurveType::Curved => {
                     let (g_points, end_dir) = curves::circle(start_pos, start_dir, end_pos);
@@ -85,8 +100,20 @@ impl RoadGenerator {
         self.start_node_locked = true;
     }
 
-    pub fn get_mesh(&self) -> RoadMesh {
-        combine_road_meshes(self.segments.clone())
+    pub fn unlock(&mut self) {
+        self.start_node_locked = false;
+    }
+
+    pub fn get_mesh(&self) -> Option<RoadMesh> {
+        if !self.is_init {
+            None
+        } else {
+            Some(combine_road_meshes(self.segments.clone()))
+        }
+    }
+
+    pub fn get_road_type(&self) -> RoadType {
+        self.start_road_type
     }
 
     // pub fn can_snap

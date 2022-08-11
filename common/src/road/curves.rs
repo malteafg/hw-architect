@@ -5,7 +5,8 @@ use cgmath::*;
 
 const PRETTY_CLOSE: f32 = 0.97;
 const CLOSE_ENOUGH: f32 = 0.95;
-const COS_45: f32 = 0.7071067812; //aka sqrt(0.5)
+const COS_45: f32 = std::f32::consts::FRAC_1_SQRT_2; //aka sqrt(0.5)
+// const COS_45: f32 = 0.7071067812; //aka sqrt(0.5)
 
 const MIN_SEGMENT_LENGTH: f32 = 10.0;
 
@@ -18,8 +19,8 @@ pub fn three_quarter_circle_curve(
     if dot(pos2 - pos1, dir1) > 0.0 {
         vec![circle(pos1, dir1, projected_point)]
     } else {
-        let modPoint = curve_mid_point(pos1, dir1, projected_point);
-        vec![circle(pos1, dir1, modPoint), circle(modPoint, pos2 - pos1, projected_point)]
+        let mod_point = curve_mid_point(pos1, dir1, projected_point);
+        vec![circle(pos1, dir1, mod_point), circle(mod_point, pos2 - pos1, projected_point)]
     }
 }
 

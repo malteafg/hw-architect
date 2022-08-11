@@ -167,6 +167,10 @@ pub fn parse_key_code(key: &String) -> anyhow::Result<VirtualKeyCode> {
         "3" => Ok(VirtualKeyCode::Key3),
         "4" => Ok(VirtualKeyCode::Key4),
         "5" => Ok(VirtualKeyCode::Key5),
+        "6" => Ok(VirtualKeyCode::Key6),
+        "7" => Ok(VirtualKeyCode::Key7),
+        "8" => Ok(VirtualKeyCode::Key8),
+        "9" => Ok(VirtualKeyCode::Key9),
         "esc" => Ok(VirtualKeyCode::Escape),
         _ => Err(anyhow::anyhow!(format!("could not parse key: {}", key))),
     }
@@ -189,6 +193,7 @@ pub enum Action {
     ThreeLane,
     FourLane,
     FiveLane,
+    SixLane,
     Exit,
 }
 

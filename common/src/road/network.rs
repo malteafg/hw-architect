@@ -1,21 +1,24 @@
-use super::generator;
+use super::{generator, LANE_WIDTH};
 use cgmath::*;
 use std::collections::HashMap;
+
+pub const MAX_LANES: usize = 6;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct NodeId(u32);
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct SegmentId(u32);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub enum CurveType {
+    #[default]
     Straight,
     Curved,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct RoadType {
-    pub no_lanes: u32,
+    pub no_lanes: u8,
     pub curve_type: CurveType,
 }
 
@@ -53,11 +56,13 @@ type LeadingPair = (NodeId, SegmentId);
 pub struct Node {
     pub pos: Vector3<f32>,
     pub dir: Vector3<f32>,
+    pub no_lanes: u8,
+    pub lane_map: [(SegmentId, SegmentId); MAX_LANES],
 }
 
 impl Node {
-    pub fn new(pos: Vector3<f32>, dir: Vector3<f32>) -> Self {
-        Node { pos, dir }
+    pub fn new(pos: Vector3<f32>, dir: Vector3<f32>, no_lanes: u8) -> Self {
+        Node { pos, dir, no_lanes, lane_map: [(SegmentId(0), SegmentId(0)); MAX_LANES] }
     }
 }
 
@@ -88,8 +93,10 @@ impl RoadGraph {
         let segment_map = HashMap::new();
         let forward_refs = HashMap::new();
         let backward_refs = HashMap::new();
-        let node_id_count = 0;
-        let segment_id_count = 0;
+
+        // id 0 is reserved as a none option (see lane_map in node)
+        let node_id_count = 1;
+        let segment_id_count = 1;
         let road_meshes = HashMap::new();
 
         Self {
@@ -109,11 +116,13 @@ impl RoadGraph {
         selected_node: Option<NodeId>,
         snapped_node: Option<NodeId>,
     ) -> RoadMesh {
+        let road_type = road.get_road_type();
+
         let segment_list = road.get_segments();
         let segment_ids = vec![self.generate_segment_id(); segment_list.len()];
 
         segment_list
-            .into_iter()
+            .iter()
             .enumerate()
             .for_each(|(i, (segment, mesh))| {
                 let id = segment_ids[i];
@@ -129,7 +138,7 @@ impl RoadGraph {
         node_list.iter().for_each(|(pos, dir)| {
             let node_id = self.generate_node_id();
             node_ids.push(node_id);
-            self.node_map.insert(node_id, Node::new(*pos, *dir));
+            self.node_map.insert(node_id, Node::new(*pos, *dir, road_type.no_lanes));
         });
 
         // TODO add connections to segments on opposite side of snapped and selected node
@@ -181,10 +190,19 @@ impl RoadGraph {
         road_mesh
     }
 
-    pub fn select_road_element(&self, ray: Vector3<f32>) -> RoadElementId {
+    pub fn select_road_element(&self) -> RoadElementId {
         // check nodes first with their radius
         // check segments based on the curve?
         RoadElementId::Node(NodeId(1))
+    }
+
+    pub fn get_node_from_pos(&self, pos: Vector3<f32>) -> Option<NodeId> {
+        for (i, n) in self.node_map.iter() {
+            if (n.pos - pos).magnitude() < n.no_lanes as f32 * LANE_WIDTH  {
+                return Some(*i)
+            }
+        }
+        None
     }
 
     fn generate_node_id(&mut self) -> NodeId {
