@@ -60,7 +60,7 @@ fn three_quarter_projection(
     if proj_length >= - COS_45 * diff.magnitude() {
         pos2
     } else {
-        proj(diff, dir1) + anti_proj(diff, dir1).normalize() * proj_length
+        pos1 + proj(diff, dir1) - anti_proj(diff, dir1).normalize() * proj_length
     }
 }
 
