@@ -1,4 +1,3 @@
-use cgmath::Point3;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -10,6 +9,7 @@ use winit::{
 };
 
 mod configuration;
+use cgmath::*;
 use common::road::tool;
 use common::{camera, input, math_utils::VecPoint};
 use graphics::graphics::*;
@@ -18,12 +18,14 @@ struct State {
     gfx: GfxState,
     camera: camera::Camera,
     camera_controller: camera::CameraController,
+    input_handler: input::InputHandler,
     road_tool: tool::ToolState,
+    ground_pos: Vector3<f32>,
 }
 
 impl State {
-    async fn new(window: &Window) -> Self {
-        let gfx = GfxState::new(&window).await;
+    async fn new(window: &Window, input_handler: input::InputHandler) -> Self {
+        let gfx = GfxState::new(window).await;
 
         let camera =
             camera::Camera::new((0.0, 0.0, 0.0), cgmath::Deg(2.0), cgmath::Deg(0.0), 100.0);
@@ -33,7 +35,9 @@ impl State {
             gfx,
             camera,
             camera_controller,
+            input_handler,
             road_tool: tool::ToolState::new(),
+            ground_pos: Vector3::new(0.0, 0.0, 0.0),
         }
     }
 
@@ -44,16 +48,17 @@ impl State {
 
     fn mouse_input(&mut self, event: input::MouseEvent) {
         self.camera_controller.process_mouse(event);
-        let mut ground_pos = Point3::<f32>::new(0.0, 0.0, 0.0);
         match event {
-            input::MouseEvent::Left { pos, .. } | input::MouseEvent::Moved { pos, .. } => {
-                let (ray, pos) = self.gfx.calc_ray(&self.camera, pos);
-                ground_pos = pos + ray * (-pos.y / ray.y);
+            input::MouseEvent::LeftDragged(_)
+            | input::MouseEvent::Moved(_)
+            | input::MouseEvent::MiddleDragged(_)
+            | input::MouseEvent::RightDragged(_) => {
+                self.update_ground_pos();
             }
             _ => {}
         };
 
-        let (road_mesh, road_tool_mesh) = self.road_tool.mouse_input(event, ground_pos.to_vec3());
+        let (road_mesh, road_tool_mesh) = self.road_tool.mouse_input(event, self.ground_pos);
         match road_mesh {
             Some(mesh) => self.gfx.update_road_buffer(mesh),
             None => {}
@@ -63,18 +68,34 @@ impl State {
             None => {}
         };
 
-        match event {
-            input::MouseEvent::Left { .. } => {
-                // self.gfx.add_instance(ground_pos.to_vec3());
-            }
-            input::MouseEvent::Right { .. } => self.gfx.remove_instance(),
-            _ => {}
-        }
+        // match event {
+        //     input::MouseEvent::LeftClick => {
+        //         self.gfx.add_instance(ground_pos.to_vec3());
+        //     }
+        //     input::MouseEvent::RightClick => self.gfx.remove_instance(),
+        //     _ => {}
+        // }
     }
 
     fn update(&mut self, dt: instant::Duration) {
-        self.camera_controller.update_camera(&mut self.camera, dt);
+        let camera_moved = self.camera_controller.update_camera(&mut self.camera, dt);
+        if camera_moved {
+            self.update_ground_pos();
+        }
         self.gfx.update(dt, &self.camera);
+    }
+
+    fn update_ground_pos(&mut self) {
+        let (ray, pos) = self
+            .gfx
+            .calc_ray(&self.camera, self.input_handler.get_mouse_pos());
+        let ground_pos = pos + ray * (-pos.y / ray.y);
+        self.ground_pos = ground_pos.to_vec3();
+        let road_tool_mesh = self.road_tool.update_ground_pos(self.ground_pos);
+        match road_tool_mesh {
+            Some(mesh) => self.gfx.update_road_tool_buffer(mesh),
+            None => {}
+        };
     }
 }
 
@@ -93,7 +114,7 @@ pub async fn run() {
     // load configuration
     let config = configuration::load_config().await.unwrap();
     let key_map = configuration::load_key_map(config.key_map).await.unwrap();
-    let mut input_handler = input::InputHandler::new(key_map);
+    let input_handler = input::InputHandler::new(key_map);
 
     // create event_loop and window
     let event_loop = EventLoop::new();
@@ -120,13 +141,13 @@ pub async fn run() {
             .expect("Couldn't append canvas to document body.");
     }
 
-    let mut state = State::new(&window).await;
+    let mut state = State::new(&window, input_handler).await;
 
     let mut last_render_time = instant::Instant::now();
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         use input::{Action, InputEvent};
-        match input_handler.process_input(&event, window.id()) {
+        match state.input_handler.process_input(&event, window.id()) {
             InputEvent::KeyAction(a) => match a {
                 (Action::Exit, _) => *control_flow = ControlFlow::Exit,
                 _ => state.key_input(a),

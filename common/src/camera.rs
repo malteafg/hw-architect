@@ -222,7 +222,7 @@ impl CameraController {
 
     pub fn process_mouse(&mut self, event: MouseEvent) {
         match event {
-            MouseEvent::Dragged { delta, .. } => {
+            MouseEvent::MiddleDragged(delta) => {
                 self.delta_yaw += Rad(-MOUSE_SENSITIVITY * delta.dx as f32);
                 self.delta_pitch += Rad(MOUSE_SENSITIVITY * delta.dy as f32);
                 self.stop_move_progression();
@@ -235,7 +235,8 @@ impl CameraController {
         }
     }
 
-    pub fn update_camera(&mut self, camera: &mut Camera, dt: Duration) {
+    /// returns true if camera has moved TODO
+    pub fn update_camera(&mut self, camera: &mut Camera, dt: Duration) -> bool {
         let dt = dt.as_secs_f32();
 
         if self.progression_speed > 0.0 {
@@ -243,6 +244,7 @@ impl CameraController {
         } else {
             self.update_manuel(camera, dt)
         }
+        true
     }
 
     fn update_progress(&mut self, camera: &mut Camera, dt: f32) {

@@ -34,58 +34,71 @@ impl InputHandler {
 
     pub fn process_input(&mut self, event: &Event<()>, this_window_id: WindowId) -> InputEvent {
         match event {
-            Event::DeviceEvent {
-                event: DeviceEvent::MouseMotion{ delta, },
-                .. // We're not using device_id currently
-            } => {
-                self.mouse_clicking = false;
-                let pos = self.mouse_pos;
-                let delta = MouseDelta { dx: delta.0, dy: delta.1};
-                match self.mouse_pressed {
-                    true => InputEvent::MouseEvent(MouseEvent::Dragged { pos, delta }),
-                    false => InputEvent::MouseEvent(MouseEvent::Moved { pos, delta }),
-                }
-            },
+            // Event::DeviceEvent {
+            //     event: DeviceEvent::MouseMotion{ delta, },
+            //     .. // We're not using device_id currently
+            // } => {
+            //     self.mouse_clicking = false;
+            //     let pos = self.mouse_pos;
+            //     let delta = MouseDelta { dx: delta.0, dy: delta.1};
+            //     match self.mouse_pressed {
+            //         true => InputEvent::MouseEvent(MouseEvent::Dragged { pos, delta }),
+            //         false => InputEvent::MouseEvent(MouseEvent::Moved { pos, delta }),
+            //     }
+            // },
             Event::WindowEvent {
                 ref event,
                 window_id,
             } if window_id == &this_window_id => match event {
-                WindowEvent::CursorMoved { position, .. } => {
-                    self.mouse_pos.x = position.x;
-                    self.mouse_pos.y = position.y;
-                    InputEvent::Absorb
+                WindowEvent::CursorMoved { position: new_pos, .. } => {
+                    self.mouse_clicking = false;
+                    let old_pos = self.mouse_pos;
+                    let delta = MouseDelta { dx: new_pos.x - old_pos.x, dy: new_pos.y - old_pos.y};
+                    self.mouse_pos.x = new_pos.x;
+                    self.mouse_pos.y = new_pos.y;
+                    match self.mouse_pressed {
+                        true => InputEvent::MouseEvent(MouseEvent::MiddleDragged(delta)),
+                        false => InputEvent::MouseEvent(MouseEvent::Moved(delta)),
+                    }
                 }
                 WindowEvent::MouseWheel { delta, .. } => match delta {
-                    MouseScrollDelta::LineDelta(_, scroll) => InputEvent::MouseEvent(MouseEvent::Scrolled( -scroll * 0.5)),
-                    MouseScrollDelta::PixelDelta(PhysicalPosition { y: scroll, .. }) => InputEvent::MouseEvent(MouseEvent::Scrolled( -*scroll as f32)),
-                }
-                WindowEvent::MouseInput {
-                    button,
-                    state,
-                    ..
-                } => match *state {
+                    MouseScrollDelta::LineDelta(_, scroll) => {
+                        InputEvent::MouseEvent(MouseEvent::Scrolled(-scroll * 0.5))
+                    }
+                    MouseScrollDelta::PixelDelta(PhysicalPosition { y: scroll, .. }) => {
+                        InputEvent::MouseEvent(MouseEvent::Scrolled(-*scroll as f32))
+                    }
+                },
+                WindowEvent::MouseInput { button, state, .. } => match *state {
                     ElementState::Pressed => {
-                        if *button == MouseButton::Left {
+                        if *button == MouseButton::Middle {
                             self.mouse_pressed = true;
                         }
                         self.mouse_clicking = true;
                         InputEvent::Absorb
                     }
-                    ElementState::Released => if self.mouse_clicking {
-                        let pos = self.mouse_pos;
-                        let mods = self.modifiers;
-                        self.mouse_pressed = false;
-                        match button {
-                            MouseButton::Left => InputEvent::MouseEvent(MouseEvent::Left { pos, mods }),
-                            MouseButton::Right => InputEvent::MouseEvent(MouseEvent::Right { pos, mods }),
-                            MouseButton::Middle => InputEvent::MouseEvent(MouseEvent::Middle { pos, mods }),
-                            MouseButton::Other(i) => { dbg!(i); InputEvent::Absorb}
+                    ElementState::Released => {
+                        if self.mouse_clicking {
+                            self.mouse_pressed = false;
+                            match button {
+                                MouseButton::Left => InputEvent::MouseEvent(MouseEvent::LeftClick),
+                                MouseButton::Middle => {
+                                    InputEvent::MouseEvent(MouseEvent::MiddleClick)
+                                }
+                                MouseButton::Right => {
+                                    InputEvent::MouseEvent(MouseEvent::RightClick)
+                                }
+                                MouseButton::Other(i) => {
+                                    dbg!(i);
+                                    InputEvent::Absorb
+                                }
+                            }
+                        } else {
+                            self.mouse_pressed = false;
+                            InputEvent::Absorb
                         }
-                    } else {
-                        self.mouse_pressed = false;
-                        InputEvent::Absorb
                     }
-                }
+                },
                 WindowEvent::ModifiersChanged(m) => {
                     self.modifiers = ModifierState {
                         ctrl: m.ctrl(),
@@ -105,16 +118,20 @@ impl InputHandler {
                 } => self
                     .key_map
                     .get(&(*key, self.modifiers))
-                    .map(|action| {
-                        InputEvent::KeyAction((*action, *state == ElementState::Pressed))
-                    })
+                    .map(|action| InputEvent::KeyAction((*action, *state == ElementState::Pressed)))
                     .unwrap_or(InputEvent::Absorb),
-                _ => InputEvent::Proceed
-            }
-            _ => {
-                InputEvent::Proceed
-            }
+                _ => InputEvent::Proceed,
+            },
+            _ => InputEvent::Proceed,
         }
+    }
+
+    pub fn get_mouse_pos(&self) -> MousePos {
+        self.mouse_pos
+    }
+
+    pub fn get_modifier_state(&self) -> ModifierState {
+        self.modifiers
     }
 }
 
@@ -189,11 +206,13 @@ pub struct MouseDelta {
 
 #[derive(Clone, Copy)]
 pub enum MouseEvent {
-    Left { pos: MousePos, mods: ModifierState },
-    Middle { pos: MousePos, mods: ModifierState },
-    Right { pos: MousePos, mods: ModifierState },
-    Moved { pos: MousePos, delta: MouseDelta },
-    Dragged { pos: MousePos, delta: MouseDelta },
+    LeftClick,
+    MiddleClick,
+    RightClick,
+    Moved(MouseDelta),
+    LeftDragged(MouseDelta),
+    MiddleDragged(MouseDelta),
+    RightDragged(MouseDelta),
     Scrolled(f32),
 }
 
