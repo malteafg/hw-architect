@@ -64,6 +64,11 @@ impl RoadGenerator {
                     self.segments = vec![(Segment::new(curve_type), mesh)];
                 }
                 CurveType::Curved => {
+                    let end_pos = if (end_pos - start_pos).magnitude() < 10.0 {
+                        start_pos + (end_pos - start_pos).normalize() * 10.0
+                    } else {
+                        end_pos
+                    };
                     let g_points_vec = curves::guide_points_and_direction(
                         curves::three_quarter_circle_curve(start_pos, start_dir, end_pos),
                     );

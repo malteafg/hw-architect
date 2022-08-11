@@ -76,10 +76,10 @@ impl VIBuffer {
         let vertex_buffer = DBuffer::new(
             &("vertex_".to_owned() + label),
             BufferUsages::VERTEX,
-            &device,
+            device,
         );
         let index_buffer =
-            DBuffer::new(&("index_".to_owned() + label), BufferUsages::INDEX, &device);
+            DBuffer::new(&("index_".to_owned() + label), BufferUsages::INDEX, device);
 
         VIBuffer {
             vertex_buffer,
@@ -96,8 +96,8 @@ impl VIBuffer {
         indices: &[u8],
         num_indices: u32,
     ) {
-        self.vertex_buffer.write(&queue, &device, &vertices);
-        self.index_buffer.write(&queue, &device, &indices);
+        self.vertex_buffer.write(queue, device, vertices);
+        self.index_buffer.write(queue, device, indices);
         self.num_indices = num_indices;
     }
 

@@ -120,7 +120,7 @@ impl RoadGraph {
         road: generator::RoadGenerator,
         selected_node: Option<NodeId>,
         snapped_node: Option<NodeId>,
-    ) -> RoadMesh {
+    ) -> (RoadMesh, NodeId) {
         let road_type = road.get_road_type();
 
         let segment_list = road.get_segments();
@@ -167,7 +167,7 @@ impl RoadGraph {
         // }
 
         // recompute meshes for affected nodes
-        self.combine_road_meshes()
+        (self.combine_road_meshes(), node_ids[node_ids.len() - 1])
     }
 
     pub fn remove_road(&self, segment: SegmentId) {
