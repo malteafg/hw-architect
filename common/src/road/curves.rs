@@ -6,7 +6,7 @@ use cgmath::*;
 const PRETTY_CLOSE: f32 = 0.97;
 const CLOSE_ENOUGH: f32 = 0.95;
 const COS_45: f32 = std::f32::consts::FRAC_1_SQRT_2; //aka sqrt(0.5)
-// const COS_45: f32 = 0.7071067812; //aka sqrt(0.5)
+                                                     // const COS_45: f32 = 0.7071067812; //aka sqrt(0.5)
 
 const MIN_SEGMENT_LENGTH: f32 = 10.0;
 
@@ -17,19 +17,23 @@ const MIN_SEGMENT_LENGTH: f32 = 10.0;
 // - guide_points_and_direction
 //
 // for double snap call "double_snap_curve_case" to get the enum
-// then call "match_double_snap_curve_case" with the enum 
+// then call "match_double_snap_curve_case" with the enum
 // to get the guidepoints
-// 
-// for both three quarter circle and double snap, call 
+//
+// for both three quarter circle and double snap, call
 // "guide_points_and_direction" with the guidepoints
 // to get a vec of tuples with both guidepoints and the direction
 // for the new nodes
 
-
-pub fn guide_points_and_direction(guide_points: Vec<Vec<Vector3<f32>>>) -> Vec<(Vec<Vector3<f32>>, Vector3<f32>)> {
-    let mut result: Vec<(Vec<Vector3<f32>>, Vector3<f32>)> = Vec::new(); 
+pub fn guide_points_and_direction(
+    guide_points: Vec<Vec<Vector3<f32>>>,
+) -> Vec<(Vec<Vector3<f32>>, Vector3<f32>)> {
+    let mut result: Vec<(Vec<Vector3<f32>>, Vector3<f32>)> = Vec::new();
     for curve in guide_points.iter() {
-        result.push((curve.to_vec(), curve[curve.len() - 1] - curve[curve.len() - 2]));
+        result.push((
+            curve.to_vec(),
+            curve[curve.len() - 1] - curve[curve.len() - 2],
+        ));
     }
 
     result
@@ -45,8 +49,10 @@ pub fn three_quarter_circle_curve(
         vec![circle_curve(pos1, dir1, projected_point)]
     } else {
         let mid_point = curve_mid_point(pos1, dir1, projected_point);
-        vec![circle_curve(pos1, dir1, mid_point), 
-             circle_curve(mid_point, projected_point - pos1, projected_point)]
+        vec![
+            circle_curve(pos1, dir1, mid_point),
+            circle_curve(mid_point, projected_point - pos1, projected_point),
+        ]
     }
 }
 
@@ -57,7 +63,7 @@ fn three_quarter_projection(
 ) -> Vector3<f32> {
     let diff = pos2 - pos1;
     let proj_length = dot(diff, dir1) / dir1.magnitude();
-    if proj_length >= - COS_45 * diff.magnitude() {
+    if proj_length >= -COS_45 * diff.magnitude() {
         pos2
     } else {
         pos1 + proj(diff, dir1) - anti_proj(diff, dir1).normalize() * proj_length
@@ -135,33 +141,35 @@ pub fn double_snap_curve_case(
     dir1: Vector3<f32>,
     pos2: Vector3<f32>,
     dir2: Vector3<f32>,
-    lane_count: i32,) -> DoubleSnapCurveCase{
-
+    lane_count: i32,
+) -> DoubleSnapCurveCase {
     let diff = pos2 - pos1;
 
     if ndot(mirror(dir1, diff), dir2) > PRETTY_CLOSE
         && (-diff).dot(dir2) >= PRETTY_CLOSE - 1.0
-        && diff.dot(dir1) >= PRETTY_CLOSE - 1.0 {
-        return DoubleSnapCurveCase::SingleCircle
+        && diff.dot(dir1) >= PRETTY_CLOSE - 1.0
+    {
+        return DoubleSnapCurveCase::SingleCircle;
     } else {
         let ndir1 = dir1.normalize();
         let ndir2 = dir2.normalize();
         let t = s_curve_segment_length(pos1, ndir1, pos2, dir2);
         let center = (pos1 + pos2 + ndir1 * t + ndir2 * t) / 2.0;
         if is_curve_too_small(dir1, center - pos1, lane_count)
-            || is_curve_too_small(dir2, center - pos2, lane_count) {
-            return DoubleSnapCurveCase::ErrorTooSmall
+            || is_curve_too_small(dir2, center - pos2, lane_count)
+        {
+            return DoubleSnapCurveCase::ErrorTooSmall;
         }
         if dir1.dot(center - pos1) < 0.0 || dir2.dot(center - pos2) < 0.0 {
-            return DoubleSnapCurveCase::ErrorSegmentAngle
+            return DoubleSnapCurveCase::ErrorSegmentAngle;
         }
         if (pos2 - pos1).dot(center - pos1) < 0.0 || (pos1 - pos2).dot(center - pos2) < 0.0 {
-            return DoubleSnapCurveCase::ErrorCurveAngle
+            return DoubleSnapCurveCase::ErrorCurveAngle;
         }
         if is_eliptical(pos1, dir1, pos2, dir2) {
-            return DoubleSnapCurveCase::Elipse
+            return DoubleSnapCurveCase::Elipse;
         } else {
-            return DoubleSnapCurveCase::DoubleCircle
+            return DoubleSnapCurveCase::DoubleCircle;
         }
     }
 }
@@ -171,15 +179,15 @@ pub fn match_double_snap_curve_case(
     dir1: Vector3<f32>,
     pos2: Vector3<f32>,
     dir2: Vector3<f32>,
-    case: DoubleSnapCurveCase) -> Vec<Vec<Vector3<f32>>> {
+    case: DoubleSnapCurveCase,
+) -> Vec<Vec<Vector3<f32>>> {
     match case {
-        DoubleSnapCurveCase::SingleCircle => 
-            vec![circle_curve_fudged(pos1, dir1, pos2, dir2)],
-        DoubleSnapCurveCase::DoubleCircle => 
-            vec![simple_curve_points(pos1, dir1, pos2, dir2).expect("Simple curve fuck up!")],
-        DoubleSnapCurveCase::Elipse =>
-            double_curve(pos1, dir1, pos2, dir2),
-        _ => vec![]
+        DoubleSnapCurveCase::SingleCircle => vec![circle_curve_fudged(pos1, dir1, pos2, dir2)],
+        DoubleSnapCurveCase::DoubleCircle => {
+            vec![simple_curve_points(pos1, dir1, pos2, dir2).expect("Simple curve fuck up!")]
+        }
+        DoubleSnapCurveCase::Elipse => double_curve(pos1, dir1, pos2, dir2),
+        _ => vec![],
     }
 }
 
@@ -187,18 +195,19 @@ fn double_curve(
     pos1: Vector3<f32>,
     dir1: Vector3<f32>,
     pos2: Vector3<f32>,
-    dir2: Vector3<f32>,) -> Vec<Vec<Vector3<f32>>> {
+    dir2: Vector3<f32>,
+) -> Vec<Vec<Vector3<f32>>> {
     let mut points = Vec::new();
     let ndir1 = dir1.normalize();
     let ndir2 = dir2.normalize();
     let t = s_curve_segment_length(pos1, ndir1, pos2, dir2);
     let center = (pos1 + pos2 + ndir1 * t + ndir2 * t) / 2.0;
-    
+
     points.push(circle_curve(pos1, dir1, center));
     let mut second_half = circle_curve(pos2, dir2, center);
     second_half.reverse();
     points.push(second_half);
-    
+
     points
 }
 

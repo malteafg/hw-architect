@@ -1,6 +1,6 @@
-use crate::input;
 use super::generator;
 use super::network;
+use crate::input;
 use cgmath::*;
 
 #[derive(Debug, Clone, Copy)]
@@ -61,9 +61,9 @@ impl ToolState {
         &mut self,
         event: input::MouseEvent,
     ) -> (Option<network::RoadMesh>, Option<network::RoadMesh>) {
-        use network::CurveType;
-        use input::MouseEvent;
         use generator::RoadGenerator;
+        use input::MouseEvent;
+        use network::CurveType;
 
         // match event {
         //     MouseEvent::LeftClick | MouseEvent::RightClick => {
@@ -71,7 +71,7 @@ impl ToolState {
         //     },
         //     _ => {},
         // };
-        
+
         // returned when road_generator is set to None
         let empty_mesh = Some(generator::empty_mesh());
 
@@ -82,13 +82,14 @@ impl ToolState {
                     (None, road_mesh)
                 }
                 None => {
-                    self.road_generator = RoadGenerator::new(self.ground_pos, self.sel_road_type, None);
+                    self.road_generator =
+                        RoadGenerator::new(self.ground_pos, self.sel_road_type, None);
                     let road_mesh = self.road_generator.get_mesh();
 
                     self.mode = Mode::SelectDir;
                     (None, road_mesh)
                 }
-            }
+            },
             (Mode::SelectDir, MouseEvent::LeftClick) => match self.sel_road_type.curve_type {
                 CurveType::Straight => self.build_road(),
                 CurveType::Curved => {
@@ -96,10 +97,10 @@ impl ToolState {
                     self.road_generator.update_pos(self.ground_pos);
                     let road_mesh = self.road_generator.get_mesh();
 
-                    self.mode = Mode::Build; 
+                    self.mode = Mode::Build;
                     (None, road_mesh)
                 }
-            }
+            },
             (Mode::Build, MouseEvent::LeftClick) => self.build_road(),
             (Mode::SelectDir, MouseEvent::RightClick) => {
                 self.road_generator = generator::RoadGenerator::default();
@@ -110,25 +111,20 @@ impl ToolState {
                 (None, empty_mesh)
             }
             (Mode::Build, MouseEvent::RightClick) => {
-                match self.sel_road_type.curve_type {
-                    CurveType::Straight => {
-                        self.road_generator = generator::RoadGenerator::default();
-                        self.sel_node = None;
-                        self.snapped_node = None;
-                        self.update_ground_pos(self.ground_pos);
-                        self.mode = Mode::SelectPos;
-                        (None, empty_mesh)
+                match (self.sel_road_type.curve_type, self.sel_node) {
+                    (CurveType::Curved, None) => {
+                        self.road_generator.unlock();
+                        self.mode = Mode::SelectDir;
                     }
-                    CurveType::Curved => {
-                        // TODO should return to dir mode
+                    _ => {
                         self.road_generator = generator::RoadGenerator::default();
-                        self.sel_node = None;
-                        self.snapped_node = None;
-                        self.update_ground_pos(self.ground_pos);
                         self.mode = Mode::SelectPos;
-                        (None, empty_mesh)
                     }
-                }
+                };
+                self.sel_node = None;
+                self.snapped_node = None;
+                self.update_ground_pos(self.ground_pos);
+                (None, empty_mesh)
             }
             (_, _) => (None, None),
         }
@@ -137,7 +133,8 @@ impl ToolState {
     fn select_node(&mut self, snapped_node: network::NodeId) -> Option<network::RoadMesh> {
         let node = self.road_graph.get_node(snapped_node);
 
-        self.road_generator = generator::RoadGenerator::new(node.pos, self.sel_road_type, Some(node.dir));
+        self.road_generator =
+            generator::RoadGenerator::new(node.pos, self.sel_road_type, Some(node.dir));
         self.road_generator.update_pos(self.ground_pos);
         let road_mesh = self.road_generator.get_mesh();
 
@@ -149,7 +146,9 @@ impl ToolState {
     }
 
     fn build_road(&mut self) -> (Option<network::RoadMesh>, Option<network::RoadMesh>) {
-        let (road_mesh, new_node) = self.road_graph.add_road(self.road_generator.clone(), None, None);
+        let (road_mesh, new_node) =
+            self.road_graph
+                .add_road(self.road_generator.clone(), None, None);
         let road_generator_mesh = self.select_node(new_node);
         (Some(road_mesh), road_generator_mesh)
     }
@@ -187,7 +186,8 @@ impl ToolState {
             Mode::SelectPos => match self.snapped_node {
                 Some(snapped_node) => {
                     let node = self.road_graph.get_node(snapped_node);
-                    self.road_generator = RoadGenerator::new(node.pos, self.sel_road_type, Some(node.dir));
+                    self.road_generator =
+                        RoadGenerator::new(node.pos, self.sel_road_type, Some(node.dir));
                     self.road_generator.get_mesh()
                 }
                 None => empty_mesh,
@@ -196,12 +196,12 @@ impl ToolState {
                 // for now we are not allowed to snap in dir mode
                 self.road_generator.update_pos(ground_pos);
                 self.road_generator.get_mesh()
-            },
+            }
             Mode::Build => {
                 // for now we are not allowed to snap in build mode
                 self.road_generator.update_pos(ground_pos);
                 self.road_generator.get_mesh()
-            },
+            }
         }
     }
 }
