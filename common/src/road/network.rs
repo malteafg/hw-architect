@@ -1,24 +1,28 @@
+use super::generator;
 use cgmath::*;
 use std::collections::HashMap;
 
-pub type NodeId = u32;
-pub type SegmentId = u32;
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub struct NodeId(u32);
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub struct SegmentId(u32);
 
-// pub struct NodeGenerator {
-//     pos: Vector3<f32>,
-//     dir: Vector3<f32>,
-// }
+#[derive(Debug, Clone, Copy)]
+pub enum CurveType {
+    Straight,
+    Curved,
+}
 
-#[derive(Clone)]
-pub enum NodeDescriptor {
-    EXISTING(NodeId),
-    NEW(Node),
+#[derive(Debug, Clone, Copy)]
+pub struct RoadType {
+    pub no_lanes: u32,
+    pub curve_type: CurveType,
 }
 
 #[derive(PartialEq, Eq, Hash)]
 pub enum RoadElementId {
-    NODE(NodeId),
-    SEGMENT(SegmentId),
+    Node(NodeId),
+    Segment(SegmentId),
 }
 
 #[repr(C)]
@@ -35,7 +39,7 @@ pub struct RoadMesh {
 }
 
 impl RoadMesh {
-    fn new() -> Self {
+    pub fn new() -> Self {
         RoadMesh {
             vertices: Vec::new(),
             indices: Vec::new(),
@@ -43,39 +47,12 @@ impl RoadMesh {
     }
 }
 
-/// RoadGenerator should always generate the vec in direction of the cars, and there should be one more node than segment
-#[derive(Clone)]
-pub struct RoadGenerator {
-    start_node: NodeDescriptor,
-    pub start_pos: Vector3<f32>,
-    segments: Vec<(Segment, NodeDescriptor, RoadMesh)>,
-}
-
-impl RoadGenerator {
-    pub fn new(
-        start_node: NodeDescriptor,
-        start_pos: Vector3<f32>,
-        end_node: NodeDescriptor,
-        mesh: RoadMesh,
-    ) -> Self {
-        RoadGenerator {
-            start_node,
-            start_pos,
-            segments: vec![(Segment { curve_type: 1 }, end_node, mesh)],
-        }
-    }
-
-    pub fn update(&mut self, end_node: NodeDescriptor, mesh: RoadMesh) {
-        self.segments = vec![(Segment { curve_type: 1 }, end_node, mesh)];
-    }
-}
-
 type LeadingPair = (NodeId, SegmentId);
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Node {
-    pos: Vector3<f32>,
-    dir: Vector3<f32>,
+    pub pos: Vector3<f32>,
+    pub dir: Vector3<f32>,
 }
 
 impl Node {
@@ -84,16 +61,22 @@ impl Node {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Segment {
-    curve_type: u32,
+    pub curve_type: CurveType,
+}
+
+impl Segment {
+    pub fn new(curve_type: CurveType) -> Self {
+        Segment { curve_type }
+    }
 }
 
 pub struct RoadGraph {
     node_map: HashMap<NodeId, Node>,
     segment_map: HashMap<SegmentId, Segment>,
-    forward_refs: HashMap<NodeId, Vec<LeadingPair>>,
-    backward_refs: HashMap<NodeId, Vec<LeadingPair>>,
+    forward_refs: HashMap<SegmentId, Vec<LeadingPair>>,
+    backward_refs: HashMap<SegmentId, Vec<LeadingPair>>,
     node_id_count: u32,
     segment_id_count: u32,
     road_meshes: HashMap<RoadElementId, RoadMesh>,
@@ -120,44 +103,45 @@ impl RoadGraph {
         }
     }
 
-    pub fn add_road(&mut self, road: RoadGenerator) -> RoadMesh {
-        use NodeDescriptor::*;
-        use RoadElementId::*;
+    pub fn add_road(
+        &mut self,
+        road: generator::RoadGenerator,
+        selected_node: Option<NodeId>,
+        snapped_node: Option<NodeId>,
+    ) -> RoadMesh {
+        let segment_list = road.get_segments();
+        let segment_ids = vec![self.generate_segment_id(); segment_list.len()];
 
-        // the order of ids follow the order of driving
-        let segment_ids = vec![self.generate_segment_id(); road.segments.len()];
-        let mut node_ids = Vec::new();
-
-        let mut nodes = vec![road.start_node];
-        road.segments
+        segment_list
             .into_iter()
             .enumerate()
-            .for_each(|(i, (segment, node, mesh))| {
-                self.segment_map.insert(segment_ids[i], segment);
-                self.road_meshes.insert(SEGMENT(segment_ids[i]), mesh);
-                nodes.push(node);
+            .for_each(|(i, (segment, mesh))| {
+                let id = segment_ids[i];
+                self.segment_map.insert(id, *segment);
+                self.road_meshes.insert(RoadElementId::Segment(id), mesh.clone());
+                self.forward_refs.insert(id, Vec::new());
+                self.backward_refs.insert(id, Vec::new());
             });
 
-        nodes.into_iter().for_each(|node| match node {
-            EXISTING(node_id) => node_ids.push(node_id),
-            NEW(node) => {
-                let node_id = self.generate_node_id();
-                node_ids.push(node_id);
-                self.node_map.insert(node_id, node);
-                self.forward_refs.insert(node_id, Vec::new());
-                self.backward_refs.insert(node_id, Vec::new());
-            }
+        // TODO change behavior when selected and snapped node are set
+        let node_list = road.get_nodes();
+        let mut node_ids = vec![];
+        node_list.iter().for_each(|(pos, dir)| {
+            let node_id = self.generate_node_id();
+            node_ids.push(node_id);
+            self.node_map.insert(node_id, Node::new(*pos, *dir));
         });
 
-        for i in 0..(node_ids.len() - 1) {
+        // TODO add connections to segments on opposite side of snapped and selected node
+        for i in 0..(segment_ids.len() - 1) {
             self.forward_refs
-                .get_mut(&(i as u32))
+                .get_mut(&(SegmentId(i as u32)))
                 .unwrap()
-                .push((node_ids[i + 1], segment_ids[i]));
+                .push((node_ids[i + 1], segment_ids[i + 1]));
             self.backward_refs
-                .get_mut(&(i as u32 + 1))
+                .get_mut(&(SegmentId(i as u32 + 1)))
                 .unwrap()
-                .push((node_ids[i], segment_ids[i]));
+                .push((node_ids[i - 1], segment_ids[i]));
         }
 
         // recompute meshes for affected nodes
@@ -166,6 +150,13 @@ impl RoadGraph {
 
     pub fn remove_road(&self, segment: SegmentId) {
         // remove segment and update affected nodes
+    }
+
+    pub fn get_node(&self, node: NodeId) -> Node {
+        *self
+            .node_map
+            .get(&node)
+            .expect("Node does not exist in node map")
     }
 
     // iterate over road_meshes and return vec of RoadVertex
@@ -193,18 +184,18 @@ impl RoadGraph {
     pub fn select_road_element(&self, ray: Vector3<f32>) -> RoadElementId {
         // check nodes first with their radius
         // check segments based on the curve?
-        RoadElementId::NODE(1)
+        RoadElementId::Node(NodeId(1))
     }
 
     fn generate_node_id(&mut self) -> NodeId {
         let node_id = self.node_id_count;
         self.node_id_count += 1;
-        node_id
+        NodeId(node_id)
     }
 
     fn generate_segment_id(&mut self) -> SegmentId {
         let segment_id = self.segment_id_count;
         self.segment_id_count += 1;
-        segment_id
+        SegmentId(segment_id)
     }
 }

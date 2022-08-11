@@ -235,7 +235,8 @@ impl CameraController {
         }
     }
 
-    pub fn update_camera(&mut self, camera: &mut Camera, dt: Duration) {
+    /// returns true if camera has moved TODO
+    pub fn update_camera(&mut self, camera: &mut Camera, dt: Duration) -> bool {
         let dt = dt.as_secs_f32();
 
         if self.progression_speed > 0.0 {
@@ -243,6 +244,7 @@ impl CameraController {
         } else {
             self.update_manuel(camera, dt)
         }
+        true
     }
 
     fn update_progress(&mut self, camera: &mut Camera, dt: f32) {

@@ -116,6 +116,10 @@ impl InputHandler {
             }
         }
     }
+    
+    pub fn get_mouse_pos(&self) -> MousePos {
+        self.mouse_pos
+    }
 }
 
 pub fn parse_key_code(key: &String) -> anyhow::Result<VirtualKeyCode> {
