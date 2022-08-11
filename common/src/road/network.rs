@@ -62,7 +62,12 @@ pub struct Node {
 
 impl Node {
     pub fn new(pos: Vector3<f32>, dir: Vector3<f32>, no_lanes: u8) -> Self {
-        Node { pos, dir, no_lanes, lane_map: [(SegmentId(0), SegmentId(0)); MAX_LANES] }
+        Node {
+            pos,
+            dir,
+            no_lanes,
+            lane_map: [(SegmentId(0), SegmentId(0)); MAX_LANES],
+        }
     }
 }
 
@@ -119,7 +124,11 @@ impl RoadGraph {
         let road_type = road.get_road_type();
 
         let segment_list = road.get_segments();
-        let segment_ids = vec![self.generate_segment_id(); segment_list.len()];
+        let segment_ids: Vec<SegmentId> = segment_list
+            .iter()
+            .map(|_| self.generate_segment_id())
+            .collect();
+        // dbg!(segment_ids.clone());
 
         segment_list
             .iter()
@@ -127,7 +136,8 @@ impl RoadGraph {
             .for_each(|(i, (segment, mesh))| {
                 let id = segment_ids[i];
                 self.segment_map.insert(id, *segment);
-                self.road_meshes.insert(RoadElementId::Segment(id), mesh.clone());
+                self.road_meshes
+                    .insert(RoadElementId::Segment(id), mesh.clone());
                 self.forward_refs.insert(id, Vec::new());
                 self.backward_refs.insert(id, Vec::new());
             });
@@ -138,20 +148,23 @@ impl RoadGraph {
         node_list.iter().for_each(|(pos, dir)| {
             let node_id = self.generate_node_id();
             node_ids.push(node_id);
-            self.node_map.insert(node_id, Node::new(*pos, *dir, road_type.no_lanes));
+            self.node_map
+                .insert(node_id, Node::new(*pos, *dir, road_type.no_lanes));
         });
 
+        // dbg!(self.forward_refs.clone());
+
         // TODO add connections to segments on opposite side of snapped and selected node
-        for i in 0..(segment_ids.len() - 1) {
-            self.forward_refs
-                .get_mut(&(SegmentId(i as u32)))
-                .unwrap()
-                .push((node_ids[i + 1], segment_ids[i + 1]));
-            self.backward_refs
-                .get_mut(&(SegmentId(i as u32 + 1)))
-                .unwrap()
-                .push((node_ids[i - 1], segment_ids[i]));
-        }
+        // for i in 0..(segment_ids.len() - 1) {
+        //     self.forward_refs
+        //         .get_mut(&segment_ids[i])
+        //         .unwrap()
+        //         .push((node_ids[i + 1], segment_ids[i + 1]));
+        //     self.backward_refs
+        //         .get_mut(&segment_ids[i + 1])
+        //         .unwrap()
+        //         .push((node_ids[i - 1], segment_ids[i]));
+        // }
 
         // recompute meshes for affected nodes
         self.combine_road_meshes()
@@ -198,8 +211,8 @@ impl RoadGraph {
 
     pub fn get_node_from_pos(&self, pos: Vector3<f32>) -> Option<NodeId> {
         for (i, n) in self.node_map.iter() {
-            if (n.pos - pos).magnitude() < n.no_lanes as f32 * LANE_WIDTH  {
-                return Some(*i)
+            if (n.pos - pos).magnitude() < n.no_lanes as f32 * LANE_WIDTH {
+                return Some(*i);
             }
         }
         None

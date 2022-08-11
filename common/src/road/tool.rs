@@ -64,12 +64,12 @@ impl ToolState {
         use input::MouseEvent;
         use generator::RoadGenerator;
 
-        match event {
-            MouseEvent::LeftClick | MouseEvent::RightClick => {
-                dbg!(self.sel_road_type, self.sel_node, self.snapped_node, self.mode);
-            },
-            _ => {},
-        };
+        // match event {
+        //     MouseEvent::LeftClick | MouseEvent::RightClick => {
+        //         dbg!(self.sel_road_type, self.sel_node, self.snapped_node, self.mode);
+        //     },
+        //     _ => {},
+        // };
         
         // returned when road_generator is set to None
         let empty_mesh = Some(generator::empty_mesh());
