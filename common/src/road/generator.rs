@@ -1,8 +1,8 @@
 use super::curves;
 use super::network::*;
 use super::LANE_WIDTH;
-use cgmath::*;
 use crate::math_utils;
+use cgmath::*;
 
 #[derive(Clone, Default)]
 pub struct RoadGenerator {
@@ -52,23 +52,36 @@ impl RoadGenerator {
             match curve_type {
                 CurveType::Straight => {
                     let end_pos = math_utils::proj(ground_pos - start_pos, start_dir) + start_pos;
-                    let end_pos = if (ground_pos - start_pos).dot(start_dir) / start_dir.magnitude() > 10.0 {
-                        end_pos
-                    } else {
-                        start_pos + start_dir * 10.0
-                    };
+                    let end_pos =
+                        if (ground_pos - start_pos).dot(start_dir) / start_dir.magnitude() > 10.0 {
+                            end_pos
+                        } else {
+                            start_pos + start_dir * 10.0
+                        };
                     let mesh = generate_straight_mesh(start_pos, end_pos, self.start_road_type);
 
                     self.nodes = vec![(start_pos, start_dir), (end_pos, start_dir)];
                     self.segments = vec![(Segment::new(curve_type), mesh)];
                 }
                 CurveType::Curved => {
-                    let (g_points, end_dir) = curves::circle(start_pos, start_dir, end_pos);
-                    let mesh =
-                        generate_circular_mesh(start_pos, end_pos, self.start_road_type, g_points);
+                    let g_points_vec = curves::guide_points_and_direction(
+                        curves::three_quarter_circle_curve(start_pos, start_dir, end_pos),
+                    );
 
-                    self.nodes = vec![(start_pos, start_dir), (end_pos, end_dir)];
-                    self.segments = vec![(Segment::new(curve_type), mesh)];
+                    self.nodes = vec![(start_pos, start_dir)];
+                    self.segments = vec![];
+                    g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
+                        let start_pos = g_points[0];
+                        let end_pos = g_points[g_points.len() - 1];
+                        let mesh = generate_circular_mesh(
+                            start_pos,
+                            end_pos,
+                            self.start_road_type,
+                            g_points,
+                        );
+                        self.nodes.push((end_pos, end_dir));
+                        self.segments.push((Segment::new(curve_type), mesh));
+                    });
                 }
             }
         } else {
