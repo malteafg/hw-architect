@@ -11,6 +11,8 @@ camera_rotate_left:
   - q
 camera_rotate_right:
   - e
+camera_return:
+  - space
 cycle_road_type:
   - c
 one_lane:

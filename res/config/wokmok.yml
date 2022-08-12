@@ -11,6 +11,8 @@ camera_rotate_left:
   - q
 camera_rotate_right:
   - l
+camera_return:
+  - space
 cycle_road_type:
   - d
 one_lane:
@@ -27,3 +29,4 @@ six_lane:
   - "6"
 exit:
   - esc
+  

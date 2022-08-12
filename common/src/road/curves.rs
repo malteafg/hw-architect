@@ -6,12 +6,15 @@ use cgmath::*;
 const PRETTY_CLOSE: f32 = 0.97;
 const CLOSE_ENOUGH: f32 = 0.95;
 const COS_45: f32 = std::f32::consts::FRAC_1_SQRT_2; //aka sqrt(0.5)
+const COS_THREE_SIXTEENTH: f32 = 0.3826834322;
+const COS_SIXTEENTH: f32 = 0.9238795324;
 // const COS_45: f32 = 0.7071067812; //aka sqrt(0.5)
 
 const MIN_SEGMENT_LENGTH: f32 = 10.0;
 
 // Notable functions:
-// - three_quarter_circle_curve
+// - free_three_quarter_circle_curve
+// - snap_three_quarter_circle_curve
 // - double_snap_curve_case
 // - match_double_snap_curve_case
 // - guide_points_and_direction
@@ -24,6 +27,9 @@ const MIN_SEGMENT_LENGTH: f32 = 10.0;
 // "guide_points_and_direction" with the guidepoints
 // to get a vec of tuples with both guidepoints and the direction
 // for the new nodes
+//
+// snap_three_quarter_circle_curve makes circular curves but snaps to 
+// 90 degree intervals of road curvature
 
 
 pub fn guide_points_and_direction(guide_points: Vec<Vec<Vector3<f32>>>) -> Vec<(Vec<Vector3<f32>>, Vector3<f32>)> {
@@ -35,18 +41,33 @@ pub fn guide_points_and_direction(guide_points: Vec<Vec<Vector3<f32>>>) -> Vec<(
     result
 }
 
-pub fn three_quarter_circle_curve(
+pub fn free_three_quarter_circle_curve(
     pos1: Vector3<f32>,
     dir1: Vector3<f32>,
     pos2: Vector3<f32>,
 ) -> Vec<Vec<Vector3<f32>>> {
-    let projected_point = three_quarter_projection(pos1, dir1, pos2);
-    if dot(pos2 - pos1, dir1) > 0.0 {
-        vec![circle_curve(pos1, dir1, projected_point)]
+    three_quarter_circle_curve(pos1, dir1, three_quarter_projection(pos1, dir1, pos2))
+}
+
+pub fn snap_three_quarter_circle_curve(
+    pos1: Vector3<f32>,
+    dir1: Vector3<f32>,
+    pos2: Vector3<f32>,
+) -> Vec<Vec<Vector3<f32>>> {
+    three_quarter_circle_curve(pos1, dir1, snap_circle_projection(pos1, dir1, pos2))
+}
+
+fn three_quarter_circle_curve(
+    pos1: Vector3<f32>,
+    dir1: Vector3<f32>,
+    pos2: Vector3<f32>,
+) -> Vec<Vec<Vector3<f32>>> {
+    if dot(pos2 - pos1, dir1) >= 0.0 {
+        vec![circle_curve(pos1, dir1, pos2)]
     } else {
-        let mid_point = curve_mid_point(pos1, dir1, projected_point);
+        let mid_point = curve_mid_point(pos1, dir1, pos2);
         vec![circle_curve(pos1, dir1, mid_point), 
-             circle_curve(mid_point, projected_point - pos1, projected_point)]
+             circle_curve(mid_point, pos2 - pos1, pos2)]
     }
 }
 
@@ -60,7 +81,24 @@ fn three_quarter_projection(
     if proj_length >= - COS_45 * diff.magnitude() {
         pos2
     } else {
-        pos1 + proj(diff, dir1) - anti_proj(diff, dir1).normalize() * proj_length
+        pos1 + proj(diff, dir1) + anti_proj(diff, dir1).normalize() * proj_length.abs()
+    }
+}
+
+fn snap_circle_projection(
+    pos1: Vector3<f32>,
+    dir1: Vector3<f32>,
+    pos2: Vector3<f32>,
+) -> Vector3<f32> {
+    let diff = pos2 - pos1;
+    let proj_length = dot(diff, dir1) / dir1.magnitude();
+    let diff_length = diff.magnitude();
+    if proj_length >= COS_SIXTEENTH * diff_length {
+        pos1 + proj(diff, dir1)
+    } else if proj_length.abs() <= COS_THREE_SIXTEENTH * diff_length {
+        pos1 - dir1.normalize() * proj_length.abs() * 0.002 + anti_proj(diff, dir1)
+    } else {
+        pos1 + proj(diff, dir1) + anti_proj(diff, dir1).normalize() * proj_length.abs()
     }
 }
 
@@ -117,7 +155,7 @@ pub fn circle_curve_fudged(
 
 fn circle_scale(diff: Vector3<f32>, dir: Vector3<f32>) -> f32 {
     let dot = diff.normalize().dot(dir.normalize());
-    2.0 / 3.0 * diff.magnitude() * (1.0 - dot) / (dir.magnitude() * (1.0 - dot * dot))
+    if dot == 1.0 {0.0} else {2.0 / 3.0 * diff.magnitude() * (1.0 - dot) / (dir.magnitude() * (1.0 - dot * dot))}
 }
 
 pub enum DoubleSnapCurveCase {

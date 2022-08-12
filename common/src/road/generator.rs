@@ -4,6 +4,8 @@ use super::LANE_WIDTH;
 use crate::math_utils;
 use cgmath::*;
 
+const VERTEX_DENSITY: f32 = 0.05;
+
 #[derive(Clone, Default)]
 pub struct RoadGenerator {
     nodes: Vec<(Vector3<f32>, Vector3<f32>)>,
@@ -65,8 +67,8 @@ impl RoadGenerator {
                 }
                 CurveType::Curved => {
                     let g_points_vec = curves::guide_points_and_direction(
-                        curves::three_quarter_circle_curve(start_pos, start_dir, end_pos),
-                    );
+                        curves::free_three_quarter_circle_curve(start_pos, start_dir, end_pos),
+                    ); // use snap_three_quarter_circle_curve for snapping
 
                     self.nodes = vec![(start_pos, start_dir)];
                     self.segments = vec![];
@@ -192,9 +194,9 @@ pub fn generate_circular_mesh(
 ) -> RoadMesh {
     let no_lanes = selected_road.no_lanes;
     let width = LANE_WIDTH * no_lanes as f32;
-
+    let num_of_cuts = (VERTEX_DENSITY * (1000.0 + (end_pos - start_pos).magnitude())) as u32;
     let mut t = 0.0;
-    let dt = 0.1;
+    let dt = 1.0 / (num_of_cuts as f32 - 1.0); 
     let mut vertices = Vec::new();
 
     let mut vertices2 = generate_road_cut(
@@ -203,7 +205,7 @@ pub fn generate_circular_mesh(
         width,
     );
     vertices.append(&mut vertices2);
-    for _ in 0..((1.0 / dt - 1.0) as u32) {
+    for _ in 0..(num_of_cuts - 2) {
         t += dt;
         let mut vertices2 = generate_road_cut(
             curves::calc_bezier_pos(g_points.clone(), t),
@@ -224,7 +226,7 @@ pub fn generate_circular_mesh(
             position: [p.x, p.y, p.z],
         })
         .collect::<Vec<_>>();
-    let indices = generate_indices(11);
+    let indices = generate_indices(num_of_cuts);
     RoadMesh { vertices, indices }
 }
 

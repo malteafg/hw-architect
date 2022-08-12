@@ -11,7 +11,9 @@ const MAX_CAMERA_DIST: f32 = 700.0;
 const MAX_CAMERA_SPEED: f32 = 10.0;
 const CAMERA_MOVE_SPEED: f32 = 0.05;
 const CAMERA_MOVE_SMOOTH_FACTOR: f32 = 10.0;
-const MOUSE_SENSITIVITY: f32 = 0.001;
+
+const MOUSE_HORIZONTAL_SENSITIVITY: f32 = 0.003;
+const MOUSE_VERTICAL_SENSITIVITY: f32 = 0.002;
 
 const NUM_OF_MOVE_BUTTONS: i32 = 6;
 
@@ -198,19 +200,19 @@ impl CameraController {
                 self.input[5] = pressed;
                 true
             }
+            (Action::CameraReturn, pressed) if pressed => {
+                self.move_camera(
+                    Vector3::new(0.0, 0.0, 0.0),
+                    Rad(PI / 4.0),
+                    Rad(1.0),
+                    100.0,
+                    1.0,
+                    CameraController::polynomial_move,
+                );
+                true
+            }
             _ => false,
-            // VirtualKeyCode::Space => {
-            //     self.move_camera(
-            //         Vector3::new(0.0, 0.0, 0.0),
-            //         Rad(PI / 4.0),
-            //         Rad(1.0),
-            //         100.0,
-            //         1.0,
-            //         CameraController::polynomial_move,
-            //     );
-            //     false
-            // }
-            // _ => false,
+            
         }
 
         // if pressed && key_matched {
@@ -223,8 +225,8 @@ impl CameraController {
     pub fn process_mouse(&mut self, event: MouseEvent) {
         match event {
             MouseEvent::MiddleDragged(delta) => {
-                self.delta_yaw += Rad(-MOUSE_SENSITIVITY * delta.dx as f32);
-                self.delta_pitch += Rad(MOUSE_SENSITIVITY * delta.dy as f32);
+                self.delta_yaw += Rad(-MOUSE_HORIZONTAL_SENSITIVITY * delta.dx as f32);
+                self.delta_pitch += Rad(MOUSE_VERTICAL_SENSITIVITY * delta.dy as f32);
                 self.stop_move_progression();
             }
             MouseEvent::Scrolled(scroll) => {

@@ -28,7 +28,7 @@ impl State {
         let gfx = GfxState::new(window).await;
 
         let camera =
-            camera::Camera::new((0.0, 0.0, 0.0), cgmath::Deg(2.0), cgmath::Deg(0.0), 100.0);
+            camera::Camera::new((0.0, 0.0, 0.0), cgmath::Deg(2.0), cgmath::Deg(50.0), 100.0);
         let camera_controller = camera::CameraController::new();
 
         Self {
