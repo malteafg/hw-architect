@@ -67,7 +67,7 @@ impl RoadGenerator {
                 }
                 CurveType::Curved => {
                     let g_points_vec = curves::guide_points_and_direction(
-                        curves::free_three_quarter_circle_curve(start_pos, start_dir, end_pos),
+                        curves::snap_three_quarter_circle_curve(start_pos, start_dir, end_pos),
                     ); // use snap_three_quarter_circle_curve for snapping
 
                     self.nodes = vec![(start_pos, start_dir)];

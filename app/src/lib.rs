@@ -58,7 +58,7 @@ impl State {
             _ => {}
         };
 
-        let (road_mesh, road_tool_mesh) = self.road_tool.mouse_input(event, self.ground_pos);
+        let (road_mesh, road_tool_mesh) = self.road_tool.mouse_input(event);
         match road_mesh {
             Some(mesh) => self.gfx.update_road_buffer(mesh),
             None => {}
