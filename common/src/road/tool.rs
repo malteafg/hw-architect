@@ -1,7 +1,7 @@
 use super::generator;
 use super::network;
 use crate::input;
-use cgmath::*;
+use glam::*;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Mode {
@@ -16,7 +16,7 @@ pub struct ToolState {
     sel_road_type: network::RoadType,
     sel_node: Option<network::NodeId>,
     snapped_node: Option<network::NodeId>,
-    ground_pos: Vector3<f32>,
+    ground_pos: Vec3,
     mode: Mode,
 }
 
@@ -31,7 +31,7 @@ impl ToolState {
             },
             sel_node: None,
             snapped_node: None,
-            ground_pos: Vector3::new(0.0, 0.0, 0.0),
+            ground_pos: Vec3::new(0.0, 0.0, 0.0),
             mode: Mode::SelectPos,
         }
     }
@@ -153,7 +153,7 @@ impl ToolState {
         (Some(road_mesh), road_generator_mesh)
     }
 
-    fn check_snapping(&mut self, ground_pos: Vector3<f32>) {
+    fn check_snapping(&mut self, ground_pos: Vec3) {
         // check for node within ground_pos
         // pass to road_generator to see if a road can be generated
         let possible_snap = self.road_graph.get_node_from_pos(ground_pos);
@@ -173,7 +173,7 @@ impl ToolState {
         };
     }
 
-    pub fn update_ground_pos(&mut self, ground_pos: Vector3<f32>) -> Option<network::RoadMesh> {
+    pub fn update_ground_pos(&mut self, ground_pos: Vec3) -> Option<network::RoadMesh> {
         use generator::RoadGenerator;
 
         self.ground_pos = ground_pos;

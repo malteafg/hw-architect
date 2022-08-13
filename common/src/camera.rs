@@ -1,6 +1,7 @@
 use crate::input::{Action, KeyAction, MouseEvent};
-use crate::math_utils::VecPoint;
-use cgmath::*;
+use glam::*;
+// TODO change when math_utils is implemented as traits
+use crate::math_utils::*;
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::time::Duration;
 
@@ -21,62 +22,55 @@ const NUM_OF_MOVE_BUTTONS: i32 = 6;
 
 #[derive(Debug)]
 pub struct Camera {
-    pub target: Vector3<f32>,
-    yaw: Rad<f32>,
-    pitch: Rad<f32>,
+    pub target: Vec3,
+    yaw: f32,
+    pitch: f32,
     dist_to_target: f32,
 }
 
 impl Camera {
-    pub fn new<V: Into<Vector3<f32>>, R: Into<Rad<f32>>>(
-        target: V,
-        yaw: R,
-        pitch: R,
-        dist_to_target: f32,
-    ) -> Self {
+    pub fn new(target: Vec3, yaw: f32, pitch: f32, dist_to_target: f32) -> Self {
         Self {
-            target: target.into(),
-            yaw: yaw.into(),
-            pitch: pitch.into(),
+            target,
+            yaw,
+            pitch,
             dist_to_target,
         }
     }
 
-    pub fn calc_pos(&self) -> Point3<f32> {
-        let (sin_pitch, cos_pitch) = self.pitch.0.sin_cos();
-        let (sin_yaw, cos_yaw) = self.yaw.0.sin_cos();
+    pub fn calc_pos(&self) -> Vec3 {
+        let (sin_pitch, cos_pitch) = self.pitch.sin_cos();
+        let (sin_yaw, cos_yaw) = self.yaw.sin_cos();
 
-        (self.target
-            + (Vector3::new(-cos_yaw, 0.0, -sin_yaw) * cos_pitch
-                + Vector3::new(0.0, sin_pitch, 0.0))
-                * self.dist_to_target)
-            .to_point3()
+        self.target
+            + (Vec3::new(-cos_yaw, 0.0, -sin_yaw) * cos_pitch + Vec3::new(0.0, sin_pitch, 0.0))
+                * self.dist_to_target
     }
 
-    pub fn calc_matrix(&self) -> Matrix4<f32> {
-        let (sin_pitch, cos_pitch) = self.pitch.0.sin_cos();
-        let (sin_yaw, cos_yaw) = self.yaw.0.sin_cos();
+    pub fn calc_matrix(&self) -> Mat4 {
+        let (sin_pitch, cos_pitch) = self.pitch.sin_cos();
+        let (sin_yaw, cos_yaw) = self.yaw.sin_cos();
 
-        Matrix4::look_to_rh(
+        look_to_rh(
             self.calc_pos(),
-            Vector3::new(cos_pitch * cos_yaw, -sin_pitch, cos_pitch * sin_yaw).normalize(),
-            Vector3::unit_y(),
+            Vec3::new(cos_pitch * cos_yaw, -sin_pitch, cos_pitch * sin_yaw).normalize(),
+            Vec3::Y,
         )
     }
 }
 
 pub struct Projection {
     aspect: f32,
-    fovy: Rad<f32>,
+    fovy: f32,
     znear: f32,
     zfar: f32,
 }
 
 impl Projection {
-    pub fn new<F: Into<Rad<f32>>>(width: u32, height: u32, fovy: F, znear: f32, zfar: f32) -> Self {
+    pub fn new(width: u32, height: u32, fovy: f32, znear: f32, zfar: f32) -> Self {
         Self {
             aspect: width as f32 / height as f32,
-            fovy: fovy.into(),
+            fovy,
             znear,
             zfar,
         }
@@ -86,8 +80,8 @@ impl Projection {
         self.aspect = width as f32 / height as f32;
     }
 
-    pub fn calc_matrix(&self) -> Matrix4<f32> {
-        perspective(self.fovy, self.aspect, self.znear, self.zfar)
+    pub fn calc_matrix(&self) -> Mat4 {
+        Mat4::perspective_rh(self.fovy, self.aspect, self.znear, self.zfar)
     }
 }
 
@@ -95,12 +89,12 @@ impl Projection {
 pub struct CameraController {
     input: [bool; NUM_OF_MOVE_BUTTONS as usize],
     velocity: [i32; (2 + NUM_OF_MOVE_BUTTONS) as usize],
-    delta_pitch: Rad<f32>,
-    delta_yaw: Rad<f32>,
-    next_pitch: Rad<f32>,
-    next_yaw: Rad<f32>,
+    delta_pitch: f32,
+    delta_yaw: f32,
+    next_pitch: f32,
+    next_yaw: f32,
     next_dist: f32,
-    next_target: Vector3<f32>,
+    next_target: Vec3,
     progress: f32,
     progression_speed: f32,
     progression_function: fn(f32) -> f32,
@@ -112,12 +106,12 @@ impl CameraController {
         Self {
             input: [false; NUM_OF_MOVE_BUTTONS as usize],
             velocity: [0; (2 + NUM_OF_MOVE_BUTTONS) as usize],
-            delta_pitch: Rad(0.0),
-            delta_yaw: Rad(0.0),
-            next_pitch: Rad(0.0),
-            next_yaw: Rad(0.0),
+            delta_pitch: 0.0,
+            delta_yaw: 0.0,
+            next_pitch: 0.0,
+            next_yaw: 0.0,
             next_dist: 0.0,
-            next_target: Vector3::new(0.0, 0.0, 0.0),
+            next_target: Vec3::new(0.0, 0.0, 0.0),
             progress: 0.0,
             progression_speed: 0.0,
             progression_function: CameraController::smooth_move,
@@ -153,16 +147,16 @@ impl CameraController {
 
     pub fn move_camera(
         &mut self,
-        target: Vector3<f32>,
-        p: Rad<f32>,
-        y: Rad<f32>,
+        target: Vec3,
+        p: f32,
+        y: f32,
         d: f32,
         speed: f32,
         func: fn(f32) -> f32,
     ) {
         self.next_target = target;
-        self.next_pitch = Rad(restrainf(p.0, MIN_CAMERA_PITCH, MAX_CAMERA_PITCH));
-        self.next_yaw = y.normalize();
+        self.next_pitch = restrainf(p, MIN_CAMERA_PITCH, MAX_CAMERA_PITCH);
+        self.next_yaw = rad_normalize(y);
         self.next_dist = restrainf(d, MIN_CAMERA_DIST, MAX_CAMERA_DIST);
         self.progression_speed = speed;
         self.progression_function = func;
@@ -202,9 +196,9 @@ impl CameraController {
             }
             (Action::CameraReturn, pressed) if pressed => {
                 self.move_camera(
-                    Vector3::new(0.0, 0.0, 0.0),
-                    Rad(PI / 4.0),
-                    Rad(1.0),
+                    Vec3::new(0.0, 0.0, 0.0),
+                    PI / 4.0,
+                    1.0,
                     100.0,
                     1.0,
                     CameraController::polynomial_move,
@@ -224,8 +218,8 @@ impl CameraController {
     pub fn process_mouse(&mut self, event: MouseEvent) {
         match event {
             MouseEvent::MiddleDragged(delta) => {
-                self.delta_yaw += Rad(-MOUSE_HORIZONTAL_SENSITIVITY * delta.dx as f32);
-                self.delta_pitch += Rad(MOUSE_VERTICAL_SENSITIVITY * delta.dy as f32);
+                self.delta_yaw += -MOUSE_HORIZONTAL_SENSITIVITY * delta.dx as f32;
+                self.delta_pitch += MOUSE_VERTICAL_SENSITIVITY * delta.dy as f32;
                 self.stop_move_progression();
             }
             MouseEvent::Scrolled(scroll) => {
@@ -257,18 +251,18 @@ impl CameraController {
                     + (camera.dist_to_target - self.next_dist).abs())
                 .sqrt();
 
-            let yaw_diff = (self.next_yaw.0 - camera.yaw.0).abs();
+            let yaw_diff = (self.next_yaw - camera.yaw).abs();
             if yaw_diff.abs() >= PI {
-                camera.yaw = camera.yaw.normalize();
+                camera.yaw = rad_normalize(camera.yaw);
                 let dir = if camera.yaw > self.next_yaw {
                     -1.0
                 } else {
                     1.0
                 };
-                camera.yaw += if (self.next_yaw.0 - camera.yaw.0).abs() > PI {
-                    Rad(dir * PI)
+                camera.yaw += if (self.next_yaw - camera.yaw).abs() > PI {
+                    dir * PI
                 } else {
-                    Rad(0.0)
+                    0.0
                 };
             }
         }
@@ -277,18 +271,8 @@ impl CameraController {
         self.progress = f32::min(self.progress + self.progression_speed * dt, 1.0);
         let new_progress = (self.progression_function)(self.progress);
 
-        camera.pitch = Rad(interpolate(
-            old_progress,
-            new_progress,
-            camera.pitch.0,
-            self.next_pitch.0,
-        ));
-        camera.yaw = Rad(interpolate(
-            old_progress,
-            new_progress,
-            camera.yaw.0,
-            self.next_yaw.0,
-        ));
+        camera.pitch = interpolate(old_progress, new_progress, camera.pitch, self.next_pitch);
+        camera.yaw = interpolate(old_progress, new_progress, camera.yaw, self.next_yaw);
         camera.dist_to_target = interpolate(
             old_progress,
             new_progress,
@@ -304,15 +288,15 @@ impl CameraController {
     }
 
     fn update_manuel(&mut self, camera: &mut Camera, dt: f32) {
-        camera.yaw = Rad(center(camera.yaw.0 - self.delta_yaw.0, PI));
-        camera.pitch = Rad(restrainf(
-            camera.pitch.0 + self.delta_pitch.0,
+        camera.yaw = center(camera.yaw - self.delta_yaw, PI);
+        camera.pitch = restrainf(
+            camera.pitch + self.delta_pitch,
             MIN_CAMERA_PITCH,
             MAX_CAMERA_PITCH,
-        ));
+        );
 
-        self.delta_yaw = Rad(0.0);
-        self.delta_pitch = Rad(0.0);
+        self.delta_yaw = 0.0;
+        self.delta_pitch = 0.0;
 
         for i in 0..NUM_OF_MOVE_BUTTONS as usize {
             self.velocity[i] = restrain(
@@ -325,35 +309,35 @@ impl CameraController {
         let speed = CAMERA_MOVE_SPEED * camera.dist_to_target * dt;
         if self.velocity[0] > 0 {
             camera.target +=
-                calc_direction_vector(camera.yaw.0 + PI) * speed * (self.velocity[0] as f32)
+                calc_direction_vector(camera.yaw + PI) * speed * (self.velocity[0] as f32)
         }
         if self.velocity[1] > 0 {
-            camera.target += calc_direction_vector(camera.yaw.0) * speed * (self.velocity[1] as f32)
+            camera.target += calc_direction_vector(camera.yaw) * speed * (self.velocity[1] as f32)
         }
         if self.velocity[2] > 0 {
             camera.target +=
-                calc_direction_vector(camera.yaw.0 + FRAC_PI_2) * speed * (self.velocity[2] as f32)
+                calc_direction_vector(camera.yaw + FRAC_PI_2) * speed * (self.velocity[2] as f32)
         }
         if self.velocity[3] > 0 {
             camera.target +=
-                calc_direction_vector(camera.yaw.0 - FRAC_PI_2) * speed * (self.velocity[3] as f32)
+                calc_direction_vector(camera.yaw - FRAC_PI_2) * speed * (self.velocity[3] as f32)
         }
 
-        if camera.target.magnitude() > 500.0 {
+        if camera.target.length() > 500.0 {
             camera.target = camera.target.normalize() * 500.0;
         }
 
         if self.velocity[4] > 0 {
-            camera.yaw = Rad(center(
-                camera.yaw.0 + (self.velocity[4] as f32) * 5.0 * CAMERA_MOVE_SPEED * dt,
+            camera.yaw = center(
+                camera.yaw + (self.velocity[4] as f32) * 5.0 * CAMERA_MOVE_SPEED * dt,
                 PI,
-            ));
+            );
         }
         if self.velocity[5] > 0 {
-            camera.yaw = Rad(center(
-                camera.yaw.0 - (self.velocity[5] as f32) * 5.0 * CAMERA_MOVE_SPEED * dt,
+            camera.yaw = center(
+                camera.yaw - (self.velocity[5] as f32) * 5.0 * CAMERA_MOVE_SPEED * dt,
                 PI,
-            ));
+            );
         }
 
         if self.velocity[6] != 0 || self.velocity[7] != 0 {
@@ -394,9 +378,9 @@ fn interpolate(old_progress: f32, new_progress: f32, old_value: f32, target_valu
 fn interpolate_vector(
     old_progress: f32,
     new_progress: f32,
-    old_vector: Vector3<f32>,
-    target_vector: Vector3<f32>,
-) -> Vector3<f32> {
+    old_vector: Vec3,
+    target_vector: Vec3,
+) -> Vec3 {
     if old_progress == 1.0 {
         old_vector
     } else {
@@ -422,9 +406,9 @@ fn bool_to_int(b: bool) -> i32 {
     }
 }
 
-fn calc_direction_vector(angle: f32) -> Vector3<f32> {
+fn calc_direction_vector(angle: f32) -> Vec3 {
     let (sin_yaw, cos_yaw) = angle.sin_cos();
-    Vector3::new(-cos_yaw, 0.0, -sin_yaw)
+    Vec3::new(-cos_yaw, 0.0, -sin_yaw)
 }
 
 fn center(v: f32, r: f32) -> f32 {

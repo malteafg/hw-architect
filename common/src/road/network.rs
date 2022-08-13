@@ -1,5 +1,5 @@
 use super::{generator, LANE_WIDTH};
-use cgmath::*;
+use glam::*;
 use std::collections::HashMap;
 
 pub const MAX_LANES: usize = 6;
@@ -54,14 +54,14 @@ type LeadingPair = (NodeId, SegmentId);
 
 #[derive(Clone, Copy)]
 pub struct Node {
-    pub pos: Vector3<f32>,
-    pub dir: Vector3<f32>,
+    pub pos: Vec3,
+    pub dir: Vec3,
     pub no_lanes: u8,
     pub lane_map: [(SegmentId, SegmentId); MAX_LANES],
 }
 
 impl Node {
-    pub fn new(pos: Vector3<f32>, dir: Vector3<f32>, no_lanes: u8) -> Self {
+    pub fn new(pos: Vec3, dir: Vec3, no_lanes: u8) -> Self {
         Node {
             pos,
             dir,
@@ -209,9 +209,9 @@ impl RoadGraph {
         RoadElementId::Node(NodeId(1))
     }
 
-    pub fn get_node_from_pos(&self, pos: Vector3<f32>) -> Option<NodeId> {
+    pub fn get_node_from_pos(&self, pos: Vec3) -> Option<NodeId> {
         for (i, n) in self.node_map.iter() {
-            if (n.pos - pos).magnitude() < n.no_lanes as f32 * LANE_WIDTH {
+            if (n.pos - pos).length() < n.no_lanes as f32 * LANE_WIDTH {
                 return Some(*i);
             }
         }

@@ -2,13 +2,13 @@ use super::curves;
 use super::network::*;
 use super::LANE_WIDTH;
 use crate::math_utils;
-use cgmath::*;
+use glam::*;
 
 const VERTEX_DENSITY: f32 = 0.05;
 
 #[derive(Clone, Default)]
 pub struct RoadGenerator {
-    nodes: Vec<(Vector3<f32>, Vector3<f32>)>,
+    nodes: Vec<(Vec3, Vec3)>,
     segments: Vec<(Segment, RoadMesh)>,
     start_node_locked: bool,
     is_init: bool,
@@ -16,15 +16,11 @@ pub struct RoadGenerator {
 }
 
 impl RoadGenerator {
-    pub fn new(
-        ground_pos: Vector3<f32>,
-        selected_road: RoadType,
-        selected_dir: Option<Vector3<f32>>,
-    ) -> Self {
+    pub fn new(ground_pos: Vec3, selected_road: RoadType, selected_dir: Option<Vec3>) -> Self {
         let start_pos = ground_pos;
         let (start_dir, start_node_locked) = match selected_dir {
             Some(dir) => (dir.normalize(), true),
-            None => (Vector3::new(1.0, 0.0, 0.0), false),
+            None => (Vec3::new(1.0, 0.0, 0.0), false),
         };
         let end_pos = ground_pos + start_dir * 10.0;
 
@@ -42,7 +38,7 @@ impl RoadGenerator {
         }
     }
 
-    pub fn update_pos(&mut self, ground_pos: Vector3<f32>) {
+    pub fn update_pos(&mut self, ground_pos: Vec3) {
         if !self.is_init {
             return;
         }
@@ -55,7 +51,7 @@ impl RoadGenerator {
                 CurveType::Straight => {
                     let end_pos = math_utils::proj(ground_pos - start_pos, start_dir) + start_pos;
                     let end_pos =
-                        if (ground_pos - start_pos).dot(start_dir) / start_dir.magnitude() > 10.0 {
+                        if (ground_pos - start_pos).dot(start_dir) / start_dir.length() > 10.0 {
                             end_pos
                         } else {
                             start_pos + start_dir * 10.0
@@ -66,18 +62,18 @@ impl RoadGenerator {
                     self.segments = vec![(Segment::new(curve_type), mesh)];
                 }
                 CurveType::Curved => {
-                    dbg!((end_pos - start_pos).normalize());
-                    let end_pos = if (end_pos - start_pos).magnitude() == 0.0 {
+                    // dbg!((end_pos - start_pos).normalize());
+                    let end_pos = if (end_pos - start_pos).length() == 0.0 {
                         start_pos + start_dir * 10.0
-                    } else if (end_pos - start_pos).magnitude() < 10.0 {
+                    } else if (end_pos - start_pos).length() < 10.0 {
                         start_pos + (end_pos - start_pos).normalize() * 10.0
                     } else {
                         end_pos
                     };
                     let g_points_vec = curves::guide_points_and_direction(
                         curves::free_three_quarter_circle_curve(start_pos, start_dir, end_pos),
-                    );  // use snap_three_quarter_circle_curve for snapping 
-                        // and free_three_quarter_circle_curve otherwise
+                    ); // use snap_three_quarter_circle_curve for snapping
+                       // and free_three_quarter_circle_curve otherwise
                     self.nodes = vec![(start_pos, start_dir)];
                     self.segments = vec![];
                     g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
@@ -103,15 +99,15 @@ impl RoadGenerator {
         }
     }
 
-    fn get_start_node(&self) -> (Vector3<f32>, Vector3<f32>) {
+    fn get_start_node(&self) -> (Vec3, Vec3) {
         self.nodes[0]
     }
 
-    fn get_end_node(&self) -> (Vector3<f32>, Vector3<f32>) {
+    fn get_end_node(&self) -> (Vec3, Vec3) {
         self.nodes[self.nodes.len() - 1]
     }
 
-    pub fn get_nodes(&self) -> &Vec<(Vector3<f32>, Vector3<f32>)> {
+    pub fn get_nodes(&self) -> &Vec<(Vec3, Vec3)> {
         &self.nodes
     }
 
@@ -170,11 +166,7 @@ pub fn empty_mesh() -> RoadMesh {
     RoadMesh { vertices, indices }
 }
 
-pub fn generate_straight_mesh(
-    start_pos: Vector3<f32>,
-    end_pos: Vector3<f32>,
-    selected_road: RoadType,
-) -> RoadMesh {
+pub fn generate_straight_mesh(start_pos: Vec3, end_pos: Vec3, selected_road: RoadType) -> RoadMesh {
     let no_lanes = selected_road.no_lanes;
     let width = LANE_WIDTH * no_lanes as f32;
 
@@ -195,16 +187,16 @@ pub fn generate_straight_mesh(
 }
 
 pub fn generate_circular_mesh(
-    start_pos: Vector3<f32>,
-    end_pos: Vector3<f32>,
+    start_pos: Vec3,
+    end_pos: Vec3,
     selected_road: RoadType,
-    g_points: Vec<Vector3<f32>>,
+    g_points: Vec<Vec3>,
 ) -> RoadMesh {
     let no_lanes = selected_road.no_lanes;
     let width = LANE_WIDTH * no_lanes as f32;
-    let num_of_cuts = (VERTEX_DENSITY * (1000.0 + (end_pos - start_pos).magnitude())) as u32;
+    let num_of_cuts = (VERTEX_DENSITY * (1000.0 + (end_pos - start_pos).length())) as u32;
     let mut t = 0.0;
-    let dt = 1.0 / (num_of_cuts as f32 - 1.0); 
+    let dt = 1.0 / (num_of_cuts as f32 - 1.0);
     let mut vertices = Vec::new();
 
     let mut vertices2 = generate_road_cut(
@@ -248,10 +240,10 @@ fn generate_indices(num_cuts: u32) -> Vec<u32> {
     indices
 }
 
-fn generate_road_cut(pos: Vector3<f32>, dir: Vector3<f32>, width: f32) -> Vec<Vector3<f32>> {
+fn generate_road_cut(pos: Vec3, dir: Vec3, width: f32) -> Vec<Vec3> {
     let dir = dir.normalize();
-    let left = Vector3::new(-dir.z, dir.y, dir.x);
-    let height = Vector3::new(0.0, 0.2, 0.0);
+    let left = Vec3::new(-dir.z, dir.y, dir.x);
+    let height = Vec3::new(0.0, 0.2, 0.0);
     let half = width / 2.0;
     [
         pos + (left * half) + height,

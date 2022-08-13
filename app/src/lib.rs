@@ -1,6 +1,7 @@
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
+use glam::*;
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::*,
@@ -9,9 +10,8 @@ use winit::{
 };
 
 mod configuration;
-use cgmath::*;
 use common::road::tool;
-use common::{camera, input, math_utils::VecPoint};
+use common::{camera, input};
 use graphics::graphics::*;
 
 struct State {
@@ -20,15 +20,19 @@ struct State {
     camera_controller: camera::CameraController,
     input_handler: input::InputHandler,
     road_tool: tool::ToolState,
-    ground_pos: Vector3<f32>,
+    ground_pos: Vec3,
 }
 
 impl State {
     async fn new(window: &Window, input_handler: input::InputHandler) -> Self {
         let gfx = GfxState::new(window).await;
 
-        let camera =
-            camera::Camera::new((0.0, 0.0, 0.0), cgmath::Deg(2.0), cgmath::Deg(50.0), 100.0);
+        let camera = camera::Camera::new(
+            Vec3::new(0.0, 0.0, 0.0),
+            2.0f32.to_radians(),
+            50.0f32.to_radians(),
+            100.0,
+        );
         let camera_controller = camera::CameraController::new();
 
         Self {
@@ -37,7 +41,7 @@ impl State {
             camera_controller,
             input_handler,
             road_tool: tool::ToolState::new(),
-            ground_pos: Vector3::new(0.0, 0.0, 0.0),
+            ground_pos: Vec3::new(0.0, 0.0, 0.0),
         }
     }
 
@@ -90,7 +94,7 @@ impl State {
             .gfx
             .calc_ray(&self.camera, self.input_handler.get_mouse_pos());
         let ground_pos = pos + ray * (-pos.y / ray.y);
-        self.ground_pos = ground_pos.to_vec3();
+        self.ground_pos = ground_pos;
         let road_tool_mesh = self.road_tool.update_ground_pos(self.ground_pos);
         match road_tool_mesh {
             Some(mesh) => self.gfx.update_road_tool_buffer(mesh),

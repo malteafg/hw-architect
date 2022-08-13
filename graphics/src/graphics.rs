@@ -1,11 +1,12 @@
-use cgmath::*;
+use common::math_utils::*;
+use glam::*;
 use wgpu::util::DeviceExt;
 
 use crate::vertex::Vertex;
 use winit::{dpi::PhysicalSize, window::Window};
 
 use common::road::network as road;
-use common::{camera, math_utils};
+use common::camera;
 
 use crate::{
     buffer::{self, VIBuffer},
@@ -13,11 +14,11 @@ use crate::{
 };
 
 #[rustfmt::skip]
-pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.0,
-    0.0, 0.0, 0.5, 1.0,
+pub const OPENGL_TO_WGPU_MATRIX: Mat4 = Mat4::from_cols(
+    Vec4::new(1.0, 0.0, 0.0, 0.0),
+    Vec4::new(0.0, 1.0, 0.0, 0.0),
+    Vec4::new(0.0, 0.0, 0.5, 0.0),
+    Vec4::new(0.0, 0.0, 0.5, 1.0),
 );
 
 // We need this for Rust to store our data correlctly for the shaders
@@ -33,96 +34,96 @@ impl CameraUniform {
     fn new() -> Self {
         Self {
             view_position: [0.0; 4],
-            view_proj: cgmath::Matrix4::identity().into(),
+            view_proj: to_4x4(Mat4::IDENTITY),
         }
     }
 
     fn update_view_proj(&mut self, camera: &camera::Camera, projection: &camera::Projection) {
-        self.view_position = camera.calc_pos().to_homogeneous().into();
+        self.view_position = camera.calc_pos().extend(1.0).into();
         self.view_proj =
-            (OPENGL_TO_WGPU_MATRIX * projection.calc_matrix() * camera.calc_matrix()).into();
+            to_4x4(OPENGL_TO_WGPU_MATRIX * projection.calc_matrix() * camera.calc_matrix());
     }
 }
 
-struct Instance {
-    position: cgmath::Vector3<f32>,
-    rotation: cgmath::Quaternion<f32>,
-}
-
-impl Instance {
-    fn to_raw(&self) -> InstanceRaw {
-        let model =
-            cgmath::Matrix4::from_translation(self.position) * cgmath::Matrix4::from(self.rotation);
-        InstanceRaw {
-            model: model.into(),
-            normal: cgmath::Matrix3::from(self.rotation).into(),
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-#[allow(dead_code)]
-struct InstanceRaw {
-    model: [[f32; 4]; 4],
-    normal: [[f32; 3]; 3],
-}
-
-impl Vertex for InstanceRaw {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        use std::mem;
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<InstanceRaw>() as wgpu::BufferAddress,
-            // We need to switch from using a step mode of Vertex to Instance
-            // This means that our shaders will only change to use the next
-            // instance when the shader starts processing a new instance
-            step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    // While our vertex shader only uses locations 0, and 1 now, in later tutorials we'll
-                    // be using 2, 3, and 4, for Vertex. We'll start at slot 5 not conflict with them later
-                    shader_location: 5,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                // A mat4 takes up 4 vertex slots as it is technically 4 vec4s. We need to define a slot
-                // for each vec4. We don't have to do this in code though.
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
-                    shader_location: 6,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
-                    shader_location: 7,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
-                    shader_location: 8,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 16]>() as wgpu::BufferAddress,
-                    shader_location: 9,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 19]>() as wgpu::BufferAddress,
-                    shader_location: 10,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 22]>() as wgpu::BufferAddress,
-                    shader_location: 11,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-            ],
-        }
-    }
-}
-
-const NUM_INSTANCES_PER_ROW: u32 = 1;
+// struct Instance {
+//     position: cgmath::Vector3<f32>,
+//     rotation: cgmath::Quaternion<f32>,
+// }
+//
+// impl Instance {
+//     fn to_raw(&self) -> InstanceRaw {
+//         let model =
+//             cgmath::Matrix4::from_translation(self.position) * cgmath::Matrix4::from(self.rotation);
+//         InstanceRaw {
+//             model: model.into(),
+//             normal: cgmath::Matrix3::from(self.rotation).into(),
+//         }
+//     }
+// }
+//
+// #[repr(C)]
+// #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+// #[allow(dead_code)]
+// struct InstanceRaw {
+//     model: [[f32; 4]; 4],
+//     normal: [[f32; 3]; 3],
+// }
+//
+// impl Vertex for InstanceRaw {
+//     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+//         use std::mem;
+//         wgpu::VertexBufferLayout {
+//             array_stride: mem::size_of::<InstanceRaw>() as wgpu::BufferAddress,
+//             // We need to switch from using a step mode of Vertex to Instance
+//             // This means that our shaders will only change to use the next
+//             // instance when the shader starts processing a new instance
+//             step_mode: wgpu::VertexStepMode::Instance,
+//             attributes: &[
+//                 wgpu::VertexAttribute {
+//                     offset: 0,
+//                     // While our vertex shader only uses locations 0, and 1 now, in later tutorials we'll
+//                     // be using 2, 3, and 4, for Vertex. We'll start at slot 5 not conflict with them later
+//                     shader_location: 5,
+//                     format: wgpu::VertexFormat::Float32x4,
+//                 },
+//                 // A mat4 takes up 4 vertex slots as it is technically 4 vec4s. We need to define a slot
+//                 // for each vec4. We don't have to do this in code though.
+//                 wgpu::VertexAttribute {
+//                     offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
+//                     shader_location: 6,
+//                     format: wgpu::VertexFormat::Float32x4,
+//                 },
+//                 wgpu::VertexAttribute {
+//                     offset: mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
+//                     shader_location: 7,
+//                     format: wgpu::VertexFormat::Float32x4,
+//                 },
+//                 wgpu::VertexAttribute {
+//                     offset: mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
+//                     shader_location: 8,
+//                     format: wgpu::VertexFormat::Float32x4,
+//                 },
+//                 wgpu::VertexAttribute {
+//                     offset: mem::size_of::<[f32; 16]>() as wgpu::BufferAddress,
+//                     shader_location: 9,
+//                     format: wgpu::VertexFormat::Float32x3,
+//                 },
+//                 wgpu::VertexAttribute {
+//                     offset: mem::size_of::<[f32; 19]>() as wgpu::BufferAddress,
+//                     shader_location: 10,
+//                     format: wgpu::VertexFormat::Float32x3,
+//                 },
+//                 wgpu::VertexAttribute {
+//                     offset: mem::size_of::<[f32; 22]>() as wgpu::BufferAddress,
+//                     shader_location: 11,
+//                     format: wgpu::VertexFormat::Float32x3,
+//                 },
+//             ],
+//         }
+//     }
+// }
+//
+// const NUM_INSTANCES_PER_ROW: u32 = 1;
 
 // lib.rs
 #[repr(C)]
@@ -142,13 +143,13 @@ pub struct GfxState {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pub size: PhysicalSize<u32>,
-    render_pipeline: wgpu::RenderPipeline,
+    // render_pipeline: wgpu::RenderPipeline,
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     projection: camera::Projection,
-    instances: Vec<Instance>,
-    instance_buffer: buffer::DBuffer,
+    // instances: Vec<Instance>,
+    // instance_buffer: buffer::DBuffer,
     depth_texture: texture::Texture,
     obj_model: model::Model,
     light_uniform: LightUniform,
@@ -175,7 +176,7 @@ fn create_render_pipeline(
     let shader = device.create_shader_module(shader);
 
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some(&name),
+        label: Some(name),
         layout: Some(layout),
         vertex: wgpu::VertexState {
             module: &shader,
@@ -312,7 +313,7 @@ impl GfxState {
             });
 
         let projection =
-            camera::Projection::new(size.width, size.height, cgmath::Deg(45.0), 5.0, 2000.0);
+            camera::Projection::new(size.width, size.height, 45.0f32.to_radians(), 5.0, 2000.0);
         let camera_uniform = CameraUniform::new();
         // camera_uniform.update_view_proj(&camera, &projection);
 
@@ -346,33 +347,33 @@ impl GfxState {
             label: Some("camera_bind_group"),
         });
 
-        const SPACE_BETWEEN: f32 = 3.0;
-        let instances = (0..NUM_INSTANCES_PER_ROW)
-            .flat_map(|z| {
-                (0..NUM_INSTANCES_PER_ROW).map(move |x| {
-                    let x = SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
-                    let z = SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
-
-                    let position = cgmath::Vector3 { x, y: 0.0, z };
-
-                    let rotation = if position.is_zero() {
-                        cgmath::Quaternion::from_axis_angle(
-                            cgmath::Vector3::unit_z(),
-                            cgmath::Deg(0.0),
-                        )
-                    } else {
-                        cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(45.0))
-                    };
-
-                    Instance { position, rotation }
-                })
-            })
-            .collect::<Vec<_>>();
-
-        let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
-        let mut instance_buffer =
-            buffer::DBuffer::new("Instance Buffer", wgpu::BufferUsages::VERTEX, &device);
-        instance_buffer.write(&queue, &device, &bytemuck::cast_slice(&instance_data));
+        // const SPACE_BETWEEN: f32 = 3.0;
+        // let instances = (0..NUM_INSTANCES_PER_ROW)
+        //     .flat_map(|z| {
+        //         (0..NUM_INSTANCES_PER_ROW).map(move |x| {
+        //             let x = SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
+        //             let z = SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
+        //
+        //             let position = cgmath::Vector3 { x, y: 0.0, z };
+        //
+        //             let rotation = if position.is_zero() {
+        //                 cgmath::Quaternion::from_axis_angle(
+        //                     cgmath::Vector3::unit_z(),
+        //                     cgmath::Deg(0.0),
+        //                 )
+        //             } else {
+        //                 cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(45.0))
+        //             };
+        //
+        //             Instance { position, rotation }
+        //         })
+        //     })
+        //     .collect::<Vec<_>>();
+        //
+        // let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+        // let mut instance_buffer =
+        //     buffer::DBuffer::new("Instance Buffer", wgpu::BufferUsages::VERTEX, &device);
+        // instance_buffer.write(&queue, &device, &bytemuck::cast_slice(&instance_data));
 
         let depth_texture =
             texture::Texture::create_depth_texture(&device, &config, "depth_texture");
@@ -419,31 +420,31 @@ impl GfxState {
             label: None,
         });
 
-        let render_pipeline = {
-            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[
-                    &texture_bind_group_layout,
-                    &camera_bind_group_layout,
-                    &light_bind_group_layout,
-                ],
-                push_constant_ranges: &[],
-            });
-
-            let shader = wgpu::ShaderModuleDescriptor {
-                label: Some("Normal Shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
-            };
-            create_render_pipeline(
-                &device,
-                &layout,
-                config.format,
-                Some(texture::Texture::DEPTH_FORMAT),
-                &[model::ModelVertex::desc(), InstanceRaw::desc()],
-                shader,
-                "Render Pipeline",
-            )
-        };
+        // let render_pipeline = {
+        //     let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        //         label: Some("Render Pipeline Layout"),
+        //         bind_group_layouts: &[
+        //             &texture_bind_group_layout,
+        //             &camera_bind_group_layout,
+        //             &light_bind_group_layout,
+        //         ],
+        //         push_constant_ranges: &[],
+        //     });
+        //
+        //     let shader = wgpu::ShaderModuleDescriptor {
+        //         label: Some("Normal Shader"),
+        //         source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+        //     };
+        //     create_render_pipeline(
+        //         &device,
+        //         &layout,
+        //         config.format,
+        //         Some(texture::Texture::DEPTH_FORMAT),
+        //         &[model::ModelVertex::desc(), InstanceRaw::desc()],
+        //         shader,
+        //         "Render Pipeline",
+        //     )
+        // };
 
         let light_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -537,13 +538,13 @@ impl GfxState {
             queue,
             config,
             size,
-            render_pipeline,
+            // render_pipeline,
             camera_uniform,
             camera_buffer,
             camera_bind_group,
             projection,
-            instances,
-            instance_buffer,
+            // instances,
+            // instance_buffer,
             depth_texture,
             obj_model,
             light_uniform,
@@ -609,7 +610,7 @@ impl GfxState {
             //     0..self.instances.len() as u32,
             //     &self.camera_bind_group,
             // );
-            use model::{DrawLight, DrawModel};
+            use model::DrawLight;
 
             // render terrain
             render_pass.set_pipeline(&self.terrain_render_pipeline);
@@ -653,20 +654,20 @@ impl GfxState {
             );
 
             // render instances
-            match self.instance_buffer.get_buffer_slice() {
-                Some(buffer_slice) => {
-                    render_pass.set_vertex_buffer(1, buffer_slice);
-                    render_pass.set_pipeline(&self.render_pipeline);
-                    render_pass.draw_model_instanced(
-                        &self.obj_model,
-                        0..self.instances.len() as u32,
-                        &self.camera_bind_group,
-                        &self.light_bind_group,
-                    );
-                    //render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
-                }
-                None => {}
-            }
+            // match self.instance_buffer.get_buffer_slice() {
+            //     Some(buffer_slice) => {
+            //         render_pass.set_vertex_buffer(1, buffer_slice);
+            //         render_pass.set_pipeline(&self.render_pipeline);
+            //         render_pass.draw_model_instanced(
+            //             &self.obj_model,
+            //             0..self.instances.len() as u32,
+            //             &self.camera_bind_group,
+            //             &self.light_bind_group,
+            //         );
+            //         //render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
+            //     }
+            //     None => {}
+            // }
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -688,41 +689,41 @@ impl GfxState {
             texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
     }
 
-    pub fn add_instance(&mut self, position: cgmath::Vector3<f32>) {
-        self.instances.push(Instance {
-            position,
-            rotation: math_utils::quart(
-                Rad(std::f32::consts::PI / 4.0),
-                Vector3::new(0.0, 1.0, 0.0),
-            ),
-        });
-        let instance_data = self
-            .instances
-            .iter()
-            .map(Instance::to_raw)
-            .collect::<Vec<_>>();
-        self.instance_buffer.write(
-            &self.queue,
-            &self.device,
-            &bytemuck::cast_slice(&instance_data),
-        );
-    }
-
-    pub fn remove_instance(&mut self) {
-        if self.instances.len() != 0 {
-            self.instances.remove(0);
-            let instance_data = self
-                .instances
-                .iter()
-                .map(Instance::to_raw)
-                .collect::<Vec<_>>();
-            self.instance_buffer.write(
-                &self.queue,
-                &self.device,
-                &bytemuck::cast_slice(&instance_data),
-            );
-        }
-    }
+    // pub fn add_instance(&mut self, position: cgmath::Vector3<f32>) {
+    //     self.instances.push(Instance {
+    //         position,
+    //         rotation: math_utils::quart(
+    //             Rad(std::f32::consts::PI / 4.0),
+    //             Vector3::new(0.0, 1.0, 0.0),
+    //         ),
+    //     });
+    //     let instance_data = self
+    //         .instances
+    //         .iter()
+    //         .map(Instance::to_raw)
+    //         .collect::<Vec<_>>();
+    //     self.instance_buffer.write(
+    //         &self.queue,
+    //         &self.device,
+    //         &bytemuck::cast_slice(&instance_data),
+    //     );
+    // }
+    //
+    // pub fn remove_instance(&mut self) {
+    //     if self.instances.len() != 0 {
+    //         self.instances.remove(0);
+    //         let instance_data = self
+    //             .instances
+    //             .iter()
+    //             .map(Instance::to_raw)
+    //             .collect::<Vec<_>>();
+    //         self.instance_buffer.write(
+    //             &self.queue,
+    //             &self.device,
+    //             &bytemuck::cast_slice(&instance_data),
+    //         );
+    //     }
+    // }
 
     pub fn update_road_buffer(&mut self, mesh: road::RoadMesh) {
         self.road_buffer.write(
@@ -746,7 +747,7 @@ impl GfxState {
 
     pub fn update(&mut self, dt: instant::Duration, camera: &camera::Camera) {
         self.camera_uniform
-            .update_view_proj(&camera, &self.projection);
+            .update_view_proj(camera, &self.projection);
         self.queue.write_buffer(
             &self.camera_buffer,
             0,
@@ -754,10 +755,10 @@ impl GfxState {
         );
 
         // Update the light
-        let old_position: cgmath::Vector3<_> = self.light_uniform.position.into();
-        self.light_uniform.position = (cgmath::Quaternion::from_axis_angle(
+        let old_position: Vec3 = self.light_uniform.position.into();
+        self.light_uniform.position = (Quat::from_axis_angle(
             (0.0, 1.0, 0.0).into(),
-            cgmath::Deg(60.0 * dt.as_secs_f32()),
+            (60.0 * dt.as_secs_f32()).to_radians(),
         ) * old_position)
             .into();
 
@@ -772,8 +773,8 @@ impl GfxState {
         &self,
         camera: &camera::Camera,
         mouse_pos: common::input::MousePos,
-    ) -> (Vector3<f32>, Point3<f32>) {
-        let screen_vec = Vector4::new(
+    ) -> (Vec3, Vec3) {
+        let screen_vec = Vec4::new(
             2.0 * mouse_pos.x as f32 / self.size.width as f32 - 1.0,
             1.0 - 2.0 * mouse_pos.y as f32 / self.size.height as f32,
             1.0,
@@ -782,15 +783,15 @@ impl GfxState {
         let eye_vec = self
             .projection
             .calc_matrix()
-            .invert()
-            .expect("Unable to cast ray, projection")
+            .inverse()
+            // .expect("Unable to cast ray, projection")
             * screen_vec;
         let full_vec = camera
             .calc_matrix()
-            .invert()
-            .expect("Unable to cast ray, view")
-            * Vector4::new(eye_vec.x, eye_vec.y, -1.0, 0.0);
-        let processed_vec = Vector3::new(full_vec.x, full_vec.y, full_vec.z).normalize();
+            .inverse()
+            // .expect("Unable to cast ray, view")
+            * Vec4::new(eye_vec.x, eye_vec.y, -1.0, 0.0);
+        let processed_vec = Vec3::new(full_vec.x, full_vec.y, full_vec.z).normalize();
 
         (processed_vec, camera.calc_pos())
     }

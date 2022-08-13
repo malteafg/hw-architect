@@ -15,13 +15,13 @@ log = "0.4"
 wgpu = "0.13"
 bytemuck = { version = "1.4", features = [ "derive" ] }
 anyhow = "1.0"
-cgmath = "0.18"
 tobj = { version = "3.2.1", features = [
   "async",
 ]}
 instant = "0.1"
 rand = "^0.8"
 common = { path = "../common"}
+glam = { version = "0.21.3", default-features = false, features = ["serde", "bytemuck"] }
 # Specific for web assembly
 cfg-if = "1"
 

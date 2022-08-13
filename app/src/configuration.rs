@@ -47,7 +47,7 @@ pub struct Config {
 }
 
 impl Config {
-    fn update_from_yaml(self: Self, yaml: Yaml) -> Self {
+    fn update_from_yaml(self, yaml: Yaml) -> Self {
         let width = yaml["window"]["width"]
             .as_i64()
             .unwrap_or(self.window.width as i64) as i32;
