@@ -21,7 +21,6 @@ impl RoadGenerator {
         selected_road: RoadType,
         selected_dir: Option<Vector3<f32>>,
     ) -> Self {
-        dbg!("Why?");
         let start_pos = ground_pos;
         let (start_dir, start_node_locked) = match selected_dir {
             Some(dir) => (dir.normalize(), true),
@@ -48,9 +47,6 @@ impl RoadGenerator {
             return;
         }
         let (start_pos, start_dir) = self.get_start_node();
-        //dbg!(start_pos);
-        //dbg!(start_dir);
-        //dbg!(ground_pos);
         let end_pos = ground_pos;
 
         let curve_type = self.start_road_type.curve_type;
@@ -70,7 +66,10 @@ impl RoadGenerator {
                     self.segments = vec![(Segment::new(curve_type), mesh)];
                 }
                 CurveType::Curved => {
-                    let end_pos = if (end_pos - start_pos).magnitude() < 10.0 {
+                    dbg!((end_pos - start_pos).normalize());
+                    let end_pos = if (end_pos - start_pos).magnitude() == 0.0 {
+                        start_pos + start_dir * 10.0
+                    } else if (end_pos - start_pos).magnitude() < 10.0 {
                         start_pos + (end_pos - start_pos).normalize() * 10.0
                     } else {
                         end_pos

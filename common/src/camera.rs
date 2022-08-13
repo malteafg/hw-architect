@@ -212,7 +212,6 @@ impl CameraController {
                 true
             }
             _ => false,
-            
         }
 
         // if pressed && key_matched {
@@ -325,24 +324,19 @@ impl CameraController {
 
         let speed = CAMERA_MOVE_SPEED * camera.dist_to_target * dt;
         if self.velocity[0] > 0 {
-            camera.target = camera.target
-                + (calc_direction_vector(camera.yaw.0 + PI) * speed * (self.velocity[0] as f32))
+            camera.target +=
+                calc_direction_vector(camera.yaw.0 + PI) * speed * (self.velocity[0] as f32)
         }
         if self.velocity[1] > 0 {
-            camera.target = camera.target
-                + (calc_direction_vector(camera.yaw.0) * speed * (self.velocity[1] as f32))
+            camera.target += calc_direction_vector(camera.yaw.0) * speed * (self.velocity[1] as f32)
         }
         if self.velocity[2] > 0 {
-            camera.target = camera.target
-                + (calc_direction_vector(camera.yaw.0 + FRAC_PI_2)
-                    * speed
-                    * (self.velocity[2] as f32))
+            camera.target +=
+                calc_direction_vector(camera.yaw.0 + FRAC_PI_2) * speed * (self.velocity[2] as f32)
         }
         if self.velocity[3] > 0 {
-            camera.target = camera.target
-                + (calc_direction_vector(camera.yaw.0 - FRAC_PI_2)
-                    * speed
-                    * (self.velocity[3] as f32))
+            camera.target +=
+                calc_direction_vector(camera.yaw.0 - FRAC_PI_2) * speed * (self.velocity[3] as f32)
         }
 
         if camera.target.magnitude() > 500.0 {
