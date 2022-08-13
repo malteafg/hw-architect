@@ -1,7 +1,7 @@
 use crate::input::{Action, KeyAction, MouseEvent};
 use glam::*;
 // TODO change when math_utils is implemented as traits
-use crate::math_utils::*;
+use crate::math_utils::{Mat4Utils, Angle};
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::time::Duration;
 
@@ -51,7 +51,7 @@ impl Camera {
         let (sin_pitch, cos_pitch) = self.pitch.sin_cos();
         let (sin_yaw, cos_yaw) = self.yaw.sin_cos();
 
-        look_to_rh(
+        Mat4::look_to_rh(
             self.calc_pos(),
             Vec3::new(cos_pitch * cos_yaw, -sin_pitch, cos_pitch * sin_yaw).normalize(),
             Vec3::Y,
@@ -156,7 +156,7 @@ impl CameraController {
     ) {
         self.next_target = target;
         self.next_pitch = restrainf(p, MIN_CAMERA_PITCH, MAX_CAMERA_PITCH);
-        self.next_yaw = rad_normalize(y);
+        self.next_yaw = y.rad_normalize();
         self.next_dist = restrainf(d, MIN_CAMERA_DIST, MAX_CAMERA_DIST);
         self.progression_speed = speed;
         self.progression_function = func;
@@ -253,7 +253,7 @@ impl CameraController {
 
             let yaw_diff = (self.next_yaw - camera.yaw).abs();
             if yaw_diff.abs() >= PI {
-                camera.yaw = rad_normalize(camera.yaw);
+                camera.yaw = camera.yaw.rad_normalize();
                 let dir = if camera.yaw > self.next_yaw {
                     -1.0
                 } else {

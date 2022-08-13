@@ -1,4 +1,4 @@
-use common::math_utils::*;
+use common::math_utils::Mat4Utils;
 use glam::*;
 use wgpu::util::DeviceExt;
 
@@ -34,14 +34,14 @@ impl CameraUniform {
     fn new() -> Self {
         Self {
             view_position: [0.0; 4],
-            view_proj: to_4x4(Mat4::IDENTITY),
+            view_proj: Mat4::IDENTITY.to_4x4(),
         }
     }
 
     fn update_view_proj(&mut self, camera: &camera::Camera, projection: &camera::Projection) {
         self.view_position = camera.calc_pos().extend(1.0).into();
         self.view_proj =
-            to_4x4(OPENGL_TO_WGPU_MATRIX * projection.calc_matrix() * camera.calc_matrix());
+            (OPENGL_TO_WGPU_MATRIX * projection.calc_matrix() * camera.calc_matrix()).to_4x4();
     }
 }
 

@@ -1,7 +1,7 @@
 use super::curves;
 use super::network::*;
 use super::LANE_WIDTH;
-use crate::math_utils;
+use crate::math_utils::VecUtils;
 use glam::*;
 
 const VERTEX_DENSITY: f32 = 0.05;
@@ -49,7 +49,7 @@ impl RoadGenerator {
         if self.start_node_locked {
             match curve_type {
                 CurveType::Straight => {
-                    let end_pos = math_utils::proj(ground_pos - start_pos, start_dir) + start_pos;
+                    let end_pos = (ground_pos - start_pos).proj(start_dir) + start_pos;
                     let end_pos =
                         if (ground_pos - start_pos).dot(start_dir) / start_dir.length() > 10.0 {
                             end_pos

@@ -1,5 +1,5 @@
 use super::LANE_WIDTH;
-use crate::math_utils::*;
+use crate::math_utils::VecUtils;
 use anyhow::Ok;
 use glam::*;
 
@@ -69,7 +69,7 @@ fn three_quarter_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec3 {
     if proj_length >= -COS_45 * diff.length() {
         pos2
     } else {
-        pos1 + proj(diff, dir1) + anti_proj(diff, dir1).normalize() * proj_length.abs()
+        pos1 + diff.proj(dir1) + diff.anti_proj(dir1).normalize() * proj_length.abs()
     }
 }
 
@@ -78,11 +78,11 @@ fn snap_circle_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec3 {
     let proj_length = diff.dot(dir1) / dir1.length();
     let diff_length = diff.length();
     if proj_length >= COS_SIXTEENTH * diff_length {
-        pos1 + proj(diff, dir1)
+        pos1 + diff.proj(dir1)
     } else if proj_length.abs() <= COS_THREE_SIXTEENTH * diff_length {
-        pos1 - dir1.normalize() * proj_length.abs() * 0.002 + anti_proj(diff, dir1)
+        pos1 - dir1.normalize() * proj_length.abs() * 0.002 + diff.anti_proj(dir1)
     } else {
-        pos1 + proj(diff, dir1) + anti_proj(diff, dir1).normalize() * proj_length.abs()
+        pos1 + diff.proj(dir1) + diff.anti_proj(dir1).normalize() * proj_length.abs()
     }
 }
 
@@ -147,7 +147,7 @@ pub fn double_snap_curve_case(
 ) -> DoubleSnapCurveCase {
     let diff = pos2 - pos1;
 
-    if ndot(mirror(dir1, diff), dir2) > PRETTY_CLOSE
+    if dir1.mirror(diff).ndot(dir2) > PRETTY_CLOSE
         && (-diff).dot(dir2) >= PRETTY_CLOSE - 1.0
         && diff.dot(dir1) >= PRETTY_CLOSE - 1.0
     {
@@ -221,7 +221,7 @@ pub fn double_snap_curve_debricated(
     let mut points = Vec::new();
     let diff = pos2 - pos1;
 
-    if ndot(mirror(dir1, diff), dir2) > PRETTY_CLOSE
+    if dir1.mirror(diff).ndot(dir2) > PRETTY_CLOSE
         && (-diff).dot(dir2) >= PRETTY_CLOSE - 1.0
         && diff.dot(dir1) >= PRETTY_CLOSE - 1.0
     {
@@ -266,8 +266,8 @@ fn simple_curve_points(
     pos2: Vec3,
     dir2: Vec3,
 ) -> anyhow::Result<Vec<Vec3>> {
-    if intersects_in_xz(dir1, dir2) {
-        Ok(vec![pos1, intersection_in_xz(pos1, dir1, pos2, dir2), pos2])
+    if dir1.intersects_in_xz(dir2) {
+        Ok(vec![pos1, pos1.intersection_in_xz(dir1, pos2, dir2), pos2])
     } else {
         Err(anyhow::anyhow!("No intersection in simple curve"))
     }
@@ -295,16 +295,16 @@ fn is_eliptical(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> bool {
     if dir1.dot(dir2) > 0.0 {
         return false;
     }
-    if ndot(-delta_pos, dir2) < PRETTY_CLOSE - 1.0 || ndot(delta_pos, dir1) < PRETTY_CLOSE - 1.0 {
+    if (-delta_pos).ndot(dir2) < PRETTY_CLOSE - 1.0 || delta_pos.ndot(dir1) < PRETTY_CLOSE - 1.0 {
         return false;
     }
-    if anti_proj(dir1, delta_pos).dot(anti_proj(dir2, delta_pos)) < 0.0 {
+    if dir1.anti_proj(delta_pos).dot(dir2.anti_proj(delta_pos)) < 0.0 {
         return false;
     }
-    if !intersects_in_xz(dir1, dir2) {
+    if !dir1.intersects_in_xz(dir2) {
         return false;
     }
-    let intersection = intersection_in_xz(pos1, dir1, pos2, dir2);
+    let intersection = pos1.intersection_in_xz(dir1, pos2, dir2);
     let f1 = (intersection - pos1).length();
     let f2 = (intersection - pos2).length();
     let rel = f1.min(f2) / f1.max(f2);
