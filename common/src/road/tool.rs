@@ -180,21 +180,24 @@ impl ToolState {
                 use curves::DoubleSnapCurveCase::*;
                 let start_node = self.road_graph.get_node(sel_node);
                 let end_node = self.road_graph.get_node(possible_snap);
-                dbg!(possible_snap);
-                match curves::double_snap_curve_case(
-                    start_node.pos,
-                    start_node.dir,
-                    end_node.pos,
-                    end_node.dir,
-                    self.sel_road_type.no_lanes,
-                ) {
-                    ErrorTooSmall | ErrorSegmentAngle | ErrorCurveAngle | ErrorUnhandled => {
-                        self.snapped_node = None;
-                        None
-                    }
-                    snap_case => {
-                        self.snapped_node = Some(possible_snap);
-                        Some(snap_case)
+                if possible_snap == sel_node {
+                    None
+                } else {
+                    match curves::double_snap_curve_case(
+                        start_node.pos,
+                        start_node.dir,
+                        end_node.pos,
+                        end_node.dir,
+                        self.sel_road_type.no_lanes,
+                    ) {
+                        ErrorTooSmall | ErrorSegmentAngle | ErrorCurveAngle | ErrorUnhandled => {
+                            self.snapped_node = None;
+                            None
+                        }
+                        snap_case => {
+                            self.snapped_node = Some(possible_snap);
+                            Some(snap_case)
+                        }
                     }
                 }
             }
