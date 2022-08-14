@@ -89,13 +89,8 @@ fn snap_circle_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec3 {
 fn curve_mid_point(pos1: Vec3, dir: Vec3, pos2: Vec3) -> Vec3 {
     let diff = pos2 - pos1;
     let dir2 = dir.normalize() + diff.normalize();
-    pos1 + (dir2 * (diff.length() / 2.0 / dir2.dot(diff)))
-}
-
-pub fn circle(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> (Vec<Vec3>, Vec3) {
-    let c_points = circle_curve(pos1, dir1, pos2);
-    let dir = c_points[3] - c_points[2];
-    (c_points, dir)
+    let result = pos1 + (dir2 * (diff.length_squared() / 2.0 / dir2.dot(diff)));
+    result
 }
 
 /// The guidepoints for a curve as circular as posible with four guide points, up to half a circle
@@ -122,7 +117,8 @@ pub fn circle_curve_fudged(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> Ve
 fn circle_scale(diff: Vec3, dir: Vec3) -> f32 {
     let dot = diff.normalize().dot(dir.normalize());
     if dot == 1.0 {
-        0.0
+        // Makes it so that straight curves have intermidiary guidepoints and 1/3 and 2/3
+        diff.length() / (3.0 * dir.length())
     } else {
         2.0 / 3.0 * diff.length() * (1.0 - dot) / (dir.length() * (1.0 - dot * dot))
     }
