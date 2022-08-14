@@ -73,10 +73,23 @@ fn three_quarter_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec3 {
     }
 }
 
-fn snap_circle_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec3 {
+fn snap_circle_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec3 { //, no_lines: u32 
+    let diff = pos2 - pos1;
+    let no_lines = 8;
+    let angle = (((diff.angle_between(dir1) / (std::f32::consts::PI * 2.0))).min(3.0 / 8.0) * no_lines as f32).round()
+                     * std::f32::consts::PI * 2.0 / no_lines as f32;
+    let (sin, cos) = angle.sin_cos();
+
+    let line = dir1 * cos + dir1.right_hand() * diff.side(dir1) * sin * (-1.0); // (-1.0) is for the inverted axies
+
+    pos1 + line.normalize() * diff.length()
+}
+
+fn old_snap_circle_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec3 {
     let diff = pos2 - pos1;
     let proj_length = diff.dot(dir1) / dir1.length();
     let diff_length = diff.length();
+
     if proj_length >= COS_SIXTEENTH * diff_length {
         pos1 + diff.proj(dir1)
     } else if proj_length.abs() <= COS_THREE_SIXTEENTH * diff_length {

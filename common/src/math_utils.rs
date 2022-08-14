@@ -16,6 +16,9 @@ pub trait VecUtils {
     // perhaps move these to Vec3Utils
     fn intersects_in_xz(self, other: Self) -> bool;
     fn intersection_in_xz(self, self_dir: Self, other: Self, other_dir: Self) -> Self;
+    fn side(self, other: Self) -> f32;
+    fn right_hand(self) -> Self;
+    fn left_hand(self) -> Self;
 }
 
 impl VecUtils for Vec3 {
@@ -40,10 +43,22 @@ impl VecUtils for Vec3 {
         other.x * self.z - other.z * self.x != 0.0
     }
 
+    fn side(self, other: Self) -> f32 {
+        (self.z * other.x - self.x * other.z).signum()
+    }
+
     fn intersection_in_xz(self, self_dir: Self, other: Self, other_dir: Self) -> Self {
         other
             + (other_dir * ((other.z - self.z) * self_dir.x - (other.x - self.x) * self_dir.z)
                 / (other_dir.x * self_dir.z - other_dir.z * self_dir.x))
+    }
+
+    fn right_hand(self) -> Self {
+        Self::new(self.z, self.y, -self.x)
+    }
+
+    fn left_hand(self) -> Self {
+        Self::new(-self.z, self.y, self.x)
     }
 }
 
