@@ -53,11 +53,11 @@ impl VecUtils for Vec3 {
                 / (other_dir.x * self_dir.z - other_dir.z * self_dir.x))
     }
 
-    fn right_hand(self) -> Self {
+    fn left_hand(self) -> Self {
         Self::new(self.z, self.y, -self.x)
     }
 
-    fn left_hand(self) -> Self {
+    fn right_hand(self) -> Self {
         Self::new(-self.z, self.y, self.x)
     }
 }
@@ -98,5 +98,16 @@ pub trait Angle {
 impl Angle for f32 {
     fn rad_normalize(self) -> Self {
         self % (2.0 * PI)
+    }
+}
+
+pub trait Round {
+    fn round_half_down(self) -> Self;
+}
+
+impl Round for f32 {
+    fn round_half_down(self) -> Self {
+        let remainder = self % 1.0;
+        self - remainder + if remainder <= 0.5 {0.0} else {1.0}
     }
 }

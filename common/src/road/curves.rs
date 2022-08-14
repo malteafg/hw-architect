@@ -1,5 +1,5 @@
 use super::LANE_WIDTH;
-use crate::math_utils::VecUtils;
+use crate::math_utils::{VecUtils, Round};
 use anyhow::Ok;
 use glam::*;
 
@@ -75,12 +75,15 @@ fn three_quarter_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec3 {
 
 fn snap_circle_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec3 { //, no_lines: u32 
     let diff = pos2 - pos1;
-    let no_lines = 8;
-    let angle = (((diff.angle_between(dir1) / (std::f32::consts::PI * 2.0))).min(3.0 / 8.0) * no_lines as f32).round()
-                     * std::f32::consts::PI * 2.0 / no_lines as f32;
+    let deg = 22.5;
+    let no_lines = 360.0 / deg as f32;
+    let tau = std::f32::consts::PI * 2.0;
+    let a = diff.angle_between(dir1) / tau;
+    dbg!(a);
+    let angle = (a * no_lines).round().min((no_lines * 3.0 / 8.0).floor()) * tau / no_lines;
     let (sin, cos) = angle.sin_cos();
 
-    let line = dir1 * cos + dir1.right_hand() * diff.side(dir1) * sin * (-1.0); // (-1.0) is for the inverted axies
+    let line = dir1 * cos + dir1.right_hand() * diff.side(dir1) * sin;
 
     pos1 + line.normalize() * diff.length()
 }
