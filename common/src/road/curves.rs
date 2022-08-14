@@ -79,7 +79,6 @@ fn snap_circle_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec3 { //, no_l
     let no_lines = 360.0 / deg as f32;
     let tau = std::f32::consts::PI * 2.0;
     let a = diff.angle_between(dir1) / tau;
-    dbg!(a);
     let angle = (a * no_lines).round().min((no_lines * 3.0 / 8.0).floor()) * tau / no_lines;
     let (sin, cos) = angle.sin_cos();
 
