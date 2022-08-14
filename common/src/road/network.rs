@@ -52,7 +52,7 @@ impl RoadMesh {
 
 type LeadingPair = (NodeId, SegmentId);
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Node {
     pub pos: Vec3,
     pub dir: Vec3,

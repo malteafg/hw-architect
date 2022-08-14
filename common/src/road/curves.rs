@@ -139,8 +139,9 @@ pub fn double_snap_curve_case(
     dir1: Vec3,
     pos2: Vec3,
     dir2: Vec3,
-    lane_count: i32,
+    no_lanes: u8,
 ) -> DoubleSnapCurveCase {
+    let dir2 = -dir2;
     let diff = pos2 - pos1;
 
     if dir1.mirror(diff).ndot(dir2) > PRETTY_CLOSE
@@ -153,8 +154,8 @@ pub fn double_snap_curve_case(
         let ndir2 = dir2.normalize();
         let t = s_curve_segment_length(pos1, ndir1, pos2, dir2);
         let center = (pos1 + pos2 + ndir1 * t + ndir2 * t) / 2.0;
-        if is_curve_too_small(dir1, center - pos1, lane_count)
-            || is_curve_too_small(dir2, center - pos2, lane_count)
+        if is_curve_too_small(dir1, center - pos1, no_lanes)
+            || is_curve_too_small(dir2, center - pos2, no_lanes)
         {
             return DoubleSnapCurveCase::ErrorTooSmall;
         }
@@ -179,6 +180,7 @@ pub fn match_double_snap_curve_case(
     dir2: Vec3,
     case: DoubleSnapCurveCase,
 ) -> Vec<Vec<Vec3>> {
+    let dir2 = -dir2;
     match case {
         DoubleSnapCurveCase::SingleCircle => vec![circle_curve_fudged(pos1, dir1, pos2, dir2)],
         DoubleSnapCurveCase::DoubleCircle => {
@@ -212,7 +214,7 @@ pub fn double_snap_curve_debricated(
     dir1: Vec3,
     pos2: Vec3,
     dir2: Vec3,
-    lane_count: i32,
+    no_lanes: u8,
 ) -> anyhow::Result<Vec<Vec<Vec3>>> {
     let mut points = Vec::new();
     let diff = pos2 - pos1;
@@ -227,8 +229,8 @@ pub fn double_snap_curve_debricated(
         let ndir2 = dir2.normalize();
         let t = s_curve_segment_length(pos1, ndir1, pos2, dir2);
         let center = (pos1 + pos2 + ndir1 * t + ndir2 * t) / 2.0;
-        if is_curve_too_small(dir1, center - pos1, lane_count)
-            || is_curve_too_small(dir2, center - pos2, lane_count)
+        if is_curve_too_small(dir1, center - pos1, no_lanes)
+            || is_curve_too_small(dir2, center - pos2, no_lanes)
         {
             return Err(anyhow::anyhow!("Curve too small"));
         }
@@ -276,14 +278,13 @@ fn s_curve_segment_length(v1: Vec3, r1: Vec3, v2: Vec3, r2: Vec3) -> f32 {
     k + (v.length_squared() / (4.0 - r.length_squared()) + k * k).sqrt()
 }
 
-fn min_road_length(d1: Vec3, d2: Vec3, lane_count: i32) -> f32 {
-    MIN_SEGMENT_LENGTH.max(
-        LANE_WIDTH * lane_count as f32 * 3.0 * d1.cross(d2).length() / d1.length() / d2.length(),
-    )
+fn min_road_length(d1: Vec3, d2: Vec3, no_lanes: u8) -> f32 {
+    MIN_SEGMENT_LENGTH
+        .max(LANE_WIDTH * no_lanes as f32 * 3.0 * d1.cross(d2).length() / d1.length() / d2.length())
 }
 
-fn is_curve_too_small(d1: Vec3, d2: Vec3, lane_count: i32) -> bool {
-    d2.length() < min_road_length(d1, d2, lane_count)
+fn is_curve_too_small(d1: Vec3, d2: Vec3, no_lanes: u8) -> bool {
+    d2.length() < min_road_length(d1, d2, no_lanes)
 }
 
 fn is_eliptical(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> bool {
