@@ -99,6 +99,29 @@ impl RoadGenerator {
         }
     }
 
+    pub fn double_snap(&mut self, snap_case: curves::DoubleSnapCurveCase, end_pos: Vec3, end_dir: Vec3) {
+        let (start_pos, start_dir) = self.get_start_node();
+        let g_points_vec = curves::guide_points_and_direction(
+            curves::match_double_snap_curve_case(start_pos, start_dir, end_pos, end_dir, snap_case),
+        ); // use snap_three_quarter_circle_curve for snapping
+           // and free_three_quarter_circle_curve otherwise
+        self.nodes = vec![(start_pos, start_dir)];
+        self.segments = vec![];
+        g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
+            let start_pos = g_points[0];
+            let end_pos = g_points[g_points.len() - 1];
+            let mesh = generate_circular_mesh(
+                start_pos,
+                end_pos,
+                self.start_road_type,
+                g_points,
+            );
+            self.nodes.push((end_pos, end_dir));
+            // TODO update curvetype to be correct
+            self.segments.push((Segment::new(CurveType::Curved), mesh));
+        });
+    }
+
     fn get_start_node(&self) -> (Vec3, Vec3) {
         self.nodes[0]
     }
