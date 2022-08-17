@@ -160,8 +160,12 @@ impl ToolState {
         let (road_mesh, new_node) =
             self.road_graph
                 .add_road(road_generator, self.sel_node, self.snapped_node);
-        let road_generator_mesh = self.select_node(new_node);
-        (Some(road_mesh), road_generator_mesh)
+        if let (Some(_), Some(_)) = (self.sel_node, self.snapped_node) {
+            (Some(road_mesh), Some(generator::empty_mesh()))
+        } else {
+            let road_generator_mesh = self.select_node(new_node);
+            (Some(road_mesh), road_generator_mesh)
+        }
     }
 
     fn check_snapping(&mut self, ground_pos: Vec3) -> Option<curves::DoubleSnapCurveCase> {
@@ -174,31 +178,36 @@ impl ToolState {
                 self.snapped_node = Some(possible_snap);
                 None
             }
-            // (Some(possible_snap), Some(sel_node)) => {
-            //     use curves::DoubleSnapCurveCase::*;
-            //     let start_node = self.road_graph.get_node(sel_node);
-            //     let end_node = self.road_graph.get_node(possible_snap);
-            //     if possible_snap == sel_node {
-            //         None
-            //     } else {
-            //         match curves::double_snap_curve_case(
-            //             start_node.pos,
-            //             start_node.dir,
-            //             end_node.pos,
-            //             end_node.dir,
-            //             self.sel_road_type.no_lanes,
-            //         ) {
-            //             ErrorTooSmall | ErrorSegmentAngle | ErrorCurveAngle | ErrorUnhandled => {
-            //                 self.snapped_node = None;
-            //                 None
-            //             }
-            //             snap_case => {
-            //                 self.snapped_node = Some(possible_snap);
-            //                 Some(snap_case)
-            //             }
-            //         }
-            //     }
-            // }
+            (Some(possible_snap), Some(sel_node)) => {
+                if possible_snap.node_id == sel_node.node_id
+                    || possible_snap.reverse == sel_node.reverse
+                {
+                    None
+                } else {
+                    use curves::DoubleSnapCurveCase::*;
+                    let (start_node, end_node) = if sel_node.reverse {
+                        (self.road_graph.get_node(possible_snap.node_id), self.road_graph.get_node(sel_node.node_id))
+                    } else {
+                        (self.road_graph.get_node(sel_node.node_id), self.road_graph.get_node(possible_snap.node_id))
+                    };
+                    match curves::double_snap_curve_case(
+                        start_node.pos,
+                        start_node.dir,
+                        end_node.pos,
+                        end_node.dir,
+                        self.sel_road_type.no_lanes,
+                    ) {
+                        ErrorTooSmall | ErrorSegmentAngle | ErrorCurveAngle | ErrorUnhandled => {
+                            self.snapped_node = None;
+                            None
+                        }
+                        snap_case => {
+                            self.snapped_node = Some(possible_snap);
+                            Some(snap_case)
+                        }
+                    }
+                }
+            }
             _ => {
                 self.snapped_node = None;
                 None
@@ -226,6 +235,9 @@ impl ToolState {
             }
             _ => {}
         }
+        if let Some(s) = self.snapped_node {
+            dbg!(s);
+        }
 
         match self.mode {
             Mode::SelectPos => match self.snapped_node {
@@ -247,12 +259,11 @@ impl ToolState {
                 road_generator.get_mesh()
             }
             Mode::Build(ref mut road_generator) => match (snap_case, self.snapped_node) {
-                // (Some(snap_case), Some(snapped_node)) => {
-                //     let snapped_node = self.road_graph.get_node(snapped_node);
-                //     self.road_generator
-                //         .double_snap(snap_case, snapped_node.pos, snapped_node.dir);
-                //     self.road_generator.get_mesh()
-                // }
+                (Some(snap_case), Some(snapped_node)) => {
+                    let snapped_node = self.road_graph.get_node(snapped_node.node_id);
+                    road_generator.double_snap(snap_case, snapped_node.pos, snapped_node.dir);
+                    road_generator.get_mesh()
+                }
                 _ => {
                     road_generator.update_pos(ground_pos);
                     road_generator.get_mesh()
