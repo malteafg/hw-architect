@@ -84,7 +84,7 @@ impl State {
     fn update(&mut self, dt: instant::Duration) {
         let camera_moved = self.camera_controller.update_camera(&mut self.camera, dt);
         if camera_moved {
-            self.update_ground_pos();
+            // self.update_ground_pos();
         }
         self.gfx.update(dt, &self.camera);
     }

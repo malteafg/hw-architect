@@ -121,10 +121,17 @@ impl RoadGenerator {
                 }
             }
         } else {
-            let (start_pos, end_pos) = if self.reverse {
-                (ground_pos, node_pos)
+            let proj_pos = if (ground_pos - node_pos).length() == 0.0 {
+                node_pos + Vec3::new(1.0, 0.0, 0.0) * 10.0
+            } else if (ground_pos - node_pos).length() < 10.0 {
+                node_pos + (ground_pos - node_pos).normalize() * 10.0
             } else {
-                (node_pos, ground_pos)
+                ground_pos
+            };
+            let (start_pos, end_pos) = if self.reverse {
+                (proj_pos, node_pos)
+            } else {
+                (node_pos, proj_pos)
             };
             let road_dir = (end_pos - start_pos).normalize();
             let mesh = generate_straight_mesh(start_pos, end_pos, self.start_road_type);
@@ -161,11 +168,11 @@ impl RoadGenerator {
         });
     }
 
-    fn get_start_node(&self) -> (Vec3, Vec3) {
+    pub fn get_start_node(&self) -> (Vec3, Vec3) {
         self.nodes[0]
     }
 
-    fn get_end_node(&self) -> (Vec3, Vec3) {
+    pub fn get_end_node(&self) -> (Vec3, Vec3) {
         self.nodes[self.nodes.len() - 1]
     }
 

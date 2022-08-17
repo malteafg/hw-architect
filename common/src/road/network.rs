@@ -109,7 +109,6 @@ impl RoadGraph {
         let forward_refs = HashMap::new();
         let backward_refs = HashMap::new();
 
-        // id 0 is reserved as a none option (see lane_map in node)
         let node_id_count = 0;
         let segment_id_count = 0;
         let road_meshes = HashMap::new();
