@@ -6,23 +6,32 @@ use glam::*;
 
 const VERTEX_DENSITY: f32 = 0.05;
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct RoadGenerator {
     nodes: Vec<(Vec3, Vec3)>,
     segments: Vec<(Segment, RoadMesh)>,
-    start_node_locked: bool,
-    is_init: bool,
+    dir_locked: bool,
     start_road_type: RoadType,
+    reverse: bool,
 }
 
 impl RoadGenerator {
-    pub fn new(ground_pos: Vec3, selected_road: RoadType, selected_dir: Option<Vec3>) -> Self {
-        let start_pos = ground_pos;
-        let (start_dir, start_node_locked) = match selected_dir {
+    pub fn new(
+        ground_pos: Vec3,
+        selected_road: RoadType,
+        selected_dir: Option<Vec3>,
+        reverse: bool,
+    ) -> Self {
+        let (start_dir, dir_locked) = match selected_dir {
             Some(dir) => (dir.normalize(), true),
             None => (Vec3::new(1.0, 0.0, 0.0), false),
         };
-        let end_pos = ground_pos + start_dir * 10.0;
+
+        let (start_pos, end_pos) = if reverse {
+            (ground_pos - start_dir * 10.0, ground_pos)
+        } else {
+            (ground_pos, ground_pos + start_dir * 10.0)
+        };
 
         let mesh = generate_straight_mesh(start_pos, end_pos, selected_road);
 
@@ -32,47 +41,68 @@ impl RoadGenerator {
         RoadGenerator {
             nodes,
             segments,
-            start_node_locked,
-            is_init: true,
+            dir_locked,
             start_road_type: selected_road,
+            reverse,
         }
     }
 
     pub fn update_pos(&mut self, ground_pos: Vec3) {
-        if !self.is_init {
-            return;
-        }
-        let (start_pos, start_dir) = self.get_start_node();
-        let end_pos = ground_pos;
-
+        let (node_pos, node_dir) = if self.reverse {
+            self.get_end_node()
+        } else {
+            self.get_start_node()
+        };
         let curve_type = self.start_road_type.curve_type;
-        if self.start_node_locked {
+        if self.dir_locked {
             match curve_type {
                 CurveType::Straight => {
-                    let end_pos = (ground_pos - start_pos).proj(start_dir) + start_pos;
-                    let end_pos =
-                        if (ground_pos - start_pos).dot(start_dir) / start_dir.length() > 10.0 {
-                            end_pos
+                    let proj_dir = if self.reverse {
+                        -node_dir
+                    } else {
+                        node_dir
+                    };
+                    let proj_pos = (ground_pos - node_pos).proj(proj_dir) + node_pos;
+                    let proj_pos =
+                        if (ground_pos - node_pos).dot(proj_dir) / proj_dir.length() > 10.0 {
+                            proj_pos
                         } else {
-                            start_pos + start_dir * 10.0
+                            node_pos + proj_dir * 10.0
                         };
+                    let (start_pos, end_pos) = if self.reverse {
+                        (proj_pos, node_pos)
+                    } else {
+                        (node_pos, proj_pos)
+                    };
                     let mesh = generate_straight_mesh(start_pos, end_pos, self.start_road_type);
 
-                    self.nodes = vec![(start_pos, start_dir), (end_pos, start_dir)];
+                    self.nodes = vec![(start_pos, node_dir), (end_pos, node_dir)];
                     self.segments = vec![(Segment::new(curve_type), mesh)];
                 }
                 CurveType::Curved => {
-                    // dbg!((end_pos - start_pos).normalize());
-                    let end_pos = if (end_pos - start_pos).length() == 0.0 {
-                        start_pos + start_dir * 10.0
-                    } else if (end_pos - start_pos).length() < 10.0 {
-                        start_pos + (end_pos - start_pos).normalize() * 10.0
+                    let node_dir = if self.reverse {
+                        -node_dir
                     } else {
-                        end_pos
+                        node_dir
                     };
-                    let g_points_vec = curves::guide_points_and_direction(
-                        curves::free_three_quarter_circle_curve(start_pos, start_dir, end_pos),
-                    ); // use snap_three_quarter_circle_curve for snapping
+                    let proj_pos = if (ground_pos - node_pos).length() == 0.0 {
+                        // TODO can we just use straight mesh?
+                        node_pos + node_dir * 10.0
+                    } else if (ground_pos - node_pos).length() < 10.0 {
+                        node_pos + (ground_pos - node_pos).normalize() * 10.0
+                    } else {
+                        ground_pos
+                    };
+                    let mut g_points_vec = curves::free_three_quarter_circle_curve(node_pos, node_dir, proj_pos);
+                    let mut start_pos = node_pos;
+                    if self.reverse {
+                        g_points_vec = curves::reverse_g_points(g_points_vec);
+                        start_pos = g_points_vec[0][0];
+                    }
+                    let (g_points_vec, start_dir) = curves::guide_points_and_direction(g_points_vec);
+                    // let g_points_vec = curves::guide_points_and_direction(
+                    //     curves::free_three_quarter_circle_curve(node_pos, node_dir, proj_pos),
+                    // ); // use snap_three_quarter_circle_curve for snapping
                        // and free_three_quarter_circle_curve otherwise
                     self.nodes = vec![(start_pos, start_dir)];
                     self.segments = vec![];
@@ -91,36 +121,41 @@ impl RoadGenerator {
                 }
             }
         } else {
-            let start_dir = (end_pos - start_pos).normalize();
+            let (start_pos, end_pos) = if self.reverse {
+                (ground_pos, node_pos)
+            } else {
+                (node_pos, ground_pos)
+            };
+            let road_dir = (end_pos - start_pos).normalize();
             let mesh = generate_straight_mesh(start_pos, end_pos, self.start_road_type);
 
-            self.nodes = vec![(start_pos, start_dir), (end_pos, start_dir)];
+            self.nodes = vec![(start_pos, road_dir), (end_pos, road_dir)];
             self.segments = vec![(Segment::new(curve_type), mesh)];
         }
     }
 
-    pub fn double_snap(&mut self, snap_case: curves::DoubleSnapCurveCase, end_pos: Vec3, end_dir: Vec3) {
-        let (start_pos, start_dir) = self.get_start_node();
-        let g_points_vec = curves::guide_points_and_direction(
-            curves::match_double_snap_curve_case(start_pos, start_dir, end_pos, end_dir, snap_case),
-        ); // use snap_three_quarter_circle_curve for snapping
-           // and free_three_quarter_circle_curve otherwise
-        self.nodes = vec![(start_pos, start_dir)];
-        self.segments = vec![];
-        g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
-            let start_pos = g_points[0];
-            let end_pos = g_points[g_points.len() - 1];
-            let mesh = generate_circular_mesh(
-                start_pos,
-                end_pos,
-                self.start_road_type,
-                g_points,
-            );
-            self.nodes.push((end_pos, end_dir));
-            // TODO update curvetype to be correct
-            self.segments.push((Segment::new(CurveType::Curved), mesh));
-        });
-    }
+    // pub fn double_snap(
+    //     &mut self,
+    //     snap_case: curves::DoubleSnapCurveCase,
+    //     end_pos: Vec3,
+    //     end_dir: Vec3,
+    // ) {
+    //     let (start_pos, start_dir) = self.get_start_node();
+    //     let g_points_vec = curves::guide_points_and_direction(
+    //         curves::match_double_snap_curve_case(start_pos, start_dir, end_pos, end_dir, snap_case),
+    //     ); // use snap_three_quarter_circle_curve for snapping
+    //        // and free_three_quarter_circle_curve otherwise
+    //     self.nodes = vec![(start_pos, start_dir)];
+    //     self.segments = vec![];
+    //     g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
+    //         let start_pos = g_points[0];
+    //         let end_pos = g_points[g_points.len() - 1];
+    //         let mesh = generate_circular_mesh(start_pos, end_pos, self.start_road_type, g_points);
+    //         self.nodes.push((end_pos, end_dir));
+    //         // TODO update curvetype to be correct
+    //         self.segments.push((Segment::new(CurveType::Curved), mesh));
+    //     });
+    // }
 
     fn get_start_node(&self) -> (Vec3, Vec3) {
         self.nodes[0]
@@ -139,23 +174,23 @@ impl RoadGenerator {
     }
 
     pub fn lock(&mut self) {
-        self.start_node_locked = true;
+        self.dir_locked = true;
     }
 
     pub fn unlock(&mut self) {
-        self.start_node_locked = false;
+        self.dir_locked = false;
     }
 
     pub fn get_mesh(&self) -> Option<RoadMesh> {
-        if !self.is_init {
-            None
-        } else {
-            Some(combine_road_meshes(self.segments.clone()))
-        }
+        Some(combine_road_meshes(self.segments.clone()))
     }
 
     pub fn get_road_type(&self) -> RoadType {
         self.start_road_type
+    }
+
+    pub fn is_reverse(&self) -> bool {
+        self.reverse
     }
 
     // pub fn can_snap

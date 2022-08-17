@@ -31,16 +31,24 @@ const MIN_SEGMENT_LENGTH: f32 = 10.0;
 // snap_three_quarter_circle_curve makes circular curves but snaps to
 // 90 degree intervals of road curvature
 
-pub fn guide_points_and_direction(guide_points: Vec<Vec<Vec3>>) -> Vec<(Vec<Vec3>, Vec3)> {
+pub fn guide_points_and_direction(guide_points: Vec<Vec<Vec3>>) -> (Vec<(Vec<Vec3>, Vec3)>, Vec3) {
     let mut result: Vec<(Vec<Vec3>, Vec3)> = Vec::new();
     for curve in guide_points.iter() {
         result.push((
             curve.to_vec(),
-            curve[curve.len() - 1] - curve[curve.len() - 2],
+            (curve[curve.len() - 1] - curve[curve.len() - 2]).normalize(),
         ));
     }
 
-    result
+    (result, (guide_points[0][1] - guide_points[0][0]).normalize())
+}
+
+pub fn reverse_g_points(mut guide_points: Vec<Vec<Vec3>>) -> Vec<Vec<Vec3>> {
+    guide_points.reverse();
+    for guide_point_segment in &mut guide_points {
+        guide_point_segment.reverse();
+    }
+    guide_points
 }
 
 pub fn free_three_quarter_circle_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec<Vec<Vec3>> {

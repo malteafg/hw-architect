@@ -4,19 +4,18 @@ use super::network;
 use crate::input;
 use glam::*;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone)]
 pub enum Mode {
     SelectPos,
-    SelectDir,
-    Build,
+    SelectDir(generator::RoadGenerator),
+    Build(generator::RoadGenerator),
 }
 
 pub struct ToolState {
-    road_generator: generator::RoadGenerator,
     road_graph: network::RoadGraph,
     sel_road_type: network::RoadType,
-    sel_node: Option<network::NodeId>,
-    snapped_node: Option<network::NodeId>,
+    sel_node: Option<network::SnapConfig>,
+    snapped_node: Option<network::SnapConfig>,
     ground_pos: Vec3,
     mode: Mode,
 }
@@ -24,7 +23,6 @@ pub struct ToolState {
 impl ToolState {
     pub fn new() -> Self {
         ToolState {
-            road_generator: generator::RoadGenerator::default(),
             road_graph: network::RoadGraph::new(),
             sel_road_type: network::RoadType {
                 no_lanes: 3,
@@ -66,102 +64,102 @@ impl ToolState {
         use input::MouseEvent;
         use network::CurveType;
 
-        // match event {
-        //     MouseEvent::LeftClick | MouseEvent::RightClick => {
-        //         dbg!(self.sel_road_type, self.sel_node, self.snapped_node, self.mode);
-        //     },
-        //     _ => {},
-        // };
-
         // returned when road_generator is set to None
         let empty_mesh = Some(generator::empty_mesh());
 
-        match (self.mode, event) {
+        match (self.mode.clone(), event) {
             (Mode::SelectPos, MouseEvent::LeftClick) => match self.snapped_node {
                 Some(snapped_node) => {
                     let road_mesh = self.select_node(snapped_node);
                     (None, road_mesh)
                 }
                 None => {
-                    self.road_generator =
-                        RoadGenerator::new(self.ground_pos, self.sel_road_type, None);
-                    let road_mesh = self.road_generator.get_mesh();
+                    let road_generator =
+                        RoadGenerator::new(self.ground_pos, self.sel_road_type, None, false);
+                    let road_mesh = road_generator.get_mesh();
 
-                    self.mode = Mode::SelectDir;
+                    self.mode = Mode::SelectDir(road_generator);
                     (None, road_mesh)
                 }
             },
-            (Mode::SelectDir, MouseEvent::LeftClick) => match self.sel_road_type.curve_type {
-                CurveType::Straight => self.build_road(),
-                CurveType::Curved => {
-                    self.road_generator.lock();
-                    self.road_generator.update_pos(self.ground_pos);
-                    let road_mesh = self.road_generator.get_mesh();
+            (Mode::SelectDir(ref mut road_generator), MouseEvent::LeftClick) => {
+                match self.sel_road_type.curve_type {
+                    CurveType::Straight => self.build_road(road_generator.clone()),
+                    CurveType::Curved => {
+                        road_generator.lock();
+                        road_generator.update_pos(self.ground_pos);
+                        let road_mesh = road_generator.get_mesh();
 
-                    self.mode = Mode::Build;
-                    (None, road_mesh)
+                        self.mode = Mode::Build(road_generator.clone());
+                        (None, road_mesh)
+                    }
                 }
-            },
-            (Mode::Build, MouseEvent::LeftClick) => self.build_road(),
-            (_, MouseEvent::RightClick) => {
-                match self.snapped_node {
-                    Some(node_id) => {
-                        let snapped_node = self.road_graph.get_node(node_id);
+            }
+            (Mode::Build(ref mut road_generator), MouseEvent::LeftClick) => {
+                self.build_road(road_generator.clone())
+            }
+            (Mode::SelectPos, MouseEvent::RightClick) => {
+                match self.road_graph.get_node_debug(self.ground_pos) {
+                    Some(snap_config) => {
+                        let snapped_node = self.road_graph.get_node(snap_config.node_id);
                         dbg!(snapped_node);
                         (None, None)
                     }
-                    None => match self.mode {
-                        Mode::SelectDir => {
-                            self.road_generator = generator::RoadGenerator::default();
-                            self.sel_node = None;
-                            self.snapped_node = None;
-                            self.update_ground_pos(self.ground_pos);
-                            self.mode = Mode::SelectPos;
-                            (None, empty_mesh)
-                        }
-                        Mode::Build => {
-                            match (self.sel_road_type.curve_type, self.sel_node) {
-                                (CurveType::Curved, None) => {
-                                    self.road_generator.unlock();
-                                    self.mode = Mode::SelectDir;
-                                }
-                                _ => {
-                                    self.road_generator = generator::RoadGenerator::default();
-                                    self.mode = Mode::SelectPos;
-                                }
-                            };
-                            self.sel_node = None;
-                            self.snapped_node = None;
-                            self.update_ground_pos(self.ground_pos);
-                            (None, empty_mesh)
-                        }
-                        _ => (None, None)
-                    }
+                    None => (None, None),
                 }
+            }
+            (Mode::SelectDir(_), MouseEvent::RightClick) => {
+                self.sel_node = None;
+                self.snapped_node = None;
+                self.update_ground_pos(self.ground_pos);
+                self.mode = Mode::SelectPos;
+                (None, empty_mesh)
+            }
+            (Mode::Build(mut road_generator), MouseEvent::RightClick) => {
+                match (self.sel_road_type.curve_type, self.sel_node) {
+                    (CurveType::Curved, None) => {
+                        road_generator.unlock();
+                        self.mode = Mode::SelectDir(road_generator);
+                    }
+                    _ => {
+                        self.mode = Mode::SelectPos;
+                    }
+                };
+                self.sel_node = None;
+                self.snapped_node = None;
+                self.update_ground_pos(self.ground_pos);
+                (None, empty_mesh)
             }
             (_, _) => (None, None),
         }
     }
 
-    fn select_node(&mut self, snapped_node: network::NodeId) -> Option<network::RoadMesh> {
-        let node = self.road_graph.get_node(snapped_node);
+    fn select_node(&mut self, snapped_node: network::SnapConfig) -> Option<network::RoadMesh> {
+        let node = self.road_graph.get_node(snapped_node.node_id);
 
-        self.road_generator =
-            generator::RoadGenerator::new(node.pos, self.sel_road_type, Some(node.dir));
-        self.road_generator.update_pos(self.ground_pos);
-        let road_mesh = self.road_generator.get_mesh();
+        let mut road_generator = generator::RoadGenerator::new(
+            node.pos,
+            self.sel_road_type,
+            Some(node.dir),
+            snapped_node.reverse,
+        );
+        road_generator.update_pos(self.ground_pos);
+        let road_mesh = road_generator.get_mesh();
 
         self.sel_node = Some(snapped_node);
         self.snapped_node = None;
-        self.mode = Mode::Build;
+        self.mode = Mode::Build(road_generator);
 
         road_mesh
     }
 
-    fn build_road(&mut self) -> (Option<network::RoadMesh>, Option<network::RoadMesh>) {
+    fn build_road(
+        &mut self,
+        road_generator: generator::RoadGenerator,
+    ) -> (Option<network::RoadMesh>, Option<network::RoadMesh>) {
         let (road_mesh, new_node) =
             self.road_graph
-                .add_road(self.road_generator.clone(), None, None);
+                .add_road(road_generator, self.sel_node, self.snapped_node);
         let road_generator_mesh = self.select_node(new_node);
         (Some(road_mesh), road_generator_mesh)
     }
@@ -176,31 +174,31 @@ impl ToolState {
                 self.snapped_node = Some(possible_snap);
                 None
             }
-            (Some(possible_snap), Some(sel_node)) => {
-                use curves::DoubleSnapCurveCase::*;
-                let start_node = self.road_graph.get_node(sel_node);
-                let end_node = self.road_graph.get_node(possible_snap);
-                if possible_snap == sel_node {
-                    None
-                } else {
-                    match curves::double_snap_curve_case(
-                        start_node.pos,
-                        start_node.dir,
-                        end_node.pos,
-                        end_node.dir,
-                        self.sel_road_type.no_lanes,
-                    ) {
-                        ErrorTooSmall | ErrorSegmentAngle | ErrorCurveAngle | ErrorUnhandled => {
-                            self.snapped_node = None;
-                            None
-                        }
-                        snap_case => {
-                            self.snapped_node = Some(possible_snap);
-                            Some(snap_case)
-                        }
-                    }
-                }
-            }
+            // (Some(possible_snap), Some(sel_node)) => {
+            //     use curves::DoubleSnapCurveCase::*;
+            //     let start_node = self.road_graph.get_node(sel_node);
+            //     let end_node = self.road_graph.get_node(possible_snap);
+            //     if possible_snap == sel_node {
+            //         None
+            //     } else {
+            //         match curves::double_snap_curve_case(
+            //             start_node.pos,
+            //             start_node.dir,
+            //             end_node.pos,
+            //             end_node.dir,
+            //             self.sel_road_type.no_lanes,
+            //         ) {
+            //             ErrorTooSmall | ErrorSegmentAngle | ErrorCurveAngle | ErrorUnhandled => {
+            //                 self.snapped_node = None;
+            //                 None
+            //             }
+            //             snap_case => {
+            //                 self.snapped_node = Some(possible_snap);
+            //                 Some(snap_case)
+            //             }
+            //         }
+            //     }
+            // }
             _ => {
                 self.snapped_node = None;
                 None
@@ -216,36 +214,50 @@ impl ToolState {
         // returned when road_generator is set to None
         let empty_mesh = Some(generator::empty_mesh());
 
+        let prev_snap = self.snapped_node;
         let snap_case = self.check_snapping(ground_pos);
+
+        // node snap has not changed
+        match (prev_snap, self.snapped_node) {
+            (Some(a), Some(b)) => {
+                if a == b {
+                    return None;
+                }
+            }
+            _ => {}
+        }
+
         match self.mode {
             Mode::SelectPos => match self.snapped_node {
                 Some(snapped_node) => {
-                    let node = self.road_graph.get_node(snapped_node);
-                    self.road_generator =
-                        RoadGenerator::new(node.pos, self.sel_road_type, Some(node.dir));
-                    self.road_generator.get_mesh()
+                    let node = self.road_graph.get_node(snapped_node.node_id);
+                    let road_generator = RoadGenerator::new(
+                        node.pos,
+                        self.sel_road_type,
+                        Some(node.dir),
+                        snapped_node.reverse,
+                    );
+                    road_generator.get_mesh()
                 }
                 None => empty_mesh,
             },
-            Mode::SelectDir => {
+            Mode::SelectDir(ref mut road_generator) => {
                 // for now we are not allowed to snap in dir mode
-                self.road_generator.update_pos(ground_pos);
-                self.road_generator.get_mesh()
+                road_generator.update_pos(ground_pos);
+                road_generator.get_mesh()
             }
-            Mode::Build => {
-                match (snap_case, self.snapped_node) {
-                    (Some(snap_case), Some(snapped_node)) => {
-                        println!("building with double snap");
-                        let snapped_node = self.road_graph.get_node(snapped_node);
-                        self.road_generator.double_snap(snap_case, snapped_node.pos, snapped_node.dir);
-                        self.road_generator.get_mesh()
-                    }
-                    _ => {
-                        self.road_generator.update_pos(ground_pos);
-                        self.road_generator.get_mesh()
-                    }
+            Mode::Build(ref mut road_generator) => match (snap_case, self.snapped_node) {
+                // (Some(snap_case), Some(snapped_node)) => {
+                //     let snapped_node = self.road_graph.get_node(snapped_node);
+                //     self.road_generator
+                //         .double_snap(snap_case, snapped_node.pos, snapped_node.dir);
+                //     self.road_generator.get_mesh()
+                // }
+                _ => {
+                    road_generator.update_pos(ground_pos);
+                    road_generator.get_mesh()
                 }
-            }
+            },
         }
     }
 }
