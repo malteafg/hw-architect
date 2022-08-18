@@ -93,7 +93,7 @@ impl RoadGenerator {
                     } else {
                         ground_pos
                     };
-                    let mut g_points_vec = curves::free_three_quarter_circle_curve(node_pos, node_dir, proj_pos);
+                    let mut g_points_vec = curves::three_quarter_circle_curve(node_pos, node_dir, proj_pos, false);
                     let mut start_pos = node_pos;
                     if self.reverse {
                         g_points_vec = curves::reverse_g_points(g_points_vec);
@@ -101,9 +101,8 @@ impl RoadGenerator {
                     }
                     let (g_points_vec, start_dir) = curves::guide_points_and_direction(g_points_vec);
                     // let g_points_vec = curves::guide_points_and_direction(
-                    //     curves::free_three_quarter_circle_curve(node_pos, node_dir, proj_pos),
-                    // ); // use snap_three_quarter_circle_curve for snapping
-                       // and free_three_quarter_circle_curve otherwise
+                    //     curves::three_quarter_circle_curve(node_pos, node_dir, proj_pos, false),
+
                     self.nodes = vec![(start_pos, start_dir)];
                     self.segments = vec![];
                     g_points_vec.into_iter().for_each(|(g_points, end_dir)| {

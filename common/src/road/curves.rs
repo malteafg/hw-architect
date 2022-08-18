@@ -51,22 +51,20 @@ pub fn reverse_g_points(mut guide_points: Vec<Vec<Vec3>>) -> Vec<Vec<Vec3>> {
     guide_points
 }
 
-pub fn free_three_quarter_circle_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec<Vec<Vec3>> {
-    three_quarter_circle_curve(pos1, dir1, three_quarter_projection(pos1, dir1, pos2))
-}
-
-pub fn snap_three_quarter_circle_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec<Vec<Vec3>> {
-    three_quarter_circle_curve(pos1, dir1, snap_circle_projection(pos1, dir1, pos2))
-}
-
-fn three_quarter_circle_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec<Vec<Vec3>> {
-    if (pos2 - pos1).dot(dir1) >= 0.0 {
-        vec![circle_curve(pos1, dir1, pos2)]
+pub fn three_quarter_circle_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3, snap: bool) -> Vec<Vec<Vec3>> {
+    let projected_pos2 = if snap {
+        snap_circle_projection(pos1, dir1, pos2)
     } else {
-        let mid_point = curve_mid_point(pos1, dir1, pos2);
+        three_quarter_projection(pos1, dir1, pos2)
+    };
+
+    if (projected_pos2 - pos1).dot(dir1) >= 0.0 {
+        vec![circle_curve(pos1, dir1, projected_pos2)]
+    } else {
+        let mid_point = curve_mid_point(pos1, dir1, projected_pos2);
         vec![
             circle_curve(pos1, dir1, mid_point),
-            circle_curve(mid_point, pos2 - pos1, pos2),
+            circle_curve(mid_point, projected_pos2 - pos1, projected_pos2),
         ]
     }
 }
@@ -93,20 +91,6 @@ fn snap_circle_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec3 { //, no_l
     let line = dir1 * cos + dir1.right_hand() * diff.side(dir1) * sin;
 
     pos1 + line.normalize() * diff.length()
-}
-
-fn old_snap_circle_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec3 {
-    let diff = pos2 - pos1;
-    let proj_length = diff.dot(dir1) / dir1.length();
-    let diff_length = diff.length();
-
-    if proj_length >= COS_SIXTEENTH * diff_length {
-        pos1 + diff.proj(dir1)
-    } else if proj_length.abs() <= COS_THREE_SIXTEENTH * diff_length {
-        pos1 - dir1.normalize() * proj_length.abs() * 0.002 + diff.anti_proj(dir1)
-    } else {
-        pos1 + diff.proj(dir1) + diff.anti_proj(dir1).normalize() * proj_length.abs()
-    }
 }
 
 fn curve_mid_point(pos1: Vec3, dir: Vec3, pos2: Vec3) -> Vec3 {
@@ -147,6 +131,7 @@ fn circle_scale(diff: Vec3, dir: Vec3) -> f32 {
     }
 }
 
+#[derive(Debug)]
 pub enum DoubleSnapCurveCase {
     SingleCircle,
     DoubleCircle,
@@ -206,10 +191,10 @@ pub fn match_double_snap_curve_case(
     let dir2 = -dir2;
     match case {
         DoubleSnapCurveCase::SingleCircle => vec![circle_curve_fudged(pos1, dir1, pos2, dir2)],
-        DoubleSnapCurveCase::DoubleCircle => {
+        DoubleSnapCurveCase::Elipse => {
             vec![simple_curve_points(pos1, dir1, pos2, dir2).expect("Simple curve fuck up!")]
         }
-        DoubleSnapCurveCase::Elipse => double_curve(pos1, dir1, pos2, dir2),
+        DoubleSnapCurveCase::DoubleCircle => double_curve(pos1, dir1, pos2, dir2),
         _ => vec![],
     }
 }
