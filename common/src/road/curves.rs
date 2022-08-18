@@ -364,3 +364,47 @@ pub fn calc_bezier_dir(guide_points: Vec<Vec3>, t: f32) -> Vec3 {
     let result = v * guide_points.len() as f32;
     result
 }
+
+pub fn is_inside(guide_points: &Vec<Vec3>, ground_pos: Vec3, width: f32) -> bool {
+    let direct_dist = (guide_points[guide_points.len() - 1] - guide_points[0]).length_squared();
+
+    let mut close = false;
+    let mut distance_squared = f32::MAX;
+    for (i, &point) in guide_points.iter().enumerate() {
+        let dist = (point - ground_pos).length_squared();
+        if dist < direct_dist {
+            close = true;
+            if dist < distance_squared {
+                distance_squared = dist;
+            }
+        }
+        
+    }
+    if !close {
+        return false
+    } else if distance_squared < width * width {
+        return true;
+    }
+
+    let mut a = 0.0;
+    let mut c = 1.0;
+    let mut point_a = calc_bezier_pos(guide_points.clone(), a);
+    let mut point_b = Vec3::new(0.0, 0.0, 0.0);
+    let mut point_c = calc_bezier_pos(guide_points.clone(), c);
+    for _ in 0..10 {
+        point_b = calc_bezier_pos(guide_points.clone(), (a + c) / 2.0);
+        if (point_b - ground_pos) .length_squared() < width * width {
+            return true;
+        }
+        
+        if (point_a - ground_pos).length_squared() < (point_c - ground_pos).length_squared() {
+            point_c = point_b;
+            c = (a + c) / 2.0;
+        } else {
+            point_a = point_b;
+            a = (a + c) / 2.0;
+        }
+    }
+
+    return false
+}

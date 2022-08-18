@@ -1,4 +1,4 @@
-use super::{generator, LANE_WIDTH};
+use super::{generator, curves, LANE_WIDTH};
 use glam::*;
 use std::collections::HashMap;
 
@@ -81,14 +81,15 @@ impl Node {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Segment {
-    pub curve_type: CurveType,
+    pub road_type: RoadType,
+    pub guide_points: Vec<Vec3>,
 }
 
 impl Segment {
-    pub fn new(curve_type: CurveType) -> Self {
-        Segment { curve_type }
+    pub fn new(road_type: RoadType, guide_points: Vec<Vec3>) -> Self {
+        Segment { road_type, guide_points }
     }
 }
 
@@ -160,7 +161,7 @@ impl RoadGraph {
             .enumerate()
             .for_each(|(i, (segment, mesh))| {
                 let id = segment_ids[i];
-                self.segment_map.insert(id, *segment);
+                self.segment_map.insert(id, segment.clone());
                 self.road_meshes
                     .insert(RoadElementId::Segment(id), mesh.clone());
                 self.forward_refs.insert(id, Vec::new());
@@ -310,6 +311,16 @@ impl RoadGraph {
         let segment_id = self.segment_id_count;
         self.segment_id_count += 1;
         SegmentId(segment_id)
+    }
+
+    pub fn get_segment_inside(&self, ground_pos: Vec3) -> Option<SegmentId> {
+        for (id , s) in self.segment_map.iter() {
+            if curves::is_inside(&s.guide_points, ground_pos, s.road_type.no_lanes as f32 * LANE_WIDTH) {
+                return Some(*id);
+            }
+        }
+
+        None
     }
 }
 

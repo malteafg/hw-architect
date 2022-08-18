@@ -74,6 +74,8 @@ impl ToolState {
                     (None, road_mesh)
                 }
                 None => {
+                    dbg!(self.road_graph.get_segment_inside(self.ground_pos));
+
                     let road_generator =
                         RoadGenerator::new(self.ground_pos, self.sel_road_type, None, false);
                     let road_mesh = road_generator.get_mesh();
