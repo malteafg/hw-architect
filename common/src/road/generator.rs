@@ -81,11 +81,9 @@ impl RoadGenerator {
                 }
                 CurveType::Curved => {
                     let node_dir = if self.reverse { -node_dir } else { node_dir };
-                    let proj_pos = if (ground_pos - node_pos).length() == 0.0 {
-                        // TODO can we just use straight mesh?
-                        node_pos + node_dir * 10.0
-                    } else if (ground_pos - node_pos).length() < 10.0 {
-                        node_pos + (ground_pos - node_pos).normalize() * 10.0
+                    let proj_pos = 
+                    if (ground_pos - node_pos).length() < 10.0 {
+                        node_pos + (ground_pos - node_pos).try_normalize().unwrap_or(node_dir) * 10.0
                     } else {
                         ground_pos
                     };
@@ -148,6 +146,10 @@ impl RoadGenerator {
             )];
         }
     }
+
+    // fn get_start_end(&self) -> ((Vec3, Vec3), (Vec3, Vec3)) {
+    //
+    // } 
 
     pub fn try_curve_snap(
         &mut self,
@@ -281,8 +283,6 @@ impl RoadGenerator {
     pub fn is_reverse(&self) -> bool {
         self.reverse
     }
-
-    // pub fn can_snap
 }
 
 // iterate over road_meshes and return vec of RoadVertex
@@ -363,7 +363,7 @@ pub fn generate_circular_mesh(
     }
     let mut vertices2 = generate_road_cut(
         curves::calc_bezier_pos(g_points.clone(), 1.0),
-        curves::calc_bezier_dir(g_points.clone(), 1.0),
+        curves::calc_bezier_dir(g_points, 1.0),
         width,
     );
     vertices.append(&mut vertices2);

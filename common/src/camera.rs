@@ -230,7 +230,6 @@ impl CameraController {
         }
     }
 
-    /// returns true if camera has moved TODO
     pub fn update_camera(&mut self, camera: &mut Camera, dt: Duration) -> bool {
         let dt = dt.as_secs_f32();
 

@@ -155,10 +155,10 @@ pub enum DoubleSnapCurveCase {
 
 #[derive(Debug)]
 pub enum DoubleSnapError {
-    ErrorTooSmall,
-    ErrorTooBig,
-    ErrorSegmentAngle,
-    ErrorCurveAngle,
+    TooSmall,
+    TooBig,
+    SegmentAngle,
+    CurveAngle,
 }
 
 pub fn double_snap_curve_case(
@@ -186,20 +186,20 @@ pub fn double_snap_curve_case(
         let center = (pos1 + pos2 + ndir1 * t + ndir2 * t) / 2.0;
 
         if (center - pos1).length_squared() > MAX_CIRCLE_SIZE {
-            return Err(ErrorTooBig);
+            return Err(TooBig);
         }
         if is_curve_too_small(dir1, center - pos1, no_lanes)
             || is_curve_too_small(dir2, center - pos2, no_lanes)
         {
-            return Err(ErrorTooSmall);
+            return Err(TooSmall);
         }
         if dir1.dot(center - pos1) <= 0.0 || dir2.dot(center - pos2) <= 0.0 {
-            return Err(ErrorSegmentAngle);
+            return Err(SegmentAngle);
         }
         if (pos2 - pos1).dot(center - pos1) <= 0.0 || (pos1 - pos2).dot(center - pos2) <= 0.0 {
-            return Err(ErrorCurveAngle);
+            return Err(CurveAngle);
         }
-        if is_eliptical(pos1, dir1, pos2, dir2) {
+        if is_elliptical(pos1, dir1, pos2, dir2) {
             Ok(Ellipse)
         } else {
             Ok(DoubleCircle)
@@ -271,7 +271,7 @@ fn is_curve_too_small(d1: Vec3, d2: Vec3, no_lanes: u8) -> bool {
     d2.length() < min_road_length(d1, d2, no_lanes)
 }
 
-fn is_eliptical(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> bool {
+fn is_elliptical(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> bool {
     let delta_pos = pos2 - pos1;
     if dir1.dot(dir2) > 0.0 {
         return false;
