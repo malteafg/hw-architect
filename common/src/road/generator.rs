@@ -37,7 +37,7 @@ impl RoadGenerator {
         let mesh = generate_straight_mesh(start_pos, end_pos, selected_road);
 
         let nodes = vec![(start_pos, start_dir), (end_pos, start_dir)];
-        let segments = vec![(Segment::new(selected_road.curve_type), mesh)];
+        let segments = vec![(Segment::new(selected_road, vec![start_pos, end_pos]), mesh)];
 
         RoadGenerator {
             nodes,
@@ -75,7 +75,10 @@ impl RoadGenerator {
                     let mesh = generate_straight_mesh(start_pos, end_pos, self.start_road_type);
 
                     self.nodes = vec![(start_pos, node_dir), (end_pos, node_dir)];
-                    self.segments = vec![(Segment::new(curve_type), mesh)];
+                    self.segments = vec![(
+                        Segment::new(self.start_road_type, vec![start_pos, end_pos]),
+                        mesh,
+                    )];
                 }
                 CurveType::Curved => {
                     let node_dir = if self.reverse { -node_dir } else { node_dir };
@@ -108,10 +111,11 @@ impl RoadGenerator {
                             start_pos,
                             end_pos,
                             self.start_road_type,
-                            g_points,
+                            g_points.clone(),
                         );
                         self.nodes.push((end_pos, end_dir));
-                        self.segments.push((Segment::new(curve_type), mesh));
+                        self.segments
+                            .push((Segment::new(self.start_road_type, g_points), mesh));
                     });
                 }
             }
@@ -132,7 +136,10 @@ impl RoadGenerator {
             let mesh = generate_straight_mesh(start_pos, end_pos, self.start_road_type);
 
             self.nodes = vec![(start_pos, road_dir), (end_pos, road_dir)];
-            self.segments = vec![(Segment::new(curve_type), mesh)];
+            self.segments = vec![(
+                Segment::new(self.start_road_type, vec![start_pos, end_pos]),
+                mesh,
+            )];
         }
     }
 
@@ -184,7 +191,9 @@ impl RoadGenerator {
             end_dir,
             sel_road_type.no_lanes,
         ) {
-            ErrorTooSmall | ErrorSegmentAngle | ErrorCurveAngle | ErrorUnhandled => return None,
+            ErrorTooSmall | ErrorSegmentAngle | ErrorCurveAngle | ErrorUnhandled | ErrorTooBig => {
+                return None
+            }
             snap_case => {
                 let (g_points_vec, _) =
                     curves::guide_points_and_direction(curves::match_double_snap_curve_case(
@@ -197,10 +206,19 @@ impl RoadGenerator {
                     let start_pos = g_points[0];
                     let end_pos = g_points[g_points.len() - 1];
                     let mesh =
-                        generate_circular_mesh(start_pos, end_pos, self.start_road_type, g_points);
+                        generate_circular_mesh(start_pos, end_pos, self.start_road_type, g_points.clone());
                     self.nodes.push((end_pos, end_dir));
                     // TODO update curvetype to be correct
-                    self.segments.push((Segment::new(CurveType::Curved), mesh));
+                    self.segments.push((
+                        Segment::new(
+                            RoadType {
+                                no_lanes: self.start_road_type.no_lanes,
+                                curve_type: CurveType::Curved,
+                            },
+                            g_points,
+                        ),
+                        mesh,
+                    ));
                 });
             }
         }

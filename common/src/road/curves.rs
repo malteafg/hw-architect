@@ -1,5 +1,5 @@
 use super::LANE_WIDTH;
-use crate::math_utils::{VecUtils, Round};
+use crate::math_utils::{VecUtils};
 use anyhow::Ok;
 use glam::*;
 
@@ -7,10 +7,8 @@ const PRETTY_CLOSE: f32 = 0.97;
 const CLOSE_ENOUGH: f32 = 0.95;
 const COS_45: f32 = std::f32::consts::FRAC_1_SQRT_2;
 
-const COS_THREE_SIXTEENTH: f32 = 0.3826834322;
-const COS_SIXTEENTH: f32 = 0.9238795324;
-
 const MIN_SEGMENT_LENGTH: f32 = 10.0;
+const MAX_CIRCLE_SIZE: f32 = 400000.0;
 
 // Notable functions:
 // - free_three_quarter_circle_curve
@@ -137,6 +135,7 @@ pub enum DoubleSnapCurveCase {
     DoubleCircle,
     Elipse,
     ErrorTooSmall,
+    ErrorTooBig,
     ErrorSegmentAngle,
     ErrorCurveAngle,
     ErrorUnhandled,
@@ -162,15 +161,19 @@ pub fn double_snap_curve_case(
         let ndir2 = dir2.normalize();
         let t = s_curve_segment_length(pos1, ndir1, pos2, dir2);
         let center = (pos1 + pos2 + ndir1 * t + ndir2 * t) / 2.0;
+
+        if (center - pos1).length_squared() > MAX_CIRCLE_SIZE {
+            return DoubleSnapCurveCase::ErrorTooBig;
+        }
         if is_curve_too_small(dir1, center - pos1, no_lanes)
             || is_curve_too_small(dir2, center - pos2, no_lanes)
         {
             return DoubleSnapCurveCase::ErrorTooSmall;
         }
-        if dir1.dot(center - pos1) < 0.0 || dir2.dot(center - pos2) < 0.0 {
+        if dir1.dot(center - pos1) <= 0.0 || dir2.dot(center - pos2) <= 0.0 {
             return DoubleSnapCurveCase::ErrorSegmentAngle;
         }
-        if (pos2 - pos1).dot(center - pos1) < 0.0 || (pos1 - pos2).dot(center - pos2) < 0.0 {
+        if (pos2 - pos1).dot(center - pos1) <= 0.0 || (pos1 - pos2).dot(center - pos2) <= 0.0 {
             return DoubleSnapCurveCase::ErrorCurveAngle;
         }
         if is_eliptical(pos1, dir1, pos2, dir2) {
@@ -282,6 +285,7 @@ fn simple_curve_points(
 fn s_curve_segment_length(v1: Vec3, r1: Vec3, v2: Vec3, r2: Vec3) -> f32 {
     let v = v2 - v1;
     let r = r2 - r1;
+    if r.length_squared() == 4.0 {return 0.0}
     let k = v.dot(r) / (4.0 - r.length_squared());
     k + (v.length_squared() / (4.0 - r.length_squared()) + k * k).sqrt()
 }
@@ -363,4 +367,48 @@ pub fn calc_bezier_dir(guide_points: Vec<Vec3>, t: f32) -> Vec3 {
     }
     let result = v * guide_points.len() as f32;
     result
+}
+
+pub fn is_inside(guide_points: &Vec<Vec3>, ground_pos: Vec3, width: f32) -> bool {
+    let direct_dist = (guide_points[guide_points.len() - 1] - guide_points[0]).length_squared();
+
+    let mut close = false;
+    let mut distance_squared = f32::MAX;
+    for (i, &point) in guide_points.iter().enumerate() {
+        let dist = (point - ground_pos).length_squared();
+        if dist < direct_dist {
+            close = true;
+            if dist < distance_squared {
+                distance_squared = dist;
+            }
+        }
+        
+    }
+    if !close {
+        return false
+    } else if distance_squared < width * width {
+        return true;
+    }
+
+    let mut a = 0.0;
+    let mut c = 1.0;
+    let mut point_a = calc_bezier_pos(guide_points.clone(), a);
+    let mut point_b = Vec3::new(0.0, 0.0, 0.0);
+    let mut point_c = calc_bezier_pos(guide_points.clone(), c);
+    for _ in 0..10 {
+        point_b = calc_bezier_pos(guide_points.clone(), (a + c) / 2.0);
+        if (point_b - ground_pos) .length_squared() < width * width {
+            return true;
+        }
+        
+        if (point_a - ground_pos).length_squared() < (point_c - ground_pos).length_squared() {
+            point_c = point_b;
+            c = (a + c) / 2.0;
+        } else {
+            point_a = point_b;
+            a = (a + c) / 2.0;
+        }
+    }
+
+    return false
 }
