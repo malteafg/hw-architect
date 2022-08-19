@@ -89,12 +89,15 @@ impl RoadGenerator {
                     } else {
                         ground_pos
                     };
-                    let mut g_points_vec = curves::three_quarter_circle_curve(node_pos, 
-                                                                                                    node_dir, 
-                                                                                                    proj_pos, 
-                                                                                                    std::f32::consts::PI / 12.0, 
-                                                                                                    false,
-                                                                                                    true).expect("Should allow projection");
+                    let mut g_points_vec = curves::three_quarter_circle_curve(
+                        node_pos,
+                        node_dir,
+                        proj_pos,
+                        std::f32::consts::PI / 12.0,
+                        false,
+                        true,
+                    )
+                    .expect("Should allow projection");
                     let mut start_pos = node_pos;
                     if self.reverse {
                         g_points_vec = curves::reverse_g_points(g_points_vec);
@@ -211,9 +214,7 @@ impl RoadGenerator {
             end_dir,
             sel_road_type.no_lanes,
         ) {
-            ErrorTooSmall | ErrorSegmentAngle | ErrorCurveAngle | ErrorTooBig => {
-                return None
-            }
+            ErrorTooSmall | ErrorSegmentAngle | ErrorCurveAngle | ErrorTooBig => return None,
             snap_case => {
                 let (g_points_vec, _) =
                     curves::guide_points_and_direction(curves::match_double_snap_curve_case(
@@ -225,8 +226,12 @@ impl RoadGenerator {
                 g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
                     let start_pos = g_points[0];
                     let end_pos = g_points[g_points.len() - 1];
-                    let mesh =
-                        generate_circular_mesh(start_pos, end_pos, self.start_road_type, g_points.clone());
+                    let mesh = generate_circular_mesh(
+                        start_pos,
+                        end_pos,
+                        self.start_road_type,
+                        g_points.clone(),
+                    );
                     self.nodes.push((end_pos, end_dir));
                     // TODO update curvetype to be correct
                     self.segments.push((
