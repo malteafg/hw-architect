@@ -1,6 +1,5 @@
 use super::LANE_WIDTH;
 use crate::math_utils::VecUtils;
-use anyhow::Ok;
 use glam::*;
 
 const PRETTY_CLOSE: f32 = 0.97;
@@ -38,7 +37,10 @@ pub fn guide_points_and_direction(guide_points: Vec<Vec<Vec3>>) -> (Vec<(Vec<Vec
         ));
     }
 
-    (result, (guide_points[0][1] - guide_points[0][0]).normalize())
+    (
+        result,
+        (guide_points[0][1] - guide_points[0][0]).normalize(),
+    )
 }
 
 pub fn reverse_g_points(mut guide_points: Vec<Vec<Vec3>>) -> Vec<Vec<Vec3>> {
@@ -49,15 +51,25 @@ pub fn reverse_g_points(mut guide_points: Vec<Vec<Vec3>>) -> Vec<Vec<Vec3>> {
     guide_points
 }
 
-pub fn three_quarter_circle_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3, snap_line_angle: f32, snap: bool, allow_projection: bool) -> Option<Vec<Vec<Vec3>>> {
+pub fn three_quarter_circle_curve(
+    pos1: Vec3,
+    dir1: Vec3,
+    pos2: Vec3,
+    snap_line_angle: f32,
+    snap: bool,
+    allow_projection: bool,
+) -> Option<Vec<Vec<Vec3>>> {
     let (projected_pos2, projected) = if snap {
-        (snap_circle_projection(pos1, dir1, pos2, snap_line_angle), true)
+        (
+            snap_circle_projection(pos1, dir1, pos2, snap_line_angle),
+            true,
+        )
     } else {
         three_quarter_projection(pos1, dir1, pos2)
     };
 
     if !allow_projection && projected {
-        return None
+        return None;
     }
 
     if (projected_pos2 - pos1).dot(dir1) >= 0.0 {
@@ -77,12 +89,15 @@ fn three_quarter_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> (Vec3, bool) 
     if proj_length >= -COS_45 * diff.length() {
         (pos2, false)
     } else {
-        (pos1 + diff.proj(dir1) + diff.anti_proj(dir1).normalize() * proj_length.abs(), true)
+        (
+            pos1 + diff.proj(dir1) + diff.anti_proj(dir1).normalize() * proj_length.abs(),
+            true,
+        )
     }
 }
 
 fn snap_circle_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3, line_angle: f32) -> Vec3 {
-    let diff = pos2 - pos1;    
+    let diff = pos2 - pos1;
     let tau = std::f32::consts::PI * 2.0;
     let no_lines = tau / line_angle;
     let a = diff.angle_between(dir1) / tau;
@@ -135,7 +150,11 @@ fn circle_scale(diff: Vec3, dir: Vec3) -> f32 {
 pub enum DoubleSnapCurveCase {
     SingleCircle,
     DoubleCircle,
-    Elipse,
+    Ellipse,
+}
+
+#[derive(Debug)]
+pub enum DoubleSnapError {
     ErrorTooSmall,
     ErrorTooBig,
     ErrorSegmentAngle,
@@ -148,7 +167,10 @@ pub fn double_snap_curve_case(
     pos2: Vec3,
     dir2: Vec3,
     no_lanes: u8,
-) -> DoubleSnapCurveCase {
+) -> Result<DoubleSnapCurveCase, DoubleSnapError> {
+    use DoubleSnapCurveCase::*;
+    use DoubleSnapError::*;
+
     let dir2 = -dir2;
     let diff = pos2 - pos1;
 
@@ -156,7 +178,7 @@ pub fn double_snap_curve_case(
         && (-diff).dot(dir2) >= PRETTY_CLOSE - 1.0
         && diff.dot(dir1) >= PRETTY_CLOSE - 1.0
     {
-        DoubleSnapCurveCase::SingleCircle
+        Ok(SingleCircle)
     } else {
         let ndir1 = dir1.normalize();
         let ndir2 = dir2.normalize();
@@ -164,23 +186,23 @@ pub fn double_snap_curve_case(
         let center = (pos1 + pos2 + ndir1 * t + ndir2 * t) / 2.0;
 
         if (center - pos1).length_squared() > MAX_CIRCLE_SIZE {
-            return DoubleSnapCurveCase::ErrorTooBig;
+            return Err(ErrorTooBig);
         }
         if is_curve_too_small(dir1, center - pos1, no_lanes)
             || is_curve_too_small(dir2, center - pos2, no_lanes)
         {
-            return DoubleSnapCurveCase::ErrorTooSmall;
+            return Err(ErrorTooSmall);
         }
         if dir1.dot(center - pos1) <= 0.0 || dir2.dot(center - pos2) <= 0.0 {
-            return DoubleSnapCurveCase::ErrorSegmentAngle;
+            return Err(ErrorSegmentAngle);
         }
         if (pos2 - pos1).dot(center - pos1) <= 0.0 || (pos1 - pos2).dot(center - pos2) <= 0.0 {
-            return DoubleSnapCurveCase::ErrorCurveAngle;
+            return Err(ErrorCurveAngle);
         }
         if is_eliptical(pos1, dir1, pos2, dir2) {
-            DoubleSnapCurveCase::Elipse
+            Ok(Ellipse)
         } else {
-            DoubleSnapCurveCase::DoubleCircle
+            Ok(DoubleCircle)
         }
     }
 }
@@ -195,11 +217,10 @@ pub fn match_double_snap_curve_case(
     let dir2 = -dir2;
     match case {
         DoubleSnapCurveCase::SingleCircle => vec![circle_curve_fudged(pos1, dir1, pos2, dir2)],
-        DoubleSnapCurveCase::Elipse => {
+        DoubleSnapCurveCase::Ellipse => {
             vec![simple_curve_points(pos1, dir1, pos2, dir2).expect("Simple curve fuck up!")]
         }
         DoubleSnapCurveCase::DoubleCircle => double_curve(pos1, dir1, pos2, dir2),
-        _ => vec![],
     }
 }
 
@@ -234,7 +255,9 @@ fn simple_curve_points(
 fn s_curve_segment_length(v1: Vec3, r1: Vec3, v2: Vec3, r2: Vec3) -> f32 {
     let v = v2 - v1;
     let r = r2 - r1;
-    if r.length_squared() == 4.0 {return 0.0}
+    if r.length_squared() == 4.0 {
+        return 0.0;
+    }
     let k = v.dot(r) / (4.0 - r.length_squared());
     k + (v.length_squared() / (4.0 - r.length_squared()) + k * k).sqrt()
 }
@@ -326,10 +349,9 @@ pub fn is_inside(guide_points: &Vec<Vec3>, ground_pos: Vec3, width: f32) -> bool
                 distance_squared = dist;
             }
         }
-        
     }
     if !close {
-        return false
+        return false;
     } else if distance_squared < width * width {
         return true;
     }
@@ -340,10 +362,10 @@ pub fn is_inside(guide_points: &Vec<Vec3>, ground_pos: Vec3, width: f32) -> bool
     let mut point_c = calc_bezier_pos(guide_points.clone(), c);
     for _ in 0..10 {
         let point_b = calc_bezier_pos(guide_points.clone(), (a + c) / 2.0);
-        if (point_b - ground_pos) .length_squared() < width * width {
+        if (point_b - ground_pos).length_squared() < width * width {
             return true;
         }
-        
+
         if (point_a - ground_pos).length_squared() < (point_c - ground_pos).length_squared() {
             point_c = point_b;
             c = (a + c) / 2.0;

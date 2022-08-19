@@ -97,8 +97,6 @@ trait LaneMapUtils {
     fn create(no_lanes: u8, id: Option<SegmentId>) -> Self;
     fn update(&mut self, snap_range: &SnapRange, segment_id: SegmentId);
     fn expand(&mut self, snap_range: &SnapRange, segment_id: Option<SegmentId>);
-    fn get_offset_from_snap_range(&self, snap_range: &SnapRange) -> f32;
-    // fn get_snap_ranges_from_no_lanes(&self, no_lanes)
 }
 
 impl LaneMapUtils for LaneMap {
@@ -175,20 +173,6 @@ impl LaneMapUtils for LaneMap {
             }
         }
     }
-
-    // probably not necessary
-    fn get_offset_from_snap_range(&self, snap_range: &SnapRange) -> f32 {
-        let mut acc = 0.0;
-        for i in snap_range.iter() {
-            if *i < 0 {
-                acc -= 0.5;
-            }
-            if *i >= self.len() as i8 {
-                acc += 0.5;
-            }
-        }
-        acc
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -223,10 +207,6 @@ impl Node {
     }
 
     fn expand_node(&mut self, snap_config: SnapConfig, segment_id: SegmentId) {
-        // let node_offset = self
-        //     .incoming_lanes
-        //     .get_offset_from_snap_range(&snap_config.snap_range);
-        // self.pos += node_offset * self.dir.right_hand() * LANE_WIDTH;
         self.pos = snap_config.pos;
         if snap_config.reverse {
             self.incoming_lanes
@@ -307,7 +287,7 @@ impl Node {
         } else {
             let mut possible_snaps: Vec<SnapRange> = vec![];
             let start_pos =
-                self.pos - lane_width_dir * (self.no_lanes() - no_lanes) as f32 / 2.0;
+                self.pos - lane_width_dir * (self.no_lanes() as i8 - no_lanes as i8) as f32 / 2.0;
             for (i, l) in lane_map.iter().enumerate() {
                 if l.is_none() {
                     possible_snaps.push(vec![]);

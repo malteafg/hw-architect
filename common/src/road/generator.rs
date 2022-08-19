@@ -149,33 +149,6 @@ impl RoadGenerator {
         }
     }
 
-    // pub fn double_snap(
-    //     &mut self,
-    //     snap_case: curves::DoubleSnapCurveCase,
-    //     snap_pos: Vec3,
-    //     snap_dir: Vec3,
-    // ) {
-    //     let ((start_pos, start_dir), (end_pos, end_dir)) = if self.reverse {
-    //         ((snap_pos, snap_dir), self.get_end_node())
-    //     } else {
-    //         (self.get_start_node(), (snap_pos, snap_dir))
-    //     };
-    //     let (g_points_vec, _) = curves::guide_points_and_direction(
-    //         curves::match_double_snap_curve_case(start_pos, start_dir, end_pos, end_dir, snap_case),
-    //     ); // use snap_three_quarter_circle_curve for snapping
-    //        // and free_three_quarter_circle_curve otherwise
-    //     self.nodes = vec![(start_pos, start_dir)];
-    //     self.segments = vec![];
-    //     g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
-    //         let start_pos = g_points[0];
-    //         let end_pos = g_points[g_points.len() - 1];
-    //         let mesh = generate_circular_mesh(start_pos, end_pos, self.start_road_type, g_points);
-    //         self.nodes.push((end_pos, end_dir));
-    //         // TODO update curvetype to be correct
-    //         self.segments.push((Segment::new(CurveType::Curved), mesh));
-    //     });
-    // }
-
     pub fn try_curve_snap(
         &mut self,
         snap_config: network::SnapConfig,
@@ -190,8 +163,8 @@ impl RoadGenerator {
             ((snap_config.pos, -snap_config.dir), self.get_start_node())
         };
 
-        let curve = curves::three_quarter_circle_curve(
-            start_pos, start_dir, end_pos, 0.0, false, false)?;
+        let curve =
+            curves::three_quarter_circle_curve(start_pos, start_dir, end_pos, 0.0, false, false)?;
 
         let mut g_points_vec = curve;
         if !self.reverse {
@@ -220,7 +193,6 @@ impl RoadGenerator {
                 mesh,
             ));
         });
-
         Some(())
     }
 
@@ -237,47 +209,40 @@ impl RoadGenerator {
         } else {
             (self.get_start_node(), (snap_config.pos, snap_config.dir))
         };
-        use curves::DoubleSnapCurveCase::*;
-        match curves::double_snap_curve_case(
+
+        let snap_case = curves::double_snap_curve_case(
             start_pos,
             start_dir,
             end_pos,
             end_dir,
             sel_road_type.no_lanes,
-        ) {
-            ErrorTooSmall | ErrorSegmentAngle | ErrorCurveAngle | ErrorTooBig => return None,
-            snap_case => {
-                let (g_points_vec, _) =
-                    curves::guide_points_and_direction(curves::match_double_snap_curve_case(
-                        start_pos, start_dir, end_pos, end_dir, snap_case,
-                    )); // use snap_three_quarter_circle_curve for snapping
-                        // and free_three_quarter_circle_curve otherwise
-                self.nodes = vec![(start_pos, start_dir)];
-                self.segments = vec![];
-                g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
-                    let start_pos = g_points[0];
-                    let end_pos = g_points[g_points.len() - 1];
-                    let mesh = generate_circular_mesh(
-                        start_pos,
-                        end_pos,
-                        self.start_road_type,
-                        g_points.clone(),
-                    );
-                    self.nodes.push((end_pos, end_dir));
-                    // TODO update curvetype to be correct
-                    self.segments.push((
-                        Segment::new(
-                            RoadType {
-                                no_lanes: self.start_road_type.no_lanes,
-                                curve_type: CurveType::Curved,
-                            },
-                            g_points,
-                        ),
-                        mesh,
-                    ));
-                });
-            }
-        }
+        )
+        .ok()?;
+
+        let (g_points_vec, _) = curves::guide_points_and_direction(
+            curves::match_double_snap_curve_case(start_pos, start_dir, end_pos, end_dir, snap_case),
+        ); // use snap_three_quarter_circle_curve for snapping
+           // and free_three_quarter_circle_curve otherwise
+        self.nodes = vec![(start_pos, start_dir)];
+        self.segments = vec![];
+        g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
+            let start_pos = g_points[0];
+            let end_pos = g_points[g_points.len() - 1];
+            let mesh =
+                generate_circular_mesh(start_pos, end_pos, self.start_road_type, g_points.clone());
+            self.nodes.push((end_pos, end_dir));
+            // TODO update curvetype to be correct
+            self.segments.push((
+                Segment::new(
+                    RoadType {
+                        no_lanes: self.start_road_type.no_lanes,
+                        curve_type: CurveType::Curved,
+                    },
+                    g_points,
+                ),
+                mesh,
+            ));
+        });
         Some(())
     }
 
