@@ -119,7 +119,7 @@ impl ToolState {
                     }
                     None => (None, None),
                 }
-            },
+            }
             Mode::SelectDir(_) => {
                 self.sel_node = None;
                 self.snapped_node = None;
@@ -168,25 +168,30 @@ impl ToolState {
         &mut self,
         road_generator: &generator::RoadGenerator,
     ) -> (Option<network::RoadMesh>, Option<network::RoadMesh>) {
-        let road_mesh = self.road_graph.add_road(
+        let (road_mesh, new_node) = self.road_graph.add_road(
             road_generator.clone(),
             self.sel_node.clone(),
             self.snapped_node.clone(),
         );
-        // if self.snapped_node.is_some() {
-        self.sel_node = None;
-        self.snapped_node = None;
-        self.mode = Mode::SelectPos;
-        (Some(road_mesh), Some(generator::empty_mesh()))
-        // } else {
-        //     let road_generator_mesh = self.select_node(new_node);
-        //     (Some(road_mesh), road_generator_mesh)
-        // }
+        // TODO have add_road return new_node in such a way that is not necessary to check snapped_node
+        if self.snapped_node.is_some() {
+            self.sel_node = None;
+            self.snapped_node = None;
+            self.mode = Mode::SelectPos;
+            (Some(road_mesh), Some(generator::empty_mesh()))
+        } else if let Some(new_node) = new_node {
+            let road_generator_mesh = self.select_node(new_node);
+            (Some(road_mesh), road_generator_mesh)
+        } else {
+            self.sel_node = None;
+            self.snapped_node = None;
+            self.mode = Mode::SelectPos;
+            (Some(road_mesh), Some(generator::empty_mesh()))
+        }
     }
 
     fn update_no_snap(&mut self) -> Option<network::RoadMesh> {
         self.snapped_node = None;
-        // returned when road_generator is set to None
         let empty_mesh = Some(generator::empty_mesh());
 
         match self.mode {

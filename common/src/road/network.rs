@@ -289,8 +289,7 @@ impl Node {
             let mut snap_configs = vec![];
             let mut possible_snaps: Vec<SnapRange> = vec![];
             let diff = self.no_lanes() as i8 - no_lanes as i8;
-            let start_pos =
-                self.pos - lane_width_dir * diff as f32 / 2.0;
+            let start_pos = self.pos - lane_width_dir * diff as f32 / 2.0;
             for (i, l) in lane_map.iter().enumerate() {
                 if l.is_none() {
                     possible_snaps.push(vec![]);
@@ -299,7 +298,8 @@ impl Node {
                         if s.len() as u8 == no_lanes {
                             snap_configs.push(SnapConfig {
                                 node_id,
-                                pos: start_pos + (i as i8 - (no_lanes as i8 - 1)) as f32 * lane_width_dir,
+                                pos: start_pos
+                                    + (i as i8 - (no_lanes as i8 - 1)) as f32 * lane_width_dir,
                                 dir: self.dir,
                                 reverse,
                                 snap_range: s.clone(),
@@ -394,11 +394,13 @@ impl RoadGraph {
         road: generator::RoadGenerator,
         selected_node: Option<SnapConfig>,
         snapped_node: Option<SnapConfig>,
-    ) -> RoadMesh {
+    ) -> (RoadMesh, Option<SnapConfig>) {
         let road_type = road.get_road_type();
 
         let segment_list = road.get_segments();
         let node_list = road.get_nodes();
+
+        let mut new_snap_index = 0;
 
         let mut nodes = vec![];
         if road.is_reverse() {
@@ -413,6 +415,7 @@ impl RoadGraph {
                 nodes.push(None);
             }
             nodes.push(snapped_node);
+            new_snap_index = nodes.len() - 1;
         }
 
         let segment_ids: Vec<SegmentId> = segment_list
@@ -465,8 +468,15 @@ impl RoadGraph {
             node_ids.push(node_id);
         });
 
+        let new_snap_id = node_ids[new_snap_index];
+        let new_snap = self
+            .get_node(new_snap_id)
+            .get_snap_configs(road_type.no_lanes, new_snap_id)
+            .get(0)
+            .cloned();
+
         // TODO recompute meshes for affected nodes
-        self.combine_road_meshes()
+        (self.combine_road_meshes(), new_snap)
     }
 
     pub fn remove_road(&self, segment: SegmentId) {
