@@ -151,6 +151,7 @@ impl RoadGenerator {
         } else {
             (self.get_start_node(), (snap_pos, snap_dir))
         };
+        dbg!(&snap_case);
         let (g_points_vec, _) = curves::guide_points_and_direction(
             curves::match_double_snap_curve_case(start_pos, start_dir, end_pos, end_dir, snap_case),
         ); // use snap_three_quarter_circle_curve for snapping

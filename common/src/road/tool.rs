@@ -214,7 +214,7 @@ impl ToolState {
                             end_dir,
                             self.sel_road_type.no_lanes,
                         ) {
-                            ErrorTooSmall | ErrorSegmentAngle | ErrorCurveAngle
+                            ErrorTooSmall | ErrorTooBig | ErrorSegmentAngle | ErrorCurveAngle
                             | ErrorUnhandled => {
                                 self.snapped_node = None;
                                 None
@@ -254,7 +254,7 @@ impl ToolState {
                         end_node.dir,
                         self.sel_road_type.no_lanes,
                     ) {
-                        ErrorTooSmall | ErrorSegmentAngle | ErrorCurveAngle | ErrorUnhandled => {
+                        ErrorTooSmall | ErrorTooBig | ErrorSegmentAngle | ErrorCurveAngle | ErrorUnhandled => {
                             self.snapped_node = None;
                             None
                         }
