@@ -93,7 +93,12 @@ impl RoadGenerator {
                     } else {
                         ground_pos
                     };
-                    let mut g_points_vec = curves::three_quarter_circle_curve(node_pos, node_dir, proj_pos, false);
+                    let mut g_points_vec = curves::three_quarter_circle_curve(node_pos, 
+                                                                                                    node_dir, 
+                                                                                                    proj_pos, 
+                                                                                                    std::f32::consts::PI / 12.0, 
+                                                                                                    false,
+                                                                                                    true).expect("Should allow projection");
                     let mut start_pos = node_pos;
                     if self.reverse {
                         g_points_vec = curves::reverse_g_points(g_points_vec);
