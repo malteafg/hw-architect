@@ -190,6 +190,7 @@ impl RoadGenerator {
             (self.get_start_node(), (snap_config.pos, snap_config.dir))
         };
 
+        
         Some(())
     }
 

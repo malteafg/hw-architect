@@ -98,6 +98,7 @@ trait LaneMapUtils {
     fn update(&mut self, snap_range: &SnapRange, segment_id: SegmentId);
     fn expand(&mut self, snap_range: &SnapRange, segment_id: Option<SegmentId>);
     fn get_offset_from_snap_range(&self, snap_range: &SnapRange) -> f32;
+    // fn get_snap_ranges_from_no_lanes(&self, no_lanes)
 }
 
 impl LaneMapUtils for LaneMap {
@@ -175,6 +176,7 @@ impl LaneMapUtils for LaneMap {
         }
     }
 
+    // probably not necessary
     fn get_offset_from_snap_range(&self, snap_range: &SnapRange) -> f32 {
         let mut acc = 0.0;
         for i in snap_range.iter() {
@@ -240,11 +242,9 @@ impl Node {
     fn update_lane_map(&mut self, snap_config: SnapConfig, segment_id: SegmentId) {
         let sized_snap_range = snap_config.snap_range.reduce_size(self.no_lanes());
         if snap_config.reverse {
-            self.incoming_lanes
-                .update(&sized_snap_range, segment_id)
+            self.incoming_lanes.update(&sized_snap_range, segment_id)
         } else {
-            self.outgoing_lanes
-                .update(&sized_snap_range, segment_id)
+            self.outgoing_lanes.update(&sized_snap_range, segment_id)
         }
         if snap_config.snap_range.len() as u8 > self.no_lanes() {
             self.expand_node(snap_config, segment_id);
@@ -259,6 +259,7 @@ impl Node {
         node_id: NodeId,
         opposite_same: bool,
     ) -> Vec<SnapConfig> {
+        let mut snap_configs = vec![];
         let lane_width_dir = self.dir.right_hand() * LANE_WIDTH;
         if !lane_map.contains_some() {
             if no_lanes == self.no_lanes() {
@@ -271,7 +272,6 @@ impl Node {
                 }]
             } else if opposite_same {
                 if no_lanes < self.no_lanes() {
-                    let mut snap_configs = vec![];
                     let diff = self.no_lanes() - no_lanes;
                     for i in 0..(diff + 1) {
                         snap_configs.push(SnapConfig {
@@ -284,7 +284,6 @@ impl Node {
                     }
                     snap_configs
                 } else {
-                    let mut snap_configs = vec![];
                     let diff = no_lanes - self.no_lanes();
                     for i in 0..(diff + 1) {
                         snap_configs.push(SnapConfig {
@@ -306,8 +305,32 @@ impl Node {
                 vec![]
             }
         } else {
-            // TODO snap between segments
-            vec![]
+            let mut possible_snaps: Vec<SnapRange> = vec![];
+            let start_pos =
+                self.pos - lane_width_dir * (self.no_lanes() - no_lanes) as f32 / 2.0;
+            for (i, l) in lane_map.iter().enumerate() {
+                if l.is_none() {
+                    possible_snaps.push(vec![]);
+                    possible_snaps.iter_mut().for_each(|s| s.push(i as i8));
+                    possible_snaps.retain_mut(|s| {
+                        if s.len() as u8 == no_lanes {
+                            snap_configs.push(SnapConfig {
+                                node_id,
+                                pos: start_pos + i as f32 * lane_width_dir,
+                                dir: self.dir,
+                                reverse,
+                                snap_range: s.clone(),
+                            });
+                            false
+                        } else {
+                            true
+                        }
+                    });
+                } else {
+                    possible_snaps = vec![];
+                }
+            }
+            snap_configs
         }
     }
 
