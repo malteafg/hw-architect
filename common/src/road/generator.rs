@@ -184,13 +184,43 @@ impl RoadGenerator {
         if snap_config.reverse == self.reverse {
             return None;
         }
-        let ((start_pos, start_dir), (end_pos, end_dir)) = if self.reverse {
-            ((snap_config.pos, snap_config.dir), self.get_end_node())
+        let ((mut start_pos, start_dir), (end_pos, _)) = if self.reverse {
+            (self.get_end_node(), (snap_config.pos, snap_config.dir))
         } else {
-            (self.get_start_node(), (snap_config.pos, snap_config.dir))
+            ((snap_config.pos, -snap_config.dir), self.get_start_node())
         };
 
-        
+        let curve = curves::three_quarter_circle_curve(
+            start_pos, start_dir, end_pos, 0.0, false, false)?;
+
+        let mut g_points_vec = curve;
+        if !self.reverse {
+            g_points_vec = curves::reverse_g_points(g_points_vec);
+            start_pos = g_points_vec[0][0];
+        }
+
+        let (g_points_vec, _) = curves::guide_points_and_direction(g_points_vec);
+        self.nodes = vec![(start_pos, start_dir)];
+        self.segments = vec![];
+        g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
+            let start_pos = g_points[0];
+            let end_pos = g_points[g_points.len() - 1];
+            let mesh =
+                generate_circular_mesh(start_pos, end_pos, self.start_road_type, g_points.clone());
+            self.nodes.push((end_pos, end_dir));
+            // TODO update curvetype to be correct
+            self.segments.push((
+                Segment::new(
+                    RoadType {
+                        no_lanes: self.start_road_type.no_lanes,
+                        curve_type: CurveType::Curved,
+                    },
+                    g_points,
+                ),
+                mesh,
+            ));
+        });
+
         Some(())
     }
 
