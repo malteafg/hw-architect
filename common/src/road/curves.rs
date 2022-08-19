@@ -49,39 +49,42 @@ pub fn reverse_g_points(mut guide_points: Vec<Vec<Vec3>>) -> Vec<Vec<Vec3>> {
     guide_points
 }
 
-pub fn three_quarter_circle_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3, snap: bool) -> Vec<Vec<Vec3>> {
-    let projected_pos2 = if snap {
-        snap_circle_projection(pos1, dir1, pos2)
+pub fn three_quarter_circle_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3, snap_line_angle: f32, snap: bool, allow_projection: bool) -> Option<Vec<Vec<Vec3>>> {
+    let (projected_pos2, projected) = if snap {
+        (snap_circle_projection(pos1, dir1, pos2, snap_line_angle), true)
     } else {
         three_quarter_projection(pos1, dir1, pos2)
     };
 
+    if !allow_projection && projected {
+        return None
+    }
+
     if (projected_pos2 - pos1).dot(dir1) >= 0.0 {
-        vec![circle_curve(pos1, dir1, projected_pos2)]
+        Some(vec![circle_curve(pos1, dir1, projected_pos2)])
     } else {
         let mid_point = curve_mid_point(pos1, dir1, projected_pos2);
-        vec![
+        Some(vec![
             circle_curve(pos1, dir1, mid_point),
             circle_curve(mid_point, projected_pos2 - pos1, projected_pos2),
-        ]
+        ])
     }
 }
 
-fn three_quarter_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec3 {
+fn three_quarter_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> (Vec3, bool) {
     let diff = pos2 - pos1;
     let proj_length = diff.dot(dir1) / dir1.length();
     if proj_length >= -COS_45 * diff.length() {
-        pos2
+        (pos2, false)
     } else {
-        pos1 + diff.proj(dir1) + diff.anti_proj(dir1).normalize() * proj_length.abs()
+        (pos1 + diff.proj(dir1) + diff.anti_proj(dir1).normalize() * proj_length.abs(), true)
     }
 }
 
-fn snap_circle_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec3 { //, no_lines: u32 
-    let diff = pos2 - pos1;
-    let deg = 22.5;
-    let no_lines = 360.0 / deg as f32;
+fn snap_circle_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3, line_angle: f32) -> Vec3 {
+    let diff = pos2 - pos1;    
     let tau = std::f32::consts::PI * 2.0;
+    let no_lines = tau / line_angle;
     let a = diff.angle_between(dir1) / tau;
     let angle = (a * no_lines).round().min((no_lines * 3.0 / 8.0).floor()) * tau / no_lines;
     let (sin, cos) = angle.sin_cos();
