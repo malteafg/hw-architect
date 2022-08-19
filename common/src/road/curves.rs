@@ -1,5 +1,5 @@
 use super::LANE_WIDTH;
-use crate::math_utils::{VecUtils};
+use crate::math_utils::VecUtils;
 use anyhow::Ok;
 use glam::*;
 
@@ -94,8 +94,7 @@ fn snap_circle_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec3 { //, no_l
 fn curve_mid_point(pos1: Vec3, dir: Vec3, pos2: Vec3) -> Vec3 {
     let diff = pos2 - pos1;
     let dir2 = dir.normalize() + diff.normalize();
-    let result = pos1 + (dir2 * (diff.length_squared() / 2.0 / dir2.dot(diff)));
-    result
+    pos1 + (dir2 * (diff.length_squared() / 2.0 / dir2.dot(diff)))
 }
 
 /// The guidepoints for a curve as circular as posible with four guide points, up to half a circle
@@ -138,7 +137,6 @@ pub enum DoubleSnapCurveCase {
     ErrorTooBig,
     ErrorSegmentAngle,
     ErrorCurveAngle,
-    ErrorUnhandled,
 }
 
 pub fn double_snap_curve_case(
@@ -155,7 +153,7 @@ pub fn double_snap_curve_case(
         && (-diff).dot(dir2) >= PRETTY_CLOSE - 1.0
         && diff.dot(dir1) >= PRETTY_CLOSE - 1.0
     {
-        return DoubleSnapCurveCase::SingleCircle;
+        DoubleSnapCurveCase::SingleCircle
     } else {
         let ndir1 = dir1.normalize();
         let ndir2 = dir2.normalize();
@@ -177,9 +175,9 @@ pub fn double_snap_curve_case(
             return DoubleSnapCurveCase::ErrorCurveAngle;
         }
         if is_eliptical(pos1, dir1, pos2, dir2) {
-            return DoubleSnapCurveCase::Elipse;
+            DoubleSnapCurveCase::Elipse
         } else {
-            return DoubleSnapCurveCase::DoubleCircle;
+            DoubleSnapCurveCase::DoubleCircle
         }
     }
 }
@@ -215,58 +213,6 @@ fn double_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> Vec<Vec<Vec3>
     points.push(second_half);
 
     points
-}
-
-/// The complete double snap function before case-determination and guidepoint generateion was seperated
-/// The guidenodes for a curve given both endpoints and both directions.
-/// If two circular segments are required their guidepoints will be seperate entries in the outer Vec
-pub fn double_snap_curve_debricated(
-    pos1: Vec3,
-    dir1: Vec3,
-    pos2: Vec3,
-    dir2: Vec3,
-    no_lanes: u8,
-) -> anyhow::Result<Vec<Vec<Vec3>>> {
-    let mut points = Vec::new();
-    let diff = pos2 - pos1;
-
-    if dir1.mirror(diff).ndot(dir2) > PRETTY_CLOSE
-        && (-diff).dot(dir2) >= PRETTY_CLOSE - 1.0
-        && diff.dot(dir1) >= PRETTY_CLOSE - 1.0
-    {
-        points.push(circle_curve_fudged(pos1, dir1, pos2, dir2));
-    } else {
-        let ndir1 = dir1.normalize();
-        let ndir2 = dir2.normalize();
-        let t = s_curve_segment_length(pos1, ndir1, pos2, dir2);
-        let center = (pos1 + pos2 + ndir1 * t + ndir2 * t) / 2.0;
-        if is_curve_too_small(dir1, center - pos1, no_lanes)
-            || is_curve_too_small(dir2, center - pos2, no_lanes)
-        {
-            return Err(anyhow::anyhow!("Curve too small"));
-        }
-        if dir1.dot(center - pos1) < 0.0 || dir2.dot(center - pos2) < 0.0 {
-            return Err(anyhow::anyhow!("Unsupported angle"));
-        }
-        if (pos2 - pos1).dot(center - pos1) < 0.0 || (pos1 - pos2).dot(center - pos2) < 0.0 {
-            return Err(anyhow::anyhow!("Another unsupported angle"));
-        }
-        if is_eliptical(pos1, dir1, pos2, dir2) {
-            let spoints = simple_curve_points(pos1, dir1, pos2, dir2).expect("");
-            points.push(spoints);
-        } else {
-            points.push(circle_curve(pos1, dir1, center));
-            let mut second_half = circle_curve(pos2, dir2, center);
-            second_half.reverse();
-            points.push(second_half);
-        }
-    }
-
-    if points.len() > 0 {
-        Ok(points)
-    } else {
-        Err(anyhow::anyhow!("Unhandled edge case"))
-    }
 }
 
 fn simple_curve_points(
@@ -327,12 +273,11 @@ pub fn calc_bezier_pos(guide_points: Vec<Vec3>, t: f32) -> Vec3 {
     let mut v = Vec3::new(0.0, 0.0, 0.0);
     let mut r = (1.0 - t).powi(guide_points.len() as i32 - 1);
     let mut l = 1.0;
-    let mut i: i32 = 0;
-    for p in guide_points.iter() {
+    for (i, p) in guide_points.iter().enumerate() {
         let f = l * r;
-        v = v + *p * f;
+        v += *p * f;
         if t == 1.0 {
-            if i == guide_points.len() as i32 - 2 {
+            if i == guide_points.len() - 2 {
                 r = 1.0;
             } else {
                 r = 0.0;
@@ -341,7 +286,6 @@ pub fn calc_bezier_pos(guide_points: Vec<Vec3>, t: f32) -> Vec3 {
             r *= t / (1.0 - t);
         }
         l *= guide_points.len() as f32 / (1.0 + i as f32) - 1.0;
-        i += 1;
     }
     v
 }
@@ -350,11 +294,10 @@ pub fn calc_bezier_dir(guide_points: Vec<Vec3>, t: f32) -> Vec3 {
     let mut v = Vec3::new(0.0, 0.0, 0.0);
     let mut r = (1.0 - t).powi(guide_points.len() as i32 - 2);
     let mut l = 1.0;
-    let mut i: i32 = 0;
     for p in 0..(guide_points.len() - 1) {
-        v = v + (guide_points[p + 1] - guide_points[p]) * l * r;
+        v += (guide_points[p + 1] - guide_points[p]) * l * r;
         if t == 1.0 {
-            if i == guide_points.len() as i32 - 3 {
+            if p == guide_points.len() - 3 {
                 r = 1.0;
             } else {
                 r = 0.0;
@@ -362,11 +305,9 @@ pub fn calc_bezier_dir(guide_points: Vec<Vec3>, t: f32) -> Vec3 {
         } else {
             r *= t / (1.0 - t);
         }
-        l *= (guide_points.len() as f32 - 1.0) / (1.0 + i as f32) - 1.0;
-        i += 1;
+        l *= (guide_points.len() as f32 - 1.0) / (1.0 + p as f32) - 1.0;
     }
-    let result = v * guide_points.len() as f32;
-    result
+    v * guide_points.len() as f32
 }
 
 pub fn is_inside(guide_points: &Vec<Vec3>, ground_pos: Vec3, width: f32) -> bool {
@@ -374,7 +315,7 @@ pub fn is_inside(guide_points: &Vec<Vec3>, ground_pos: Vec3, width: f32) -> bool
 
     let mut close = false;
     let mut distance_squared = f32::MAX;
-    for (i, &point) in guide_points.iter().enumerate() {
+    for &point in guide_points.iter() {
         let dist = (point - ground_pos).length_squared();
         if dist < direct_dist {
             close = true;
@@ -393,10 +334,9 @@ pub fn is_inside(guide_points: &Vec<Vec3>, ground_pos: Vec3, width: f32) -> bool
     let mut a = 0.0;
     let mut c = 1.0;
     let mut point_a = calc_bezier_pos(guide_points.clone(), a);
-    let mut point_b = Vec3::new(0.0, 0.0, 0.0);
     let mut point_c = calc_bezier_pos(guide_points.clone(), c);
     for _ in 0..10 {
-        point_b = calc_bezier_pos(guide_points.clone(), (a + c) / 2.0);
+        let point_b = calc_bezier_pos(guide_points.clone(), (a + c) / 2.0);
         if (point_b - ground_pos) .length_squared() < width * width {
             return true;
         }
@@ -409,6 +349,5 @@ pub fn is_inside(guide_points: &Vec<Vec3>, ground_pos: Vec3, width: f32) -> bool
             a = (a + c) / 2.0;
         }
     }
-
-    return false
+    false
 }

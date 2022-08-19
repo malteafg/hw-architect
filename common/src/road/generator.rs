@@ -49,7 +49,6 @@ impl RoadGenerator {
     }
 
     pub fn update_pos(&mut self, ground_pos: Vec3) {
-        println!("pos updated");
         let (node_pos, node_dir) = if self.reverse {
             self.get_end_node()
         } else {
@@ -170,6 +169,23 @@ impl RoadGenerator {
     //     });
     // }
 
+    pub fn try_curve_snap(
+        &mut self,
+        snap_config: network::SnapConfig,
+        sel_road_type: network::RoadType,
+    ) -> Option<()> {
+        if snap_config.reverse == self.reverse {
+            return None;
+        }
+        let ((start_pos, start_dir), (end_pos, end_dir)) = if self.reverse {
+            ((snap_config.pos, snap_config.dir), self.get_end_node())
+        } else {
+            (self.get_start_node(), (snap_config.pos, snap_config.dir))
+        };
+
+        Some(())
+    }
+
     pub fn try_double_snap(
         &mut self,
         snap_config: network::SnapConfig,
@@ -191,7 +207,7 @@ impl RoadGenerator {
             end_dir,
             sel_road_type.no_lanes,
         ) {
-            ErrorTooSmall | ErrorSegmentAngle | ErrorCurveAngle | ErrorUnhandled | ErrorTooBig => {
+            ErrorTooSmall | ErrorSegmentAngle | ErrorCurveAngle | ErrorTooBig => {
                 return None
             }
             snap_case => {

@@ -1,6 +1,6 @@
 use crate::math_utils::VecUtils;
 
-use super::{generator, curves, LANE_WIDTH};
+use super::{curves, generator, LANE_WIDTH};
 use glam::*;
 use std::collections::{HashMap, VecDeque};
 
@@ -46,7 +46,7 @@ pub type SnapRange = Vec<i8>;
 
 trait SnapRangeTrait {
     fn create(start: i8, end: i8) -> Self;
-    fn remove_negatives(&self) -> Self;
+    fn reduce_size(&self, end: u8) -> Self;
 }
 
 impl SnapRangeTrait for SnapRange {
@@ -58,10 +58,10 @@ impl SnapRangeTrait for SnapRange {
         snap_range
     }
 
-    fn remove_negatives(&self) -> Self {
+    fn reduce_size(&self, end: u8) -> Self {
         let mut snap_range = vec![];
         for i in self.iter() {
-            if *i >= 0 {
+            if *i >= 0 && *i < end as i8 {
                 snap_range.push(*i)
             }
         }
@@ -164,11 +164,12 @@ impl LaneMapUtils for LaneMap {
     }
 
     fn expand(&mut self, snap_range: &SnapRange, segment_id: Option<SegmentId>) {
+        let len = self.len() as i8;
         for i in snap_range.iter() {
             if *i < 0 {
                 self.push_front(segment_id);
             }
-            if *i >= self.len() as i8 {
+            if *i >= len {
                 self.push_back(segment_id);
             }
         }
@@ -220,10 +221,11 @@ impl Node {
     }
 
     fn expand_node(&mut self, snap_config: SnapConfig, segment_id: SegmentId) {
-        let node_offset = self
-            .incoming_lanes
-            .get_offset_from_snap_range(&snap_config.snap_range);
-        self.pos += node_offset * self.dir.right_hand() * LANE_WIDTH;
+        // let node_offset = self
+        //     .incoming_lanes
+        //     .get_offset_from_snap_range(&snap_config.snap_range);
+        // self.pos += node_offset * self.dir.right_hand() * LANE_WIDTH;
+        self.pos = snap_config.pos;
         if snap_config.reverse {
             self.incoming_lanes
                 .expand(&snap_config.snap_range, Some(segment_id));
@@ -236,13 +238,13 @@ impl Node {
     }
 
     fn update_lane_map(&mut self, snap_config: SnapConfig, segment_id: SegmentId) {
-        let non_negative_snap_range = snap_config.snap_range.remove_negatives();
+        let sized_snap_range = snap_config.snap_range.reduce_size(self.no_lanes());
         if snap_config.reverse {
             self.incoming_lanes
-                .update(&non_negative_snap_range, segment_id)
+                .update(&sized_snap_range, segment_id)
         } else {
             self.outgoing_lanes
-                .update(&non_negative_snap_range, segment_id)
+                .update(&sized_snap_range, segment_id)
         }
         if snap_config.snap_range.len() as u8 > self.no_lanes() {
             self.expand_node(snap_config, segment_id);
@@ -343,7 +345,10 @@ pub struct Segment {
 
 impl Segment {
     pub fn new(road_type: RoadType, guide_points: Vec<Vec3>) -> Self {
-        Segment { road_type, guide_points }
+        Segment {
+            road_type,
+            guide_points,
+        }
     }
 }
 
@@ -443,7 +448,6 @@ impl RoadGraph {
                             pos,
                             dir,
                             road_type.no_lanes,
-                            // TODO hacky solution
                             (
                                 segment_ids.get(((i as i32 - 1) % 10) as usize).copied(),
                                 segment_ids.get(i).copied(),
@@ -457,19 +461,6 @@ impl RoadGraph {
         });
 
         // TODO recompute meshes for affected nodes
-
-        // let (new_id, new_lane) = if road.is_reverse() {
-        //     let id = node_ids[0];
-        //     (id, self.get_node(id).lane_map)
-        // } else {
-        //     let id = node_ids[node_ids.len() - 1];
-        //     (id, self.get_node(id).lane_map)
-        // };
-        // let new_sel = SnapConfig {
-        //     node_id: new_id,
-        //     lane_config: new_lane,
-        //     reverse: road.is_reverse(),
-        // };
         self.combine_road_meshes()
     }
 
@@ -579,8 +570,12 @@ impl RoadGraph {
     }
 
     pub fn get_segment_inside(&self, ground_pos: Vec3) -> Option<SegmentId> {
-        for (id , s) in self.segment_map.iter() {
-            if curves::is_inside(&s.guide_points, ground_pos, s.road_type.no_lanes as f32 * LANE_WIDTH) {
+        for (id, s) in self.segment_map.iter() {
+            if curves::is_inside(
+                &s.guide_points,
+                ground_pos,
+                s.road_type.no_lanes as f32 * LANE_WIDTH,
+            ) {
                 return Some(*id);
             }
         }
