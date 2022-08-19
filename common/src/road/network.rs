@@ -239,7 +239,6 @@ impl Node {
         node_id: NodeId,
         opposite_same: bool,
     ) -> Vec<SnapConfig> {
-        let mut snap_configs = vec![];
         let lane_width_dir = self.dir.right_hand() * LANE_WIDTH;
         if !lane_map.contains_some() {
             if no_lanes == self.no_lanes() {
@@ -252,6 +251,7 @@ impl Node {
                 }]
             } else if opposite_same {
                 if no_lanes < self.no_lanes() {
+                    let mut snap_configs = vec![];
                     let diff = self.no_lanes() - no_lanes;
                     for i in 0..(diff + 1) {
                         snap_configs.push(SnapConfig {
@@ -264,6 +264,7 @@ impl Node {
                     }
                     snap_configs
                 } else {
+                    let mut snap_configs = vec![];
                     let diff = no_lanes - self.no_lanes();
                     for i in 0..(diff + 1) {
                         snap_configs.push(SnapConfig {
@@ -285,9 +286,11 @@ impl Node {
                 vec![]
             }
         } else {
+            let mut snap_configs = vec![];
             let mut possible_snaps: Vec<SnapRange> = vec![];
+            let diff = self.no_lanes() as i8 - no_lanes as i8;
             let start_pos =
-                self.pos - lane_width_dir * (self.no_lanes() as i8 - no_lanes as i8) as f32 / 2.0;
+                self.pos - lane_width_dir * diff as f32 / 2.0;
             for (i, l) in lane_map.iter().enumerate() {
                 if l.is_none() {
                     possible_snaps.push(vec![]);
@@ -296,7 +299,7 @@ impl Node {
                         if s.len() as u8 == no_lanes {
                             snap_configs.push(SnapConfig {
                                 node_id,
-                                pos: start_pos + i as f32 * lane_width_dir,
+                                pos: start_pos + (i as i8 - (no_lanes as i8 - 1)) as f32 * lane_width_dir,
                                 dir: self.dir,
                                 reverse,
                                 snap_range: s.clone(),
