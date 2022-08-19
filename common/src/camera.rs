@@ -234,12 +234,13 @@ impl CameraController {
     pub fn update_camera(&mut self, camera: &mut Camera, dt: Duration) -> bool {
         let dt = dt.as_secs_f32();
 
+        let pos = camera.calc_pos();
         if self.progression_speed > 0.0 {
             self.update_progress(camera, dt)
         } else {
             self.update_manuel(camera, dt)
         }
-        true
+        pos != camera.calc_pos()
     }
 
     fn update_progress(&mut self, camera: &mut Camera, dt: f32) {
