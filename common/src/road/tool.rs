@@ -186,7 +186,7 @@ impl ToolState {
 
         self.road_generator = generator::RoadGeneratorTool::new(
             snapped_node.pos,
-            Some(node.dir),
+            Some(node.get_dir()),
             self.sel_road_type,
             snapped_node.reverse,
         );

@@ -9,6 +9,8 @@ const COS_45: f32 = std::f32::consts::FRAC_1_SQRT_2;
 const MIN_SEGMENT_LENGTH: f32 = 10.0;
 const MAX_CIRCLE_SIZE: f32 = 400000.0;
 
+pub type GuidePoints = Vec<Vec3>;
+
 // Notable functions:
 // - free_three_quarter_circle_curve
 // - snap_three_quarter_circle_curve

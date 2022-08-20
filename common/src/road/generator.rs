@@ -12,7 +12,7 @@ const MIN_LENGTH: f32 = 10.0;
 #[derive(Clone)]
 pub struct RoadGenerator {
     nodes: Vec<(Vec3, Vec3)>,
-    segments: Vec<(Segment, RoadMesh)>,
+    segments: Vec<SegmentBuilder>,
     init_pos: Vec3,
     init_dir: Option<Vec3>,
     start_road_type: RoadType,
@@ -36,7 +36,11 @@ impl RoadGenerator {
         let mesh = generate_straight_mesh(start_pos, end_pos, sel_road_type);
 
         let nodes = vec![(start_pos, start_dir), (end_pos, start_dir)];
-        let segments = vec![(Segment::new(sel_road_type, vec![start_pos, end_pos]), mesh)];
+        let segments = vec![SegmentBuilder::new(
+            sel_road_type,
+            vec![start_pos, end_pos],
+            mesh,
+        )];
 
         RoadGenerator {
             nodes,
@@ -50,7 +54,7 @@ impl RoadGenerator {
     }
 
     // for use when building road
-    pub fn extract(self) -> (Vec<(Vec3, Vec3)>, Vec<(Segment, RoadMesh)>, RoadType, bool) {
+    pub fn extract(self) -> (Vec<(Vec3, Vec3)>, Vec<SegmentBuilder>, RoadType, bool) {
         (
             self.nodes,
             self.segments,
@@ -106,7 +110,7 @@ impl RoadGenerator {
                     );
                     self.nodes.push((end_pos, end_dir));
                     self.segments
-                        .push((Segment::new(self.start_road_type, g_points), mesh));
+                        .push(SegmentBuilder::new(self.start_road_type, g_points, mesh));
                 });
             }
         }
@@ -122,8 +126,9 @@ impl RoadGenerator {
     fn update_straight(&mut self, start_pos: Vec3, end_pos: Vec3, dir: Vec3) {
         let mesh = generate_straight_mesh(start_pos, end_pos, self.start_road_type);
         self.nodes = vec![(start_pos, dir), (end_pos, dir)];
-        self.segments = vec![(
-            Segment::new(self.start_road_type, vec![start_pos, end_pos]),
+        self.segments = vec![SegmentBuilder::new(
+            self.start_road_type,
+            vec![start_pos, end_pos],
             mesh,
         )];
     }
@@ -159,14 +164,12 @@ impl RoadGenerator {
                 generate_circular_mesh(start_pos, end_pos, self.start_road_type, g_points.clone());
             self.nodes.push((end_pos, end_dir));
             // TODO update curvetype to be correct
-            self.segments.push((
-                Segment::new(
-                    RoadType {
-                        no_lanes: self.start_road_type.no_lanes,
-                        curve_type: CurveType::Curved,
-                    },
-                    g_points,
-                ),
+            self.segments.push(SegmentBuilder::new(
+                RoadType {
+                    no_lanes: self.start_road_type.no_lanes,
+                    curve_type: CurveType::Curved,
+                },
+                g_points,
                 mesh,
             ));
         });
@@ -201,14 +204,12 @@ impl RoadGenerator {
                 generate_circular_mesh(start_pos, end_pos, self.start_road_type, g_points.clone());
             self.nodes.push((end_pos, end_dir));
             // TODO update curvetype to be correct
-            self.segments.push((
-                Segment::new(
-                    RoadType {
-                        no_lanes: self.start_road_type.no_lanes,
-                        curve_type: CurveType::Curved,
-                    },
-                    g_points,
-                ),
+            self.segments.push(SegmentBuilder::new(
+                RoadType {
+                    no_lanes: self.start_road_type.no_lanes,
+                    curve_type: CurveType::Curved,
+                },
+                g_points,
                 mesh,
             ));
         });
@@ -343,11 +344,12 @@ impl RoadGeneratorTool {
 
 // iterate over road_meshes and return vec of RoadVertex
 // in the future separate road_meshes into "chunks"
-pub fn combine_road_meshes(meshes: Vec<(Segment, RoadMesh)>) -> RoadMesh {
+pub fn combine_road_meshes(meshes: Vec<SegmentBuilder>) -> RoadMesh {
     let mut indices_count = 0;
     let mut road_mesh: RoadMesh = RoadMesh::default();
 
-    for (_, mesh) in meshes.iter() {
+    for segment_builder in meshes.iter() {
+        let mesh = segment_builder.mesh.clone();
         road_mesh.vertices.append(&mut mesh.vertices.clone());
         road_mesh.indices.append(
             &mut mesh

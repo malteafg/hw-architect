@@ -21,6 +21,7 @@ strum_macros = "0.13.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.8"
 glam = { version = "0.21.3", default-features = false, features = ["serde", "bytemuck"] }
+# itertools = "0.10.2"
 # Specific for web assembly
 cfg-if = "1"
 

@@ -84,7 +84,12 @@ trait LaneMapUtils {
     fn contains_none(&self) -> bool;
     fn contains_some(&self) -> bool;
     fn contains_different_somes(&self) -> bool;
+    fn contains_some_in_range(&self, range: SnapRange) -> bool;
     fn is_same(&self) -> bool;
+    fn get_range_of_segment(&self, segment_id: SegmentId) -> SnapRange;
+    fn is_middle_segment(&self, segment_id: SegmentId) -> bool;
+    fn is_continuous(&self) -> bool;
+    fn remove_segment(&mut self, segment_id: SegmentId);
     fn create(no_lanes: u8, id: Option<SegmentId>) -> Self;
     fn update(&mut self, snap_range: &SnapRange, segment_id: SegmentId);
     fn expand(&mut self, snap_range: &SnapRange, segment_id: Option<SegmentId>);
@@ -105,6 +110,16 @@ impl LaneMapUtils for LaneMap {
         let mut contains_some = false;
         for seg in self {
             if seg.is_some() {
+                contains_some = true;
+            }
+        }
+        contains_some
+    }
+
+    fn contains_some_in_range(&self, range: SnapRange) -> bool {
+        let mut contains_some = false;
+        for i in range {
+            if self[i as usize].is_some() {
                 contains_some = true;
             }
         }
@@ -135,6 +150,52 @@ impl LaneMapUtils for LaneMap {
             }
         }
         true
+    }
+
+    fn get_range_of_segment(&self, segment_id: SegmentId) -> SnapRange {
+        let mut range = vec![];
+        for (i, id) in self.iter().enumerate() {
+            if let Some(id) = id {
+                if *id == segment_id {
+                    range.push(i as i8);
+                }
+            }
+        }
+        range
+    }
+
+    fn is_middle_segment(&self, segment_id: SegmentId) -> bool {
+        let segment_range = self.get_range_of_segment(segment_id);
+        let bottom_range = SnapRange::create(0, segment_range[0]);
+        let top_range = SnapRange::create(segment_range[0] + 1, self.len() as i8);
+        self.contains_some_in_range(bottom_range) && self.contains_some_in_range(top_range)
+    }
+
+    fn is_continuous(&self) -> bool {
+        let mut some_seen = false;
+        let mut none_seen = false;
+        let mut some = None;
+        for &seg in self {
+            if seg.is_some() && !none_seen {
+                some_seen = true;
+                some = seg;
+            } else if seg.is_some() && some_seen && seg != some {
+                return false;
+            } else if seg.is_none() && some_seen {
+                none_seen = true
+            }
+        }
+        true
+    }
+
+    fn remove_segment(&mut self, segment_id: SegmentId) {
+        for seg in self.iter_mut() {
+            if let Some(id) = seg {
+                if *id == segment_id {
+                    *seg = None;
+                }
+            }
+        }
     }
 
     fn create(no_lanes: u8, id: Option<SegmentId>) -> Self {
@@ -168,8 +229,8 @@ impl LaneMapUtils for LaneMap {
 
 #[derive(Clone, Debug)]
 pub struct Node {
-    pub pos: Vec3,
-    pub dir: Vec3,
+    pos: Vec3,
+    dir: Vec3,
     incoming_lanes: LaneMap,
     outgoing_lanes: LaneMap,
 }
@@ -187,6 +248,10 @@ impl Node {
             incoming_lanes: LaneMap::create(no_lanes, lane_map.0),
             outgoing_lanes: LaneMap::create(no_lanes, lane_map.1),
         }
+    }
+
+    pub fn get_dir(&self) -> Vec3 {
+        self.dir
     }
 
     fn no_lanes(&self) -> u8 {
@@ -219,6 +284,42 @@ impl Node {
         }
         if snap_config.snap_range.len() as u8 > self.no_lanes() {
             self.expand_node(snap_config, segment_id);
+        }
+    }
+
+    fn can_remove_segment(&self, segment_id: SegmentId, reverse: bool) -> bool {
+        if reverse {
+            (self.outgoing_lanes.contains_some()
+                || !self.incoming_lanes.is_middle_segment(segment_id))
+                && if self.incoming_lanes.is_same() {
+                    self.outgoing_lanes.is_continuous()
+                } else {
+                    true
+                }
+        } else {
+            (self.incoming_lanes.contains_some()
+                || !self.outgoing_lanes.is_middle_segment(segment_id))
+                && if self.outgoing_lanes.is_same() {
+                    self.incoming_lanes.is_continuous()
+                } else {
+                    true
+                }
+        }
+    }
+
+    fn remove_segment_from_lane_map(&mut self, segment_id: SegmentId) {
+        self.incoming_lanes.remove_segment(segment_id);
+        self.outgoing_lanes.remove_segment(segment_id);
+        let mut delete_list = vec![];
+        for i in 0..self.incoming_lanes.len() {
+            if self.incoming_lanes[i] == None && self.outgoing_lanes[i] == None {
+                delete_list.push(i);
+            }
+        }
+        delete_list.reverse();
+        for &i in delete_list.iter() {
+            self.incoming_lanes.remove(i);
+            self.outgoing_lanes.remove(i);
         }
     }
 
@@ -334,17 +435,39 @@ impl Node {
 }
 
 #[derive(Debug, Clone)]
-pub struct Segment {
-    pub road_type: RoadType,
-    pub guide_points: Vec<Vec3>,
+struct Segment {
+    road_type: RoadType,
+    guide_points: curves::GuidePoints,
+    from_node: NodeId,
+    to_node: NodeId,
 }
 
-impl Segment {
-    pub fn new(road_type: RoadType, guide_points: Vec<Vec3>) -> Self {
-        Segment {
+#[derive(Debug, Clone)]
+pub struct SegmentBuilder {
+    pub road_type: RoadType,
+    pub guide_points: curves::GuidePoints,
+    pub mesh: RoadMesh,
+}
+
+impl SegmentBuilder {
+    pub fn new(road_type: RoadType, guide_points: curves::GuidePoints, mesh: RoadMesh) -> Self {
+        SegmentBuilder {
             road_type,
             guide_points,
+            mesh,
         }
+    }
+
+    fn build(self, from_node: NodeId, to_node: NodeId) -> (Segment, RoadMesh) {
+        (
+            Segment {
+                road_type: self.road_type,
+                guide_points: self.guide_points,
+                from_node,
+                to_node,
+            },
+            self.mesh,
+        )
     }
 }
 
@@ -415,15 +538,6 @@ impl RoadGraph {
             .iter()
             .map(|_| self.generate_segment_id())
             .collect();
-        segment_list
-            .iter()
-            .enumerate()
-            .for_each(|(i, (segment, mesh))| {
-                let id = segment_ids[i];
-                self.segment_map.insert(id, segment.clone());
-                self.road_meshes
-                    .insert(RoadElementId::Segment(id), mesh.clone());
-            });
 
         let mut node_ids = vec![];
         nodes.iter().enumerate().for_each(|(i, node)| {
@@ -434,7 +548,7 @@ impl RoadGraph {
                         false => segment_ids[0],
                         true => segment_ids[segment_ids.len() - 1],
                     };
-                    self.get_mut_node(snap_config.node_id)
+                    self.get_node_mut(snap_config.node_id)
                         .update_lane_map(snap_config.clone(), segment_id);
                     snap_config.node_id
                 }
@@ -451,8 +565,8 @@ impl RoadGraph {
                             dir,
                             road_type.no_lanes,
                             (
-                                // TODO hacky solution generalize to MapUtils trait?
-                                segment_ids.get(((i as i32 - 1) % 10) as usize).copied(),
+                                // TODO hacky solution generalize to VecUtils trait?
+                                segment_ids.get(((i as i32 - 1) % 100) as usize).copied(),
                                 segment_ids.get(i).copied(),
                             ),
                         ),
@@ -463,9 +577,19 @@ impl RoadGraph {
             node_ids.push(node_id);
         });
 
+        segment_list
+            .into_iter()
+            .enumerate()
+            .for_each(|(i, segment_builder)| {
+                let (segment, mesh) = segment_builder.build(node_ids[i], node_ids[i + 1]);
+                let id = segment_ids[i];
+                self.segment_map.insert(id, segment);
+                self.road_meshes.insert(RoadElementId::Segment(id), mesh);
+            });
+
         // update forward_refs and backward_refs
         node_ids.iter().enumerate().for_each(|(i, node_id)| {
-            if let Some(backward_id) = segment_ids.get(((i as i32 - 1) % 10) as usize) {
+            if let Some(backward_id) = segment_ids.get(((i as i32 - 1) % 100) as usize) {
                 self.backward_refs
                     .get_mut(node_id)
                     .expect("NodeId does not exist in backward_refs")
@@ -490,13 +614,60 @@ impl RoadGraph {
         (self.combine_road_meshes(), new_snap)
     }
 
-    pub fn remove_segment(&self, segment: SegmentId) -> Option<RoadMesh> {
-        // check if deletion is valid
-        None
-        // remove segment and update affected nodes
+    fn remove_node_if_not_exists(&mut self, node_id: NodeId) {
+        if self
+            .forward_refs
+            .get(&node_id)
+            .expect("node does not exist in forward map")
+            .is_empty()
+            && self
+                .backward_refs
+                .get(&node_id)
+                .expect("node does not exist in backward map")
+                .is_empty()
+        {
+            self.node_map.remove(&node_id);
+            self.forward_refs.remove(&node_id);
+            self.backward_refs.remove(&node_id);
+        }
     }
 
-    fn get_mut_node(&mut self, node: NodeId) -> &mut Node {
+    pub fn remove_segment(&mut self, segment_id: SegmentId) -> Option<RoadMesh> {
+        // check if deletion is valid
+        let segment = self.get_segment(segment_id).clone();
+        let from_node = self.get_node(segment.from_node);
+        let to_node = self.get_node(segment.to_node);
+        if !from_node.can_remove_segment(segment_id, false)
+            || !to_node.can_remove_segment(segment_id, true)
+        {
+            dbg!("Cannot bulldoze segment");
+            return None;
+        }
+
+        // remove any reference to this segment
+        self.segment_map.remove(&segment_id);
+        self.get_node_mut(segment.from_node)
+            .remove_segment_from_lane_map(segment_id);
+        self.get_node_mut(segment.to_node)
+            .remove_segment_from_lane_map(segment_id);
+        self.road_meshes.remove(&RoadElementId::Segment(segment_id));
+        self.forward_refs
+            .get_mut(&segment.from_node)
+            .expect("node does not exist in forward map")
+            .retain(|(_, id)| *id != segment_id);
+        self.backward_refs
+            .get_mut(&segment.to_node)
+            .expect("node does not exist in backward map")
+            .retain(|(_, id)| *id != segment_id);
+
+        // remove sorrounding nodes if they do not connect to segments
+        self.remove_node_if_not_exists(segment.from_node);
+        self.remove_node_if_not_exists(segment.to_node);
+
+        Some(self.combine_road_meshes())
+    }
+
+    fn get_node_mut(&mut self, node: NodeId) -> &mut Node {
         self.node_map
             .get_mut(&node)
             .expect("Node does not exist in node map")
@@ -506,6 +677,18 @@ impl RoadGraph {
         self.node_map
             .get(&node)
             .expect("Node does not exist in node map")
+    }
+
+    fn _get_segment_mut(&mut self, segment: SegmentId) -> &mut Segment {
+        self.segment_map
+            .get_mut(&segment)
+            .expect("Segment does not exist in segment map")
+    }
+
+    fn get_segment(&self, segment: SegmentId) -> &Segment {
+        self.segment_map
+            .get(&segment)
+            .expect("Segment does not exist in segment map")
     }
 
     // iterate over road_meshes and return vec of RoadVertex
