@@ -275,7 +275,7 @@ impl Node {
                             snap_range: SnapRange::create(
                                 i as i8 - diff as i8,
                                 (i + no_lanes) as i8 - diff as i8,
-                            ),
+            ),
                         });
                     }
                     snap_configs
@@ -395,15 +395,11 @@ impl RoadGraph {
         selected_node: Option<SnapConfig>,
         snapped_node: Option<SnapConfig>,
     ) -> (RoadMesh, Option<SnapConfig>) {
-        let road_type = road.get_road_type();
-
-        let segment_list = road.get_segments();
-        let node_list = road.get_nodes();
-
+        let (node_list, segment_list, road_type, reverse) = road.extract();
         let mut new_snap_index = 0;
 
         let mut nodes = vec![];
-        if road.is_reverse() {
+        if reverse {
             nodes.push(snapped_node);
             for _ in 0..node_list.len() - 2 {
                 nodes.push(None);

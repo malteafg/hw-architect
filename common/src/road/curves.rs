@@ -146,14 +146,14 @@ fn circle_scale(diff: Vec3, dir: Vec3) -> f32 {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DoubleSnapCurveCase {
     SingleCircle,
     DoubleCircle,
     Ellipse,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DoubleSnapError {
     TooSmall,
     TooBig,
