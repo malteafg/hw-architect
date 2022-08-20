@@ -135,11 +135,8 @@ impl RoadGenerator {
         snap_pos: Vec3,
         snap_dir: Vec3,
     ) -> Option<()> {
-        let ((start_pos, start_dir), (end_pos, end_dir)) = get_start_end_with_dir(
-            (init_pos, init_dir),
-            (snap_pos, snap_dir),
-            self.reverse,
-        );
+        let ((start_pos, start_dir), (end_pos, end_dir)) =
+            get_start_end_with_dir((init_pos, init_dir), (snap_pos, snap_dir), self.reverse);
         let snap_case = curves::double_snap_curve_case(
             start_pos,
             start_dir,
@@ -291,11 +288,7 @@ impl RoadGeneratorTool {
                     }
                 } else {
                     road.reverse = !snap_config.reverse;
-                    let dir = if road.reverse {
-                        -dir
-                    } else {
-                        dir
-                    };
+                    let dir = if road.reverse { -dir } else { dir };
                     road.try_double_snap(road.init_pos, dir, snap_config.pos, snap_config.dir)
                 }
             } else {
@@ -304,6 +297,18 @@ impl RoadGeneratorTool {
             }
         } else {
             None
+        }
+    }
+
+    pub fn update_no_lanes(&mut self, no_lanes: u8) {
+        if let Some(road) = self.road.as_mut() {
+            road.start_road_type.no_lanes = no_lanes;
+        }
+    }
+
+    pub fn update_curve_type(&mut self, curve: network::CurveType) {
+        if let Some(road) = self.road.as_mut() {
+            road.start_road_type.curve_type = curve;
         }
     }
 
@@ -340,7 +345,7 @@ impl RoadGeneratorTool {
 // in the future separate road_meshes into "chunks"
 pub fn combine_road_meshes(meshes: Vec<(Segment, RoadMesh)>) -> RoadMesh {
     let mut indices_count = 0;
-    let mut road_mesh: RoadMesh = RoadMesh::new();
+    let mut road_mesh: RoadMesh = RoadMesh::default();
 
     for (_, mesh) in meshes.iter() {
         road_mesh.vertices.append(&mut mesh.vertices.clone());

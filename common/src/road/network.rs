@@ -26,19 +26,10 @@ pub struct RoadVertex {
 }
 
 // in the future this should probably work in chunks
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct RoadMesh {
     pub vertices: Vec<RoadVertex>,
     pub indices: Vec<u32>,
-}
-
-impl RoadMesh {
-    pub fn new() -> Self {
-        RoadMesh {
-            vertices: Vec::new(),
-            indices: Vec::new(),
-        }
-    }
 }
 
 // #[derive(Debug, Clone, PartialEq)]
@@ -275,7 +266,7 @@ impl Node {
                             snap_range: SnapRange::create(
                                 i as i8 - diff as i8,
                                 (i + no_lanes) as i8 - diff as i8,
-            ),
+                            ),
                         });
                     }
                     snap_configs
@@ -367,8 +358,8 @@ pub struct RoadGraph {
     road_meshes: HashMap<RoadElementId, RoadMesh>,
 }
 
-impl RoadGraph {
-    pub fn new() -> Self {
+impl Default for RoadGraph {
+    fn default() -> Self {
         let node_map = HashMap::new();
         let segment_map = HashMap::new();
         let forward_refs = HashMap::new();
@@ -388,7 +379,9 @@ impl RoadGraph {
             road_meshes,
         }
     }
+}
 
+impl RoadGraph {
     pub fn add_road(
         &mut self,
         road: generator::RoadGenerator,
@@ -475,7 +468,7 @@ impl RoadGraph {
         (self.combine_road_meshes(), new_snap)
     }
 
-    pub fn remove_road(&self, segment: SegmentId) {
+    pub fn remove_road(&self, _segment: SegmentId) {
         // remove segment and update affected nodes
     }
 
@@ -495,7 +488,7 @@ impl RoadGraph {
     // in the future separate road_meshes into "chunks"
     fn combine_road_meshes(&self) -> RoadMesh {
         let mut indices_count = 0;
-        let mut road_mesh: RoadMesh = RoadMesh::new();
+        let mut road_mesh: RoadMesh = RoadMesh::default();
 
         for (_, mesh) in self.road_meshes.iter() {
             road_mesh.vertices.append(&mut mesh.vertices.clone());

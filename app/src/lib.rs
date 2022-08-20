@@ -40,14 +40,18 @@ impl State {
             camera,
             camera_controller,
             input_handler,
-            road_tool: tool::ToolState::new(),
+            road_tool: tool::ToolState::default(),
             ground_pos: Vec3::new(0.0, 0.0, 0.0),
         }
     }
 
     fn key_input(&mut self, action: input::KeyAction) {
         self.camera_controller.process_keyboard(action);
-        self.road_tool.process_keyboard(action);
+        let road_tool_mesh = self.road_tool.process_keyboard(action);
+        match road_tool_mesh {
+            Some(mesh) => self.gfx.update_road_tool_buffer(mesh),
+            None => {}
+        };
     }
 
     fn mouse_input(&mut self, event: input::MouseEvent) {
