@@ -333,7 +333,7 @@ impl Node {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Segment {
     pub road_type: RoadType,
     pub guide_points: Vec<Vec3>,
@@ -348,11 +348,13 @@ impl Segment {
     }
 }
 
+type LeadingNode = (NodeId, Vec<SegmentId>);
+
 pub struct RoadGraph {
     node_map: HashMap<NodeId, Node>,
     segment_map: HashMap<SegmentId, Segment>,
-    forward_refs: HashMap<SegmentId, Vec<LeadingPair>>,
-    backward_refs: HashMap<SegmentId, Vec<LeadingPair>>,
+    forward_refs: HashMap<SegmentId, LeadingNode>,
+    backward_refs: HashMap<SegmentId, LeadingNode>,
     node_id_count: u32,
     segment_id_count: u32,
     road_meshes: HashMap<RoadElementId, RoadMesh>,
@@ -420,8 +422,8 @@ impl RoadGraph {
                 self.segment_map.insert(id, segment.clone());
                 self.road_meshes
                     .insert(RoadElementId::Segment(id), mesh.clone());
-                self.forward_refs.insert(id, Vec::new());
-                self.backward_refs.insert(id, Vec::new());
+                // self.forward_refs.insert(id, Vec::new());
+                // self.backward_refs.insert(id, Vec::new());
             });
 
         let mut node_ids = vec![];
@@ -446,6 +448,7 @@ impl RoadGraph {
                             dir,
                             road_type.no_lanes,
                             (
+                                // TODO hacky solution
                                 segment_ids.get(((i as i32 - 1) % 10) as usize).copied(),
                                 segment_ids.get(i).copied(),
                             ),
@@ -468,7 +471,9 @@ impl RoadGraph {
         (self.combine_road_meshes(), new_snap)
     }
 
-    pub fn remove_road(&self, _segment: SegmentId) {
+    pub fn remove_segment(&self, segment: SegmentId) -> Option<RoadMesh> {
+        // check if deletion is valid
+        None
         // remove segment and update affected nodes
     }
 
@@ -506,12 +511,6 @@ impl RoadGraph {
         road_mesh
     }
 
-    pub fn select_road_element(&self) -> RoadElementId {
-        // check nodes first with their radius
-        // check segments based on the curve?
-        RoadElementId::Node(NodeId(1))
-    }
-
     pub fn get_node_snap_configs(
         &self,
         pos: Vec3,
@@ -546,20 +545,17 @@ impl RoadGraph {
         })
     }
 
-    pub fn get_node_id_from_pos(&self, pos: Vec3) -> Option<NodeId> {
-        let mut closest_node = None;
-        for (id, n) in self.node_map.iter() {
-            let dist = (n.pos - pos).length();
-            if let Some((_, old_dist)) = closest_node {
-                if old_dist < dist {
-                    continue;
-                }
-            }
-            if dist < n.no_lanes() as f32 * LANE_WIDTH {
-                closest_node = Some((id, dist));
+    pub fn get_segment_inside(&self, ground_pos: Vec3) -> Option<SegmentId> {
+        for (id, s) in self.segment_map.iter() {
+            if curves::is_inside(
+                &s.guide_points,
+                ground_pos,
+                s.road_type.no_lanes as f32 * LANE_WIDTH,
+            ) {
+                return Some(*id);
             }
         }
-        closest_node.map(|(id, _)| *id)
+        None
     }
 
     fn generate_node_id(&mut self) -> NodeId {
@@ -574,21 +570,37 @@ impl RoadGraph {
         SegmentId(segment_id)
     }
 
-    pub fn get_segment_inside(&self, ground_pos: Vec3) -> Option<SegmentId> {
-        for (id, s) in self.segment_map.iter() {
-            if curves::is_inside(
-                &s.guide_points,
-                ground_pos,
-                s.road_type.no_lanes as f32 * LANE_WIDTH,
-            ) {
-                return Some(*id);
+    #[cfg(debug_assertions)]
+    pub fn debug_node_from_pos(&self, pos: Vec3) {
+        let mut closest_node = None;
+        for (id, n) in self.node_map.iter() {
+            let dist = (n.pos - pos).length();
+            if let Some((_, old_dist)) = closest_node {
+                if old_dist < dist {
+                    continue;
+                }
+            }
+            if dist < n.no_lanes() as f32 * LANE_WIDTH {
+                closest_node = Some((id, dist));
             }
         }
-        None
+        if let Some(id) = closest_node.map(|(id, _)| *id) {
+            println!("Node: {} -------------------------", id.0);
+            dbg!(self.node_map.get(&id));
+        }
+    }
+
+
+    #[cfg(debug_assertions)]
+    pub fn debug_segment_from_pos(&self, pos: Vec3) {
+        if let Some(id) = self.get_segment_inside(pos) {
+            println!("Segment: {} ----------------------", id.0);
+            dbg!(self.segment_map.get(&id));
+            dbg!(self.forward_refs.get(&id));
+            dbg!(self.backward_refs.get(&id));
+        }
     }
 }
-
-type LeadingPair = (NodeId, SegmentId);
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct NodeId(u32);

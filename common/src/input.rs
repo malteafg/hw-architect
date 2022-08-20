@@ -190,6 +190,7 @@ pub enum Action {
     CameraRotateRight,
     CameraReturn,
     CycleRoadType,
+    ToggleBulldoze,
     OneLane,
     TwoLane,
     ThreeLane,

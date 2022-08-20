@@ -9,6 +9,7 @@ pub enum Mode {
     SelectPos,
     SelectDir,
     Build,
+    Bulldoze,
 }
 
 pub struct ToolState {
@@ -44,16 +45,26 @@ impl ToolState {
         let (action, pressed) = key;
         if pressed {
             return None;
-        };
-        match action {
-            CycleRoadType => self.switch_curve_type(),
-            OneLane => self.switch_lane_no(1),
-            TwoLane => self.switch_lane_no(2),
-            ThreeLane => self.switch_lane_no(3),
-            FourLane => self.switch_lane_no(4),
-            FiveLane => self.switch_lane_no(5),
-            SixLane => self.switch_lane_no(6),
-            _ => None,
+        }
+        match self.mode {
+            Mode::Bulldoze => match action {
+                ToggleBulldoze => self.reset_snap(Mode::SelectPos),
+                _ => None,
+            },
+            _ => match action {
+                CycleRoadType => self.switch_curve_type(),
+                ToggleBulldoze => {
+                    self.mode = Mode::Bulldoze;
+                    Some(generator::empty_mesh())
+                }
+                OneLane => self.switch_lane_no(1),
+                TwoLane => self.switch_lane_no(2),
+                ThreeLane => self.switch_lane_no(3),
+                FourLane => self.switch_lane_no(4),
+                FiveLane => self.switch_lane_no(5),
+                SixLane => self.switch_lane_no(6),
+                _ => None,
+            },
         }
     }
 
@@ -140,22 +151,24 @@ impl ToolState {
                 }
             },
             Mode::Build => self.build_road(),
+            Mode::Bulldoze => {
+                let segment_id = self.road_graph.get_segment_inside(self.ground_pos);
+                let road_mesh = segment_id.map(|id| self.road_graph.remove_segment(id));
+                (road_mesh.flatten(), None)
+            }
         }
     }
 
     fn right_click(&mut self) -> (Option<network::RoadMesh>, Option<network::RoadMesh>) {
         use network::CurveType;
         match self.mode {
-            Mode::SelectPos => {
-                dbg!(self.road_graph.get_segment_inside(self.ground_pos));
-                match self.road_graph.get_node_id_from_pos(self.ground_pos) {
-                    Some(node_id) => {
-                        let node = self.road_graph.get_node(node_id);
-                        dbg!(node);
-                        (None, None)
-                    }
-                    None => (None, None),
+            Mode::SelectPos | Mode::Bulldoze => {
+                #[cfg(debug_assertions)]
+                {
+                    self.road_graph.debug_segment_from_pos(self.ground_pos);
+                    self.road_graph.debug_node_from_pos(self.ground_pos);
                 }
+                (None, None)
             }
             Mode::SelectDir => (None, self.reset_snap(Mode::SelectPos)),
             Mode::Build => match (self.sel_road_type.curve_type, self.sel_node.clone()) {
@@ -219,7 +232,7 @@ impl ToolState {
         let empty_mesh = Some(generator::empty_mesh());
 
         match self.mode {
-            Mode::SelectPos => empty_mesh,
+            Mode::SelectPos | Mode::Bulldoze => empty_mesh,
             Mode::SelectDir => {
                 self.road_generator.update_pos(self.ground_pos);
                 self.road_generator.get_mesh()
@@ -257,6 +270,7 @@ impl ToolState {
                 }
                 self.update_no_snap()
             }
+            Mode::Bulldoze => Some(generator::empty_mesh()),
         }
     }
 
