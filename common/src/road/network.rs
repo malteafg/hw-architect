@@ -235,21 +235,28 @@ pub struct Node {
     outgoing_lanes: LaneMap,
 }
 
-impl Node {
-    fn new(
-        pos: Vec3,
-        dir: Vec3,
-        no_lanes: u8,
-        lane_map: (Option<SegmentId>, Option<SegmentId>),
-    ) -> Self {
+#[derive(Clone, Copy)]
+pub struct NodeBuilder {
+    pub pos: Vec3,
+    pub dir: Vec3,
+}
+
+impl NodeBuilder {
+    pub fn new(pos: Vec3, dir: Vec3) -> Self {
+        NodeBuilder { pos, dir }
+    }
+
+    fn build(self, no_lanes: u8, lane_map: (Option<SegmentId>, Option<SegmentId>)) -> Node {
         Node {
-            pos,
-            dir,
+            pos: self.pos,
+            dir: self.dir,
             incoming_lanes: LaneMap::create(no_lanes, lane_map.0),
             outgoing_lanes: LaneMap::create(no_lanes, lane_map.1),
         }
     }
+}
 
+impl Node {
     pub fn get_dir(&self) -> Vec3 {
         self.dir
     }
@@ -557,12 +564,9 @@ impl RoadGraph {
                     let node_id = self.generate_node_id();
                     self.forward_refs.insert(node_id, Vec::new());
                     self.backward_refs.insert(node_id, Vec::new());
-                    let (pos, dir) = node_list[i];
                     self.node_map.insert(
                         node_id,
-                        Node::new(
-                            pos,
-                            dir,
+                        node_list[i].build(
                             road_type.no_lanes,
                             (
                                 // TODO hacky solution generalize to VecUtils trait?

@@ -11,7 +11,7 @@ const MIN_LENGTH: f32 = 10.0;
 
 #[derive(Clone)]
 pub struct RoadGenerator {
-    nodes: Vec<(Vec3, Vec3)>,
+    nodes: Vec<NodeBuilder>,
     segments: Vec<SegmentBuilder>,
     init_pos: Vec3,
     init_dir: Option<Vec3>,
@@ -35,7 +35,10 @@ impl RoadGenerator {
 
         let mesh = generate_straight_mesh(start_pos, end_pos, sel_road_type);
 
-        let nodes = vec![(start_pos, start_dir), (end_pos, start_dir)];
+        let nodes = vec![
+            NodeBuilder::new(start_pos, start_dir),
+            NodeBuilder::new(end_pos, start_dir),
+        ];
         let segments = vec![SegmentBuilder::new(
             sel_road_type,
             vec![start_pos, end_pos],
@@ -54,7 +57,7 @@ impl RoadGenerator {
     }
 
     // for use when building road
-    pub fn extract(self) -> (Vec<(Vec3, Vec3)>, Vec<SegmentBuilder>, RoadType, bool) {
+    pub fn extract(self) -> (Vec<NodeBuilder>, Vec<SegmentBuilder>, RoadType, bool) {
         (
             self.nodes,
             self.segments,
@@ -97,7 +100,7 @@ impl RoadGenerator {
                 }
                 let (g_points_vec, start_dir) = curves::guide_points_and_direction(g_points_vec);
 
-                self.nodes = vec![(start_pos, start_dir)];
+                self.nodes = vec![NodeBuilder::new(start_pos, start_dir)];
                 self.segments = vec![];
                 g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
                     let start_pos = g_points[0];
@@ -108,7 +111,7 @@ impl RoadGenerator {
                         self.start_road_type,
                         g_points.clone(),
                     );
-                    self.nodes.push((end_pos, end_dir));
+                    self.nodes.push(NodeBuilder::new(end_pos, end_dir));
                     self.segments
                         .push(SegmentBuilder::new(self.start_road_type, g_points, mesh));
                 });
@@ -125,7 +128,7 @@ impl RoadGenerator {
 
     fn update_straight(&mut self, start_pos: Vec3, end_pos: Vec3, dir: Vec3) {
         let mesh = generate_straight_mesh(start_pos, end_pos, self.start_road_type);
-        self.nodes = vec![(start_pos, dir), (end_pos, dir)];
+        self.nodes = vec![NodeBuilder::new(start_pos, dir), NodeBuilder::new(end_pos, dir)];
         self.segments = vec![SegmentBuilder::new(
             self.start_road_type,
             vec![start_pos, end_pos],
@@ -155,14 +158,14 @@ impl RoadGenerator {
             curves::match_double_snap_curve_case(start_pos, start_dir, end_pos, end_dir, snap_case),
         ); // use snap_three_quarter_circle_curve for snapping
            // and free_three_quarter_circle_curve otherwise
-        self.nodes = vec![(start_pos, start_dir)];
+        self.nodes = vec![NodeBuilder::new(start_pos, start_dir)];
         self.segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
             let start_pos = g_points[0];
             let end_pos = g_points[g_points.len() - 1];
             let mesh =
                 generate_circular_mesh(start_pos, end_pos, self.start_road_type, g_points.clone());
-            self.nodes.push((end_pos, end_dir));
+            self.nodes.push(NodeBuilder::new(end_pos, end_dir));
             // TODO update curvetype to be correct
             self.segments.push(SegmentBuilder::new(
                 RoadType {
@@ -195,14 +198,14 @@ impl RoadGenerator {
         }
 
         let (g_points_vec, _) = curves::guide_points_and_direction(g_points_vec);
-        self.nodes = vec![(start_pos, start_dir)];
+        self.nodes = vec![NodeBuilder::new(start_pos, start_dir)];
         self.segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
             let start_pos = g_points[0];
             let end_pos = g_points[g_points.len() - 1];
             let mesh =
                 generate_circular_mesh(start_pos, end_pos, self.start_road_type, g_points.clone());
-            self.nodes.push((end_pos, end_dir));
+            self.nodes.push(NodeBuilder::new(end_pos, end_dir));
             // TODO update curvetype to be correct
             self.segments.push(SegmentBuilder::new(
                 RoadType {
