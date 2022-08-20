@@ -348,13 +348,13 @@ impl Segment {
     }
 }
 
-type LeadingNode = (NodeId, Vec<SegmentId>);
+type LeadingPair = (NodeId, SegmentId);
 
 pub struct RoadGraph {
     node_map: HashMap<NodeId, Node>,
     segment_map: HashMap<SegmentId, Segment>,
-    forward_refs: HashMap<SegmentId, LeadingNode>,
-    backward_refs: HashMap<SegmentId, LeadingNode>,
+    forward_refs: HashMap<NodeId, Vec<LeadingPair>>,
+    backward_refs: HashMap<NodeId, Vec<LeadingPair>>,
     node_id_count: u32,
     segment_id_count: u32,
     road_meshes: HashMap<RoadElementId, RoadMesh>,
@@ -393,6 +393,7 @@ impl RoadGraph {
         let (node_list, segment_list, road_type, reverse) = road.extract();
         let mut new_snap_index = 0;
 
+        // Create list of new and old nodes in correct order
         let mut nodes = vec![];
         if reverse {
             nodes.push(snapped_node);
@@ -409,11 +410,11 @@ impl RoadGraph {
             new_snap_index = nodes.len() - 1;
         }
 
+        // Create new segments
         let segment_ids: Vec<SegmentId> = segment_list
             .iter()
             .map(|_| self.generate_segment_id())
             .collect();
-
         segment_list
             .iter()
             .enumerate()
@@ -422,14 +423,13 @@ impl RoadGraph {
                 self.segment_map.insert(id, segment.clone());
                 self.road_meshes
                     .insert(RoadElementId::Segment(id), mesh.clone());
-                // self.forward_refs.insert(id, Vec::new());
-                // self.backward_refs.insert(id, Vec::new());
             });
 
         let mut node_ids = vec![];
         nodes.iter().enumerate().for_each(|(i, node)| {
             let node_id = match node {
                 Some(snap_config) => {
+                    // update existing node lane_map
                     let segment_id = match snap_config.reverse {
                         false => segment_ids[0],
                         true => segment_ids[segment_ids.len() - 1],
@@ -439,7 +439,10 @@ impl RoadGraph {
                     snap_config.node_id
                 }
                 None => {
+                    // generate new node
                     let node_id = self.generate_node_id();
+                    self.forward_refs.insert(node_id, Vec::new());
+                    self.backward_refs.insert(node_id, Vec::new());
                     let (pos, dir) = node_list[i];
                     self.node_map.insert(
                         node_id,
@@ -448,7 +451,7 @@ impl RoadGraph {
                             dir,
                             road_type.no_lanes,
                             (
-                                // TODO hacky solution
+                                // TODO hacky solution generalize to MapUtils trait?
                                 segment_ids.get(((i as i32 - 1) % 10) as usize).copied(),
                                 segment_ids.get(i).copied(),
                             ),
@@ -458,6 +461,22 @@ impl RoadGraph {
                 }
             };
             node_ids.push(node_id);
+        });
+
+        // update forward_refs and backward_refs
+        node_ids.iter().enumerate().for_each(|(i, node_id)| {
+            if let Some(backward_id) = segment_ids.get(((i as i32 - 1) % 10) as usize) {
+                self.backward_refs
+                    .get_mut(node_id)
+                    .expect("NodeId does not exist in backward_refs")
+                    .push((node_ids[i - 1], *backward_id));
+            }
+            if let Some(forward_id) = segment_ids.get(i) {
+                self.forward_refs
+                    .get_mut(node_id)
+                    .expect("NodeId does not exist in forward_refs")
+                    .push((node_ids[i + 1], *forward_id));
+            }
         });
 
         let new_snap_id = node_ids[new_snap_index];
@@ -587,17 +606,16 @@ impl RoadGraph {
         if let Some(id) = closest_node.map(|(id, _)| *id) {
             println!("Node: {} -------------------------", id.0);
             dbg!(self.node_map.get(&id));
+            dbg!(self.forward_refs.get(&id));
+            dbg!(self.backward_refs.get(&id));
         }
     }
-
 
     #[cfg(debug_assertions)]
     pub fn debug_segment_from_pos(&self, pos: Vec3) {
         if let Some(id) = self.get_segment_inside(pos) {
             println!("Segment: {} ----------------------", id.0);
             dbg!(self.segment_map.get(&id));
-            dbg!(self.forward_refs.get(&id));
-            dbg!(self.backward_refs.get(&id));
         }
     }
 }
