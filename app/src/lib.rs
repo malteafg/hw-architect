@@ -10,21 +10,23 @@ use winit::{
 };
 
 mod configuration;
+mod input_handler;
 use common::road::tool;
-use common::{camera, input};
+use gfx_bridge::camera;
 use graphics::graphics::*;
+use utils::input;
 
 struct State {
     gfx: GfxState,
     camera: camera::Camera,
     camera_controller: camera::CameraController,
-    input_handler: input::InputHandler,
+    input_handler: input_handler::InputHandler,
     road_tool: tool::ToolState,
     ground_pos: Vec3,
 }
 
 impl State {
-    async fn new(window: &Window, input_handler: input::InputHandler) -> Self {
+    async fn new(window: &Window, input_handler: input_handler::InputHandler) -> Self {
         let gfx = GfxState::new(window).await;
 
         let camera = camera::Camera::new(
@@ -57,8 +59,7 @@ impl State {
     fn mouse_input(&mut self, event: input::MouseEvent) {
         self.camera_controller.process_mouse(event);
         match event {
-            input::MouseEvent::Dragged(_, _)
-            | input::MouseEvent::Moved(_) => {
+            input::MouseEvent::Dragged(_, _) | input::MouseEvent::Moved(_) => {
                 self.update_ground_pos();
             }
             _ => {}
@@ -111,7 +112,7 @@ pub async fn run() {
     // load configuration
     let config = configuration::load_config().await.unwrap();
     let key_map = configuration::load_key_map(config.key_map).await.unwrap();
-    let input_handler = input::InputHandler::new(key_map);
+    let input_handler = input_handler::InputHandler::new(key_map);
 
     // create event_loop and window
     let event_loop = EventLoop::new();

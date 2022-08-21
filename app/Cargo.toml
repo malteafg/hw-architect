@@ -11,6 +11,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 graphics = { path = "../graphics"  }
+gfx-bridge = { path = "../gfx-bridge" }
 common = { path = "../common"}
 utils = { path = "../utils"}
 winit = "0.26"

@@ -1,5 +1,5 @@
 [package]
-name = "utils"
+name = "gfx-bridge"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,11 +10,11 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+utils = { path = "../utils" }
 anyhow = "1.0"
 glam = { version = "0.21.3", default-features = false, features = ["serde", "bytemuck"] }
-cfg-if = "1"
-strum = "0.13.0"
-strum_macros = "0.13.0"
+serde = { version = "1.0", features = ["derive"] }
+bytemuck = { version = "1.4", features = [ "derive" ] }
 
 [build-dependencies]
 anyhow = "1.0"

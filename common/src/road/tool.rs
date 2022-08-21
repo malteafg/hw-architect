@@ -1,9 +1,9 @@
 use super::generator;
-use super::generator::RoadMesh;
 use super::network;
-use crate::input;
 use generator::RoadGeneratorTool;
+use gfx_bridge::roads::RoadMesh;
 use glam::*;
+use utils::input;
 
 #[derive(Clone, Copy)]
 pub enum Mode {

@@ -1,11 +1,12 @@
+use crate::input_handler;
 use anyhow::anyhow;
-use common::input;
-use utils::loader;
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
 use std::str::FromStr;
+use utils::input;
+use utils::loader;
 use yaml_rust::{Yaml, YamlLoader};
 
 fn load_user_config_to_yaml(file: &str) -> anyhow::Result<Yaml> {
@@ -85,7 +86,7 @@ pub async fn load_config() -> anyhow::Result<Config> {
 // map.insert("x".to_string(), 1.0);
 type KeyConfig = BTreeMap<String, Vec<String>>;
 
-pub async fn load_key_map(key_map: String) -> anyhow::Result<input::KeyMap> {
+pub async fn load_key_map(key_map: String) -> anyhow::Result<input_handler::KeyMap> {
     let key_config_path = format!("config/{}.yml", &key_map);
     dbg!(key_config_path.clone());
     let key_config_file = loader::load_string(&key_config_path).await?;
@@ -94,7 +95,7 @@ pub async fn load_key_map(key_map: String) -> anyhow::Result<input::KeyMap> {
     let key_map = key_config
         .iter()
         .map(|(action, keys)| {
-            let key_code = input::parse_key_code(&keys[0]).unwrap();
+            let key_code = input_handler::parse_key_code(&keys[0]).unwrap();
             let mod_state = keys
                 .iter()
                 .fold(

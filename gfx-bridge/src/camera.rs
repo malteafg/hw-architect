@@ -1,7 +1,5 @@
-use crate::input;
 use glam::*;
-// TODO change when math_utils is implemented as traits
-use utils::{Angle, Mat4Utils};
+use utils::{Angle, Mat4Utils, input};
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::time::Duration;
 

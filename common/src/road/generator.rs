@@ -2,27 +2,13 @@ use super::curves;
 use super::network;
 use super::network::{CurveType, NodeBuilder, RoadType, SegmentBuilder};
 use super::LANE_WIDTH;
+use gfx_bridge::roads::{RoadMesh, RoadVertex};
 use utils::VecUtils;
 use glam::*;
 
 const VERTEX_DENSITY: f32 = 0.05;
 const DEFAULT_DIR: Vec3 = Vec3::new(1.0, 0.0, 0.0);
 const MIN_LENGTH: f32 = 10.0;
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct RoadVertex {
-    pub position: [f32; 3],
-}
-
-// in the future this should probably work in chunks
-#[derive(Clone, Debug, Default)]
-pub struct RoadMesh {
-    pub vertices: Vec<RoadVertex>,
-    pub indices: Vec<u32>,
-    pub lane_vertices: Vec<RoadVertex>,
-    pub lane_indices: Vec<u32>,
-}
 
 #[derive(Clone)]
 pub struct RoadGenerator {

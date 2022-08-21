@@ -10,6 +10,9 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+common = { path = "../common" }
+utils = { path = "../utils" }
+gfx-bridge = { path = "../gfx-bridge" }
 winit = "0.26"
 log = "0.4"
 wgpu = "0.13"
@@ -20,8 +23,6 @@ tobj = { version = "3.2.1", features = [
 ]}
 instant = "0.1"
 rand = "^0.8"
-common = { path = "../common"}
-utils = { path = "../utils"}
 glam = { version = "0.21.3", default-features = false, features = ["serde", "bytemuck"] }
 # Specific for web assembly
 cfg-if = "1"

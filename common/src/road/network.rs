@@ -1,10 +1,10 @@
-use utils::VecUtils;
 use super::curves;
 use super::generator;
-use generator::RoadMesh;
 use super::LANE_WIDTH;
+use gfx_bridge::roads::RoadMesh;
 use glam::*;
 use std::collections::{HashMap, VecDeque};
+use utils::VecUtils;
 
 pub const MAX_LANES: usize = 6;
 

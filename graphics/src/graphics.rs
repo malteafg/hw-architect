@@ -5,8 +5,8 @@ use wgpu::util::DeviceExt;
 use crate::vertex::Vertex;
 use winit::{dpi::PhysicalSize, window::Window};
 
-use common::camera;
-use common::road::generator as road;
+use gfx_bridge::camera;
+use gfx_bridge::roads as road;
 
 use crate::{
     buffer::{self, VIBuffer},
@@ -853,7 +853,7 @@ impl GfxState {
     pub fn calc_ray(
         &self,
         camera: &camera::Camera,
-        mouse_pos: common::input::MousePos,
+        mouse_pos: utils::input::MousePos,
     ) -> (Vec3, Vec3) {
         let screen_vec = Vec4::new(
             2.0 * mouse_pos.x as f32 / self.size.width as f32 - 1.0,
@@ -861,17 +861,8 @@ impl GfxState {
             1.0,
             1.0,
         );
-        let eye_vec = self
-            .projection
-            .calc_matrix()
-            .inverse()
-            // .expect("Unable to cast ray, projection")
-            * screen_vec;
-        let full_vec = camera
-            .calc_matrix()
-            .inverse()
-            // .expect("Unable to cast ray, view")
-            * Vec4::new(eye_vec.x, eye_vec.y, -1.0, 0.0);
+        let eye_vec = self.projection.calc_matrix().inverse() * screen_vec;
+        let full_vec = camera.calc_matrix().inverse() * Vec4::new(eye_vec.x, eye_vec.y, -1.0, 0.0);
         let processed_vec = Vec3::new(full_vec.x, full_vec.y, full_vec.z).normalize();
 
         (processed_vec, camera.calc_pos())
