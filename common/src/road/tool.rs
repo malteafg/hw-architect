@@ -6,7 +6,7 @@ use glam::*;
 use utils::input;
 
 #[derive(Clone, Copy)]
-pub enum Mode {
+enum Mode {
     SelectPos,
     SelectDir,
     Build,

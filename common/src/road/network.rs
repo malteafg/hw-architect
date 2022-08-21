@@ -6,8 +6,6 @@ use glam::*;
 use std::collections::{HashMap, VecDeque};
 use utils::VecUtils;
 
-pub const MAX_LANES: usize = 6;
-
 #[derive(Debug, Default, Clone, Copy)]
 pub enum CurveType {
     #[default]
@@ -21,8 +19,7 @@ pub struct RoadType {
     pub curve_type: CurveType,
 }
 
-// #[derive(Debug, Clone, PartialEq)]
-pub type SnapRange = Vec<i8>;
+type SnapRange = Vec<i8>;
 
 trait SnapRangeTrait {
     fn create(start: i8, end: i8) -> Self;
@@ -788,6 +785,6 @@ pub struct SegmentId(u32);
 
 #[derive(PartialEq, Eq, Hash)]
 pub enum RoadElementId {
-    Node(NodeId),
+    // Node(NodeId),
     Segment(SegmentId),
 }

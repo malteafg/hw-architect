@@ -10,7 +10,6 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-common = { path = "../common" }
 utils = { path = "../utils" }
 gfx-bridge = { path = "../gfx-bridge" }
 
