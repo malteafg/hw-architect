@@ -1,6 +1,6 @@
 use crate::model::ModelVertex;
 use crate::terrain::TerrainVertex;
-use common::road::network::RoadVertex;
+use common::road::generator::RoadVertex;
 use std::mem;
 
 pub trait Vertex {

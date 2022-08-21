@@ -1,5 +1,5 @@
 use super::LANE_WIDTH;
-use crate::math_utils::VecUtils;
+use utils::VecUtils;
 use glam::*;
 
 const PRETTY_CLOSE: f32 = 0.97;

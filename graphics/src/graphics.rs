@@ -1,12 +1,12 @@
-use common::math_utils::Mat4Utils;
 use glam::*;
+use utils::Mat4Utils;
 use wgpu::util::DeviceExt;
 
 use crate::vertex::Vertex;
 use winit::{dpi::PhysicalSize, window::Window};
 
-use common::road::network as road;
 use common::camera;
+use common::road::generator as road;
 
 use crate::{
     buffer::{self, VIBuffer},
@@ -159,9 +159,11 @@ pub struct GfxState {
     terrain_mesh: terrain::TerrainMesh,
     terrain_render_pipeline: wgpu::RenderPipeline,
     road_buffer: buffer::VIBuffer,
+    road_markings_buffer: buffer::VIBuffer,
     road_tool_buffer: buffer::VIBuffer,
     road_render_pipeline: wgpu::RenderPipeline,
     road_color_bind_group: wgpu::BindGroup,
+    road_markings_color_bind_group: wgpu::BindGroup,
     road_tool_color_bind_group: wgpu::BindGroup,
     // road_material: model::Material,
 }
@@ -193,11 +195,12 @@ fn create_render_pipeline(
                 blend: Some(wgpu::BlendState {
                     // color: wgpu::BlendComponent::REPLACE,
                     // alpha: wgpu::BlendComponent::REPLACE,
-                    color: wgpu::BlendComponent{
+                    color: wgpu::BlendComponent {
                         src_factor: wgpu::BlendFactor::SrcAlpha,
                         dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                        operation: wgpu::BlendOperation::Add,},
-                    alpha: wgpu::BlendComponent::OVER
+                        operation: wgpu::BlendOperation::Add,
+                    },
+                    alpha: wgpu::BlendComponent::OVER,
                 }),
                 write_mask: wgpu::ColorWrites::ALL,
             })],
@@ -459,6 +462,13 @@ impl GfxState {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
+        let road_markings_color_buffer =
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("road_markings_color_buffer"),
+                contents: bytemuck::cast_slice(&[Vec4::new(0.95, 0.95, 0.95, 1.0)]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            });
+
         let road_tool_color_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("road_tool_color_buffer"),
             contents: bytemuck::cast_slice(&[Vec4::new(0.1, 0.1, 0.6, 0.5)]),
@@ -487,6 +497,15 @@ impl GfxState {
                 resource: road_color_buffer.as_entire_binding(),
             }],
             label: Some("road_color_bind_group"),
+        });
+
+        let road_markings_color_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &road_color_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: road_markings_color_buffer.as_entire_binding(),
+            }],
+            label: Some("road_markings_color_bind_group"),
         });
 
         let road_tool_color_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -542,6 +561,7 @@ impl GfxState {
         };
 
         let road_buffer = VIBuffer::new("road_buffer", &device);
+        let road_markings_buffer = VIBuffer::new("road_markings_buffer", &device);
         let road_tool_buffer = VIBuffer::new("road_tool_buffer", &device);
         let road_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -607,9 +627,11 @@ impl GfxState {
             terrain_mesh,
             terrain_render_pipeline,
             road_buffer,
+            road_markings_buffer,
             road_tool_buffer,
             road_render_pipeline,
             road_color_bind_group,
+            road_markings_color_bind_group,
             road_tool_color_bind_group,
             // road_material,
         }
@@ -686,6 +708,14 @@ impl GfxState {
                 render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
                 render_pass.set_bind_group(1, &self.road_color_bind_group, &[]);
                 render_pass.draw_indexed(0..self.road_buffer.get_num_indices(), 0, 0..1);
+            }
+            if let Ok((vertices, indices)) = self.road_markings_buffer.get_buffer_slice() {
+                render_pass.set_vertex_buffer(0, vertices);
+                render_pass.set_index_buffer(indices, wgpu::IndexFormat::Uint32);
+                // render_pass.set_bind_group(0, &self.road_material.bind_group, &[]);
+                render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+                render_pass.set_bind_group(1, &self.road_markings_color_bind_group, &[]);
+                render_pass.draw_indexed(0..self.road_markings_buffer.get_num_indices(), 0, 0..1);
             }
             if let Ok((vertices, indices)) = self.road_tool_buffer.get_buffer_slice() {
                 render_pass.set_vertex_buffer(0, vertices);

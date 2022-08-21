@@ -1,13 +1,28 @@
 use super::curves;
 use super::network;
-use super::network::*;
+use super::network::{CurveType, NodeBuilder, RoadType, SegmentBuilder};
 use super::LANE_WIDTH;
-use crate::math_utils::VecUtils;
+use utils::VecUtils;
 use glam::*;
 
 const VERTEX_DENSITY: f32 = 0.05;
 const DEFAULT_DIR: Vec3 = Vec3::new(1.0, 0.0, 0.0);
 const MIN_LENGTH: f32 = 10.0;
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct RoadVertex {
+    pub position: [f32; 3],
+}
+
+// in the future this should probably work in chunks
+#[derive(Clone, Debug, Default)]
+pub struct RoadMesh {
+    pub vertices: Vec<RoadVertex>,
+    pub indices: Vec<u32>,
+    pub lane_vertices: Vec<RoadVertex>,
+    pub lane_indices: Vec<u32>,
+}
 
 #[derive(Clone)]
 pub struct RoadGenerator {
@@ -128,7 +143,10 @@ impl RoadGenerator {
 
     fn update_straight(&mut self, start_pos: Vec3, end_pos: Vec3, dir: Vec3) {
         let mesh = generate_straight_mesh(start_pos, end_pos, self.start_road_type);
-        self.nodes = vec![NodeBuilder::new(start_pos, dir), NodeBuilder::new(end_pos, dir)];
+        self.nodes = vec![
+            NodeBuilder::new(start_pos, dir),
+            NodeBuilder::new(end_pos, dir),
+        ];
         self.segments = vec![SegmentBuilder::new(
             self.start_road_type,
             vec![start_pos, end_pos],
@@ -371,7 +389,12 @@ pub fn combine_road_meshes(meshes: Vec<SegmentBuilder>) -> RoadMesh {
 pub fn empty_mesh() -> RoadMesh {
     let vertices = vec![];
     let indices = vec![];
-    RoadMesh { vertices, indices }
+    RoadMesh {
+        vertices,
+        indices,
+        lane_vertices: vec![],
+        lane_indices: vec![],
+    }
 }
 
 pub fn generate_straight_mesh(start_pos: Vec3, end_pos: Vec3, selected_road: RoadType) -> RoadMesh {
@@ -391,7 +414,12 @@ pub fn generate_straight_mesh(start_pos: Vec3, end_pos: Vec3, selected_road: Roa
 
     let indices = [0, 5, 1, 5, 0, 4, 2, 4, 0, 4, 2, 6, 1, 7, 3, 7, 1, 5].to_vec();
 
-    RoadMesh { vertices, indices }
+    RoadMesh {
+        vertices,
+        indices,
+        lane_vertices: vec![],
+        lane_indices: vec![],
+    }
 }
 
 pub fn generate_circular_mesh(
@@ -435,7 +463,12 @@ pub fn generate_circular_mesh(
         })
         .collect::<Vec<_>>();
     let indices = generate_indices(num_of_cuts);
-    RoadMesh { vertices, indices }
+    RoadMesh {
+        vertices,
+        indices,
+        lane_vertices: vec![],
+        lane_indices: vec![],
+    }
 }
 
 fn generate_indices(num_cuts: u32) -> Vec<u32> {

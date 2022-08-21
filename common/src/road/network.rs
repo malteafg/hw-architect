@@ -1,6 +1,8 @@
-use crate::math_utils::VecUtils;
-
-use super::{curves, generator, LANE_WIDTH};
+use utils::VecUtils;
+use super::curves;
+use super::generator;
+use generator::RoadMesh;
+use super::LANE_WIDTH;
 use glam::*;
 use std::collections::{HashMap, VecDeque};
 
@@ -17,19 +19,6 @@ pub enum CurveType {
 pub struct RoadType {
     pub no_lanes: u8,
     pub curve_type: CurveType,
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct RoadVertex {
-    pub position: [f32; 3],
-}
-
-// in the future this should probably work in chunks
-#[derive(Clone, Debug, Default)]
-pub struct RoadMesh {
-    pub vertices: Vec<RoadVertex>,
-    pub indices: Vec<u32>,
 }
 
 // #[derive(Debug, Clone, PartialEq)]

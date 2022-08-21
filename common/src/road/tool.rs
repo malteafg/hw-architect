@@ -1,4 +1,5 @@
 use super::generator;
+use super::generator::RoadMesh;
 use super::network;
 use crate::input;
 use generator::RoadGeneratorTool;
@@ -40,7 +41,7 @@ impl Default for ToolState {
 }
 
 impl ToolState {
-    pub fn process_keyboard(&mut self, key: input::KeyAction) -> Option<network::RoadMesh> {
+    pub fn process_keyboard(&mut self, key: input::KeyAction) -> Option<RoadMesh> {
         use input::Action::*;
         let (action, pressed) = key;
         if pressed {
@@ -68,7 +69,7 @@ impl ToolState {
         }
     }
 
-    fn switch_lane_no(&mut self, no_lanes: u8) -> Option<network::RoadMesh> {
+    fn switch_lane_no(&mut self, no_lanes: u8) -> Option<RoadMesh> {
         if self.sel_road_type.no_lanes == no_lanes {
             return None;
         };
@@ -81,7 +82,7 @@ impl ToolState {
         }
     }
 
-    fn switch_curve_type(&mut self) -> Option<network::RoadMesh> {
+    fn switch_curve_type(&mut self) -> Option<RoadMesh> {
         use network::CurveType::*;
         match self.sel_road_type.curve_type {
             Straight => {
@@ -112,7 +113,7 @@ impl ToolState {
     pub fn mouse_input(
         &mut self,
         event: input::MouseEvent,
-    ) -> (Option<network::RoadMesh>, Option<network::RoadMesh>) {
+    ) -> (Option<RoadMesh>, Option<RoadMesh>) {
         use input::MouseEvent;
 
         match event {
@@ -122,7 +123,7 @@ impl ToolState {
         }
     }
 
-    fn left_click(&mut self) -> (Option<network::RoadMesh>, Option<network::RoadMesh>) {
+    fn left_click(&mut self) -> (Option<RoadMesh>, Option<RoadMesh>) {
         use network::CurveType;
         match self.mode {
             Mode::SelectPos => match self.snapped_node.clone() {
@@ -159,7 +160,7 @@ impl ToolState {
         }
     }
 
-    fn right_click(&mut self) -> (Option<network::RoadMesh>, Option<network::RoadMesh>) {
+    fn right_click(&mut self) -> (Option<RoadMesh>, Option<RoadMesh>) {
         use network::CurveType;
         match self.mode {
             Mode::SelectPos | Mode::Bulldoze => {
@@ -181,7 +182,7 @@ impl ToolState {
         }
     }
 
-    fn select_node(&mut self, snapped_node: network::SnapConfig) -> Option<network::RoadMesh> {
+    fn select_node(&mut self, snapped_node: network::SnapConfig) -> Option<RoadMesh> {
         let node = self.road_graph.get_node(snapped_node.node_id);
 
         self.road_generator = generator::RoadGeneratorTool::new(
@@ -200,7 +201,7 @@ impl ToolState {
         road_mesh
     }
 
-    fn build_road(&mut self) -> (Option<network::RoadMesh>, Option<network::RoadMesh>) {
+    fn build_road(&mut self) -> (Option<RoadMesh>, Option<RoadMesh>) {
         let (road_mesh, new_node) = self.road_graph.add_road(
             self.road_generator.extract(),
             self.sel_node.clone(),
@@ -217,7 +218,7 @@ impl ToolState {
         }
     }
 
-    fn reset_snap(&mut self, new_mode: Mode) -> Option<network::RoadMesh> {
+    fn reset_snap(&mut self, new_mode: Mode) -> Option<RoadMesh> {
         if let Mode::SelectPos = new_mode {
             self.road_generator = RoadGeneratorTool::default();
         };
@@ -227,7 +228,7 @@ impl ToolState {
         self.check_snapping()
     }
 
-    fn update_no_snap(&mut self) -> Option<network::RoadMesh> {
+    fn update_no_snap(&mut self) -> Option<RoadMesh> {
         self.snapped_node = None;
         let empty_mesh = Some(generator::empty_mesh());
 
@@ -244,7 +245,7 @@ impl ToolState {
         }
     }
 
-    fn update_snap(&mut self, snap_configs: Vec<network::SnapConfig>) -> Option<network::RoadMesh> {
+    fn update_snap(&mut self, snap_configs: Vec<network::SnapConfig>) -> Option<RoadMesh> {
         match self.mode {
             Mode::SelectPos => {
                 let snap_config = &snap_configs[0];
@@ -274,7 +275,7 @@ impl ToolState {
         }
     }
 
-    fn check_snapping(&mut self) -> Option<network::RoadMesh> {
+    fn check_snapping(&mut self) -> Option<RoadMesh> {
         if let Some((_snap_id, snap_configs)) = self
             .road_graph
             .get_node_snap_configs(self.ground_pos, self.sel_road_type.no_lanes)
@@ -299,7 +300,7 @@ impl ToolState {
         }
     }
 
-    pub fn update_ground_pos(&mut self, ground_pos: Vec3) -> Option<network::RoadMesh> {
+    pub fn update_ground_pos(&mut self, ground_pos: Vec3) -> Option<RoadMesh> {
         self.ground_pos = ground_pos;
         self.check_snapping()
     }

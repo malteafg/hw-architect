@@ -10,6 +10,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+utils = { path = "../utils"}
 winit = "0.26"
 log = "0.4"
 bytemuck = { version = "1.4", features = [ "derive" ] }

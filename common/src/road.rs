@@ -1,5 +1,5 @@
 mod curves;
-mod generator;
+pub mod generator;
 pub mod network;
 pub mod tool;
 

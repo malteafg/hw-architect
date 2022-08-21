@@ -1,9 +1,10 @@
 [workspace]
 members = [
 "app",
-"graphics"
+"graphics",
+"utils",
 ]
 default-members = [
-"app"
+"app",
 ]
 resolver="2"
