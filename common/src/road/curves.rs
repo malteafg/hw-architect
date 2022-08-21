@@ -379,3 +379,34 @@ pub fn is_inside(guide_points: &Vec<Vec3>, ground_pos: Vec3, width: f32) -> bool
     }
     false
 }
+
+pub fn calc_uniform_spine_points(spine_points: SpinePoints, point_distance: f32) -> SpinePoints {
+
+    let mut segment_length = 0.0;
+
+    for i in 0..(spine_points.len() - 2) {
+        segment_length += (spine_points[i + 1] - spine_points[i]).length();
+    }
+
+    let num_of_subsegements = (segment_length / point_distance).round();
+    let uniform_dist = segment_length / (num_of_subsegements as f32);
+
+    let mut uniform_points: SpinePoints = vec![spine_points[0]];
+    let mut oldpoint = 0;
+    let mut remainder_length = 0.0;
+
+    while oldpoint < spine_points.len() - 1 {
+        let old_subsegment = spine_points[oldpoint + 1] - spine_points[oldpoint];
+        let oss_length = old_subsegment.length();
+
+        if oss_length - remainder_length < uniform_dist {
+            remainder_length -= oss_length;
+            oldpoint += 1;
+        } else {
+            uniform_points.push(spine_points[oldpoint] + old_subsegment / oss_length * (uniform_dist));
+            remainder_length += uniform_dist;
+        }
+    }
+
+    uniform_points
+}
