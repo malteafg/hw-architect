@@ -1,7 +1,7 @@
-use crate::input::{Action, KeyAction, MouseEvent};
+use crate::input;
 use glam::*;
 // TODO change when math_utils is implemented as traits
-use crate::math_utils::{Mat4Utils, Angle};
+use crate::math_utils::{Angle, Mat4Utils};
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::time::Duration;
 
@@ -101,8 +101,8 @@ pub struct CameraController {
     move_init: bool,
 }
 
-impl CameraController {
-    pub fn new() -> Self {
+impl Default for CameraController {
+    fn default() -> Self {
         Self {
             input: [false; NUM_OF_MOVE_BUTTONS as usize],
             velocity: [0; (2 + NUM_OF_MOVE_BUTTONS) as usize],
@@ -118,7 +118,9 @@ impl CameraController {
             move_init: false,
         }
     }
+}
 
+impl CameraController {
     pub fn linear_move(f: f32) -> f32 {
         f
     }
@@ -168,33 +170,34 @@ impl CameraController {
         self.progress = 0.0;
     }
 
-    pub fn process_keyboard(&mut self, key: KeyAction) -> bool {
+    pub fn process_keyboard(&mut self, key: input::KeyAction) -> bool {
+        use input::Action::*;
         match key {
-            (Action::CameraUp, pressed) => {
+            (CameraUp, pressed) => {
                 self.input[0] = pressed;
                 true
             }
-            (Action::CameraDown, pressed) => {
+            (CameraDown, pressed) => {
                 self.input[1] = pressed;
                 true
             }
-            (Action::CameraLeft, pressed) => {
+            (CameraLeft, pressed) => {
                 self.input[2] = pressed;
                 true
             }
-            (Action::CameraRight, pressed) => {
+            (CameraRight, pressed) => {
                 self.input[3] = pressed;
                 true
             }
-            (Action::CameraRotateLeft, pressed) => {
+            (CameraRotateLeft, pressed) => {
                 self.input[4] = pressed;
                 true
             }
-            (Action::CameraRotateRight, pressed) => {
+            (CameraRotateRight, pressed) => {
                 self.input[5] = pressed;
                 true
             }
-            (Action::CameraReturn, pressed) if pressed => {
+            (CameraReturn, pressed) if pressed => {
                 self.move_camera(
                     Vec3::new(0.0, 0.0, 0.0),
                     PI / 4.0,
@@ -215,14 +218,14 @@ impl CameraController {
         // key_matched
     }
 
-    pub fn process_mouse(&mut self, event: MouseEvent) {
+    pub fn process_mouse(&mut self, event: input::MouseEvent) {
         match event {
-            MouseEvent::MiddleDragged(delta) => {
+            input::MouseEvent::Dragged(button, delta) if button == input::Mouse::Middle => {
                 self.delta_yaw += -MOUSE_HORIZONTAL_SENSITIVITY * delta.dx as f32;
                 self.delta_pitch += MOUSE_VERTICAL_SENSITIVITY * delta.dy as f32;
                 self.stop_move_progression();
             }
-            MouseEvent::Scrolled(scroll) => {
+            input::MouseEvent::Scrolled(scroll) => {
                 self.velocity[7] += (2.0 * scroll) as i32;
                 self.stop_move_progression();
             }

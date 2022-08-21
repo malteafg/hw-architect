@@ -116,8 +116,8 @@ impl ToolState {
         use input::MouseEvent;
 
         match event {
-            MouseEvent::LeftClick => self.left_click(),
-            MouseEvent::RightClick => self.right_click(),
+            MouseEvent::Click(button) if button == input::Mouse::Left => self.left_click(),
+            MouseEvent::Click(button) if button == input::Mouse::Right => self.right_click(),
             _ => (None, None),
         }
     }

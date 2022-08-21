@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 use winit::dpi::PhysicalPosition;
 use winit::event::*;
-use winit::event::{MouseButton, VirtualKeyCode};
 use winit::window::WindowId;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy)]
@@ -16,9 +15,8 @@ pub type KeyMap = BTreeMap<(VirtualKeyCode, ModifierState), Action>;
 pub struct InputHandler {
     key_map: KeyMap,
     modifiers: ModifierState,
-    mouse_clicking: bool,
-    mouse_pressed: bool,
     mouse_pos: MousePos,
+    pressed_buttons: Vec<Mouse>,
 }
 
 impl InputHandler {
@@ -26,39 +24,31 @@ impl InputHandler {
         InputHandler {
             key_map,
             modifiers: ModifierState::default(),
-            mouse_clicking: false,
-            mouse_pressed: false,
             mouse_pos: MousePos { x: 0.0, y: 0.0 },
+            pressed_buttons: vec![],
         }
     }
 
     pub fn process_input(&mut self, event: &Event<()>, this_window_id: WindowId) -> InputEvent {
         match event {
-            // Event::DeviceEvent {
-            //     event: DeviceEvent::MouseMotion{ delta, },
-            //     .. // We're not using device_id currently
-            // } => {
-            //     self.mouse_clicking = false;
-            //     let pos = self.mouse_pos;
-            //     let delta = MouseDelta { dx: delta.0, dy: delta.1};
-            //     match self.mouse_pressed {
-            //         true => InputEvent::MouseEvent(MouseEvent::Dragged { pos, delta }),
-            //         false => InputEvent::MouseEvent(MouseEvent::Moved { pos, delta }),
-            //     }
-            // },
             Event::WindowEvent {
                 ref event,
                 window_id,
             } if window_id == &this_window_id => match event {
-                WindowEvent::CursorMoved { position: new_pos, .. } => {
-                    self.mouse_clicking = false;
+                WindowEvent::CursorMoved {
+                    position: new_pos, ..
+                } => {
                     let old_pos = self.mouse_pos;
-                    let delta = MouseDelta { dx: new_pos.x - old_pos.x, dy: new_pos.y - old_pos.y};
+                    let delta = MouseDelta {
+                        dx: new_pos.x - old_pos.x,
+                        dy: new_pos.y - old_pos.y,
+                    };
                     self.mouse_pos.x = new_pos.x;
                     self.mouse_pos.y = new_pos.y;
-                    match self.mouse_pressed {
-                        true => InputEvent::MouseEvent(MouseEvent::MiddleDragged(delta)),
-                        false => InputEvent::MouseEvent(MouseEvent::Moved(delta)),
+                    if let Some(&button) = self.pressed_buttons.last() {
+                        InputEvent::MouseEvent(MouseEvent::Dragged(button, delta))
+                    } else {
+                        InputEvent::MouseEvent(MouseEvent::Moved(delta))
                     }
                 }
                 WindowEvent::MouseWheel { delta, .. } => match delta {
@@ -71,32 +61,18 @@ impl InputHandler {
                 },
                 WindowEvent::MouseInput { button, state, .. } => match *state {
                     ElementState::Pressed => {
-                        if *button == MouseButton::Middle {
-                            self.mouse_pressed = true;
+                        #[cfg(debug_assertions)]
+                        if let MouseButton::Other(i) = button {
+                            println!("Mouse button pressed: ");
+                            dbg!(i);
                         }
-                        self.mouse_clicking = true;
-                        InputEvent::Absorb
+                        self.pressed_buttons.push(translate_button(*button));
+                        InputEvent::MouseEvent(MouseEvent::Click(translate_button(*button)))
                     }
                     ElementState::Released => {
-                        if self.mouse_clicking {
-                            self.mouse_pressed = false;
-                            match button {
-                                MouseButton::Left => InputEvent::MouseEvent(MouseEvent::LeftClick),
-                                MouseButton::Middle => {
-                                    InputEvent::MouseEvent(MouseEvent::MiddleClick)
-                                }
-                                MouseButton::Right => {
-                                    InputEvent::MouseEvent(MouseEvent::RightClick)
-                                }
-                                MouseButton::Other(i) => {
-                                    dbg!(i);
-                                    InputEvent::Absorb
-                                }
-                            }
-                        } else {
-                            self.mouse_pressed = false;
-                            InputEvent::Absorb
-                        }
+                        self.pressed_buttons
+                            .retain(|&b| b != translate_button(*button));
+                        InputEvent::MouseEvent(MouseEvent::Release(translate_button(*button)))
                     }
                 },
                 WindowEvent::ModifiersChanged(m) => {
@@ -212,15 +188,30 @@ pub struct MouseDelta {
     pub dy: f64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mouse {
+    Left,
+    Middle,
+    Right,
+    // TODO add functionality for other buttons possibly
+    Other,
+}
+
+fn translate_button(button: MouseButton) -> Mouse {
+    match button {
+        MouseButton::Left => Mouse::Left,
+        MouseButton::Middle => Mouse::Middle,
+        MouseButton::Right => Mouse::Right,
+        MouseButton::Other(_) => Mouse::Other,
+    }
+}
+
 #[derive(Clone, Copy)]
 pub enum MouseEvent {
-    LeftClick,
-    MiddleClick,
-    RightClick,
+    Click(Mouse),
+    Release(Mouse),
     Moved(MouseDelta),
-    LeftDragged(MouseDelta),
-    MiddleDragged(MouseDelta),
-    RightDragged(MouseDelta),
+    Dragged(Mouse, MouseDelta),
     Scrolled(f32),
 }
 

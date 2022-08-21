@@ -33,7 +33,7 @@ impl State {
             50.0f32.to_radians(),
             100.0,
         );
-        let camera_controller = camera::CameraController::new();
+        let camera_controller = camera::CameraController::default();
 
         Self {
             gfx,
@@ -57,10 +57,8 @@ impl State {
     fn mouse_input(&mut self, event: input::MouseEvent) {
         self.camera_controller.process_mouse(event);
         match event {
-            input::MouseEvent::LeftDragged(_)
-            | input::MouseEvent::Moved(_)
-            | input::MouseEvent::MiddleDragged(_)
-            | input::MouseEvent::RightDragged(_) => {
+            input::MouseEvent::Dragged(_, _)
+            | input::MouseEvent::Moved(_) => {
                 self.update_ground_pos();
             }
             _ => {}
@@ -75,14 +73,6 @@ impl State {
             Some(mesh) => self.gfx.update_road_tool_buffer(mesh),
             None => {}
         };
-
-        // match event {
-        //     input::MouseEvent::LeftClick => {
-        //         self.gfx.add_instance(ground_pos.to_vec3());
-        //     }
-        //     input::MouseEvent::RightClick => self.gfx.remove_instance(),
-        //     _ => {}
-        // }
     }
 
     fn update(&mut self, dt: instant::Duration) {
