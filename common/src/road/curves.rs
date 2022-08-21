@@ -10,6 +10,7 @@ const MIN_SEGMENT_LENGTH: f32 = 10.0;
 const MAX_CIRCLE_SIZE: f32 = 400000.0;
 
 pub type GuidePoints = Vec<Vec3>;
+pub type SpinePoints = Vec<Vec3>;
 
 // Notable functions:
 // - free_three_quarter_circle_curve
@@ -30,7 +31,7 @@ pub type GuidePoints = Vec<Vec3>;
 // snap_three_quarter_circle_curve makes circular curves but snaps to
 // 90 degree intervals of road curvature
 
-pub fn guide_points_and_direction(guide_points: Vec<Vec<Vec3>>) -> (Vec<(Vec<Vec3>, Vec3)>, Vec3) {
+pub fn guide_points_and_direction(guide_points: Vec<GuidePoints>) -> (Vec<(GuidePoints, Vec3)>, Vec3) {
     let mut result: Vec<(Vec<Vec3>, Vec3)> = Vec::new();
     for curve in guide_points.iter() {
         result.push((
@@ -45,7 +46,7 @@ pub fn guide_points_and_direction(guide_points: Vec<Vec<Vec3>>) -> (Vec<(Vec<Vec
     )
 }
 
-pub fn reverse_g_points(mut guide_points: Vec<Vec<Vec3>>) -> Vec<Vec<Vec3>> {
+pub fn reverse_g_points(mut guide_points: Vec<GuidePoints>) -> Vec<GuidePoints> {
     guide_points.reverse();
     for guide_point_segment in &mut guide_points {
         guide_point_segment.reverse();
@@ -297,7 +298,7 @@ fn is_elliptical(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> bool {
     rel <= CLOSE_ENOUGH
 }
 
-pub fn calc_bezier_pos(guide_points: Vec<Vec3>, t: f32) -> Vec3 {
+pub fn calc_bezier_pos(guide_points: GuidePoints, t: f32) -> Vec3 {
     let mut v = Vec3::new(0.0, 0.0, 0.0);
     let mut r = (1.0 - t).powi(guide_points.len() as i32 - 1);
     let mut l = 1.0;
@@ -318,7 +319,7 @@ pub fn calc_bezier_pos(guide_points: Vec<Vec3>, t: f32) -> Vec3 {
     v
 }
 
-pub fn calc_bezier_dir(guide_points: Vec<Vec3>, t: f32) -> Vec3 {
+pub fn calc_bezier_dir(guide_points: GuidePoints, t: f32) -> Vec3 {
     let mut v = Vec3::new(0.0, 0.0, 0.0);
     let mut r = (1.0 - t).powi(guide_points.len() as i32 - 2);
     let mut l = 1.0;

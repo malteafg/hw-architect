@@ -298,19 +298,11 @@ impl Node {
         if reverse {
             (self.outgoing_lanes.contains_some()
                 || !self.incoming_lanes.is_middle_segment(segment_id))
-                && if self.incoming_lanes.is_same() {
-                    self.outgoing_lanes.is_continuous()
-                } else {
-                    true
-                }
+                && (!self.incoming_lanes.is_same() || self.outgoing_lanes.is_continuous())
         } else {
             (self.incoming_lanes.contains_some()
                 || !self.outgoing_lanes.is_middle_segment(segment_id))
-                && if self.outgoing_lanes.is_same() {
-                    self.incoming_lanes.is_continuous()
-                } else {
-                    true
-                }
+                && (!self.outgoing_lanes.is_same() || self.incoming_lanes.is_continuous())
         }
     }
 
