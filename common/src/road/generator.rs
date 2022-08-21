@@ -197,7 +197,7 @@ impl RoadGenerator {
             start_pos = g_points_vec[0][0];
         }
 
-        let (g_points_vec, _) = curves::guide_points_and_direction(g_points_vec);
+        let (g_points_vec, start_dir) = curves::guide_points_and_direction(g_points_vec);
         self.nodes = vec![NodeBuilder::new(start_pos, start_dir)];
         self.segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, end_dir)| {

@@ -34,7 +34,7 @@ impl InputHandler {
             Event::WindowEvent {
                 ref event,
                 window_id,
-            } if window_id == &this_window_id => match event {
+            } if *window_id == this_window_id => match event {
                 WindowEvent::CursorMoved {
                     position: new_pos, ..
                 } => {
