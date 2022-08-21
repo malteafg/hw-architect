@@ -320,52 +320,8 @@ impl Node {
         opposite_same: bool,
     ) -> Vec<SnapConfig> {
         let lane_width_dir = self.dir.right_hand() * LANE_WIDTH;
-        if !lane_map.contains_some() {
-            if no_lanes == self.no_lanes() {
-                vec![SnapConfig {
-                    node_id,
-                    pos: self.pos,
-                    dir: self.dir,
-                    reverse,
-                    snap_range: SnapRange::create(0, self.no_lanes() as i8),
-                }]
-            } else if opposite_same {
-                if no_lanes < self.no_lanes() {
-                    let mut snap_configs = vec![];
-                    let diff = self.no_lanes() - no_lanes;
-                    for i in 0..(diff + 1) {
-                        snap_configs.push(SnapConfig {
-                            node_id,
-                            pos: self.pos + (i as f32 - diff as f32 / 2.0) * lane_width_dir,
-                            dir: self.dir,
-                            reverse,
-                            snap_range: SnapRange::create(i as i8, (i + no_lanes) as i8),
-                        });
-                    }
-                    snap_configs
-                } else {
-                    let mut snap_configs = vec![];
-                    let diff = no_lanes - self.no_lanes();
-                    for i in 0..(diff + 1) {
-                        snap_configs.push(SnapConfig {
-                            node_id,
-                            pos: self.pos + (i as f32 - diff as f32 / 2.0) * lane_width_dir,
-                            dir: self.dir,
-                            reverse,
-                            snap_range: SnapRange::create(
-                                i as i8 - diff as i8,
-                                (i + no_lanes) as i8 - diff as i8,
-                            ),
-                        });
-                    }
-                    snap_configs
-                }
-            } else {
-                // cannot snap as the opposite is not the same segment, and this side no_lanes is
-                // not the same size
-                vec![]
-            }
-        } else {
+        if lane_map.contains_some() {
+            // lane map contains some so look for snap ranges in between segments
             let mut snap_configs = vec![];
             let mut possible_snaps: Vec<SnapRange> = vec![];
             let diff = self.no_lanes() as i8 - no_lanes as i8;
@@ -394,6 +350,43 @@ impl Node {
                 }
             }
             snap_configs
+        } else if no_lanes >= self.no_lanes() {
+            // lane_map is all nones, therefore, if we are building larger segment with more than
+            // or equal no_lanes then all snap possibilities exist
+            let mut snap_configs = vec![];
+            let diff = no_lanes - self.no_lanes();
+            for i in 0..(diff + 1) {
+                snap_configs.push(SnapConfig {
+                    node_id,
+                    pos: self.pos + (i as f32 - diff as f32 / 2.0) * lane_width_dir,
+                    dir: self.dir,
+                    reverse,
+                    snap_range: SnapRange::create(
+                        i as i8 - diff as i8,
+                        (i + no_lanes) as i8 - diff as i8,
+                    ),
+                });
+            }
+            snap_configs
+        } else if opposite_same && no_lanes < self.no_lanes() {
+            // if we are building a segment with fewer no_lanes then we can only do it if the
+            // opposite node is the same node, otherwise we create a many to many node
+            let mut snap_configs = vec![];
+            let diff = self.no_lanes() - no_lanes;
+            for i in 0..(diff + 1) {
+                snap_configs.push(SnapConfig {
+                    node_id,
+                    pos: self.pos + (i as f32 - diff as f32 / 2.0) * lane_width_dir,
+                    dir: self.dir,
+                    reverse,
+                    snap_range: SnapRange::create(i as i8, (i + no_lanes) as i8),
+                });
+            }
+            snap_configs
+        } else {
+            // cannot snap as the opposite is not the same segment, and this sides no_lanes is
+            // too small
+            vec![]
         }
     }
 
