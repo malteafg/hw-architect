@@ -12,6 +12,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 anyhow = "1.0"
 glam = { version = "0.21.3", default-features = false, features = ["serde", "bytemuck"] }
+cfg-if = "1"
 
 [build-dependencies]
 anyhow = "1.0"

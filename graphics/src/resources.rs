@@ -3,7 +3,7 @@ use std::io::{BufReader, Cursor};
 use wgpu::util::DeviceExt;
 
 use crate::{model, texture};
-use common::loader;
+use utils::loader;
 
 pub async fn load_texture(
     file_name: &str,

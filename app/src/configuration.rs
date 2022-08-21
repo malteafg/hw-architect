@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 use common::input;
-use common::loader;
+use utils::loader;
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
