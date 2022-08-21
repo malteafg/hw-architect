@@ -15,20 +15,20 @@ fn load_user_config_to_yaml(file: &str) -> anyhow::Result<Yaml> {
             let config_dir = proj_dirs.config_dir();
             let config_file = fs::read_to_string(config_dir.join(file)).ok()?;
             let docs = YamlLoader::load_from_str(&config_file).ok()?;
-            if docs.len() < 1 {
+            if docs.is_empty() {
                 None
             } else {
                 Some(docs[0].clone())
             }
         })
-        .ok_or(anyhow!("failed to update with user config"))
+        .ok_or_else(|| anyhow!("failed to update with user config"))
 }
 
 #[cfg(debug_assertions)]
 fn load_dev_config_to_yaml(file: &str) -> anyhow::Result<Yaml> {
     let config_file = fs::read_to_string(file)?;
     let docs = YamlLoader::load_from_str(&config_file)?;
-    if docs.len() < 1 {
+    if docs.is_empty() {
         Err(anyhow!("no contents in dev config"))
     } else {
         Ok(docs[0].clone())
@@ -82,13 +82,14 @@ pub async fn load_config() -> anyhow::Result<Config> {
     Ok(config)
 }
 
-// let mut map = BTreeMap::new();
-// map.insert("x".to_string(), 1.0);
 type KeyConfig = BTreeMap<String, Vec<String>>;
 
 pub async fn load_key_map(key_map: String) -> anyhow::Result<input_handler::KeyMap> {
     let key_config_path = format!("config/{}.yml", &key_map);
-    dbg!(key_config_path.clone());
+    #[cfg(debug_assertions)]
+    {
+        dbg!(key_config_path.clone());
+    }
     let key_config_file = loader::load_string(&key_config_path).await?;
     let key_config: KeyConfig = serde_yaml::from_str(&key_config_file)?;
 
@@ -120,17 +121,6 @@ pub async fn load_key_map(key_map: String) -> anyhow::Result<input_handler::KeyM
             ((key_code, mod_state), action)
         })
         .collect();
-
-    // let key_map = match load_user_config_to_yaml("keymap.yml") {
-    //     Ok(yaml) => key_map.update_from_yaml(yaml),
-    //     _ => key_map,
-    // };
-    // #[cfg(debug_assertions)]
-    // let key_map = match load_dev_config_to_yaml("keymap.yml") {
-    //     Ok(yaml) => key_map.update_from_yaml(yaml),
-    //     _ => key_map,
-    // };
-
     Ok(key_map)
 }
 
@@ -156,7 +146,7 @@ mod tests {
         println!("{}", baseconfigyaml);
 
         let mut file = File::create("../res/config/base_config.yml").unwrap();
-        file.write_all(&baseconfigyaml.as_bytes()).unwrap();
+        file.write_all(baseconfigyaml.as_bytes()).unwrap();
     }
 
     // Run with cargo test write_keyconfig -- --ignored --nocapture in this crate
@@ -176,22 +166,6 @@ mod tests {
         println!("{}", keyconfigyaml);
 
         let mut file = File::create("../res/config/qwerty.yml").unwrap();
-        file.write_all(&keyconfigyaml.as_bytes()).unwrap();
+        file.write_all(keyconfigyaml.as_bytes()).unwrap();
     }
 }
-//     let s = "
-// foo:
-//     - list1
-//     - list2
-// bar:
-//     - 1
-//     - 2.0
-// window:
-//   dimensions:
-//     columns: 0
-//     lines: 0
-
-//   decorations: full
-//   startup_mode: Windowed
-//   opacity: 0.9
-// ";

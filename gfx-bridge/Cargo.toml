@@ -11,10 +11,8 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 utils = { path = "../utils" }
-anyhow = "1.0"
-glam = { version = "0.21.3", default-features = false, features = ["serde", "bytemuck"] }
-serde = { version = "1.0", features = ["derive"] }
-bytemuck = { version = "1.4", features = [ "derive" ] }
 
-[build-dependencies]
+glam = { version = "0.21.3", default-features = false, features = ["serde", "bytemuck"] }
+bytemuck = { version = "1.4", features = [ "derive" ] }
 anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }

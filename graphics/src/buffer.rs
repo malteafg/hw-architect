@@ -105,11 +105,11 @@ impl VIBuffer {
         let vertices = self
             .vertex_buffer
             .get_buffer_slice()
-            .ok_or(anyhow!("no contents in vertex buffer"))?;
+            .ok_or_else(|| return anyhow!("no contents in vertex buffer"))?;
         let indices = self
             .index_buffer
             .get_buffer_slice()
-            .ok_or(anyhow!("no contents in index buffer"))?;
+            .ok_or_else(|| return anyhow!("no contents in index buffer"))?;
         Ok((vertices, indices))
     }
 

@@ -100,9 +100,9 @@ impl InputHandler {
         self.mouse_pos
     }
 
-    pub fn get_modifier_state(&self) -> ModifierState {
-        self.modifiers
-    }
+    // pub fn get_modifier_state(&self) -> ModifierState {
+    //     self.modifiers
+    // }
 }
 
 pub fn parse_key_code(key: &String) -> anyhow::Result<VirtualKeyCode> {
