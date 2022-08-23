@@ -11,7 +11,7 @@ use utils::VecUtils;
 const VERTEX_DENSITY: f32 = 0.05;
 const DEFAULT_DIR: Vec3 = Vec3::new(1.0, 0.0, 0.0);
 const MIN_LENGTH: f32 = 10.0;
-const CUT_LENGTH: f32 = LANE_WIDTH;
+const CUT_LENGTH: f32 = 5.0;
 
 #[derive(Clone)]
 pub struct RoadGenerator {
@@ -392,31 +392,34 @@ pub fn generate_straight_mesh(start_pos: Vec3, end_pos: Vec3, selected_road: Roa
 
     let dir = end_pos - start_pos;
 
-    let (spine_points, spine_dirs) = curves::calc_uniform_spine_points(
-        vec![start_pos, end_pos], 
-        vec![dir, dir], 
-        CUT_LENGTH);
+    let (spine_points, spine_dirs) =
+        curves::calc_uniform_spine_points(vec![start_pos, end_pos], vec![dir, dir], CUT_LENGTH);
 
-    let mut vertices = vec![];
-    for i in 0..spine_points.len() {
-        vertices.append(&mut generate_road_cut(spine_points[i], spine_dirs[i], width));
-    }
-
-    let vertices = vertices
-        .iter()
-        .map(|p| RoadVertex {
-            position: [p.x, p.y, p.z],
-        })
-        .collect::<Vec<_>>();
-
-    let indices = [0, 5, 1, 5, 0, 4, 2, 4, 0, 4, 2, 6, 1, 7, 3, 7, 1, 5].to_vec();
-
-    RoadMesh {
-        vertices,
-        indices,
-        lane_vertices: vec![],
-        lane_indices: vec![],
-    }
+    generate_road_mesh_with_lanes(spine_points, spine_dirs, no_lanes)
+    // let mut vertices = vec![];
+    // for i in 0..spine_points.len() {
+    //     vertices.append(&mut generate_road_cut(
+    //         spine_points[i],
+    //         spine_dirs[i],
+    //         width,
+    //     ));
+    // }
+    //
+    // let vertices = vertices
+    //     .iter()
+    //     .map(|p| RoadVertex {
+    //         position: [p.x, p.y, p.z],
+    //     })
+    //     .collect::<Vec<_>>();
+    //
+    // let indices = [0, 5, 1, 5, 0, 4, 2, 4, 0, 4, 2, 6, 1, 7, 3, 7, 1, 5].to_vec();
+    //
+    // RoadMesh {
+    //     vertices,
+    //     indices,
+    //     lane_vertices: vec![],
+    //     lane_indices: vec![],
+    // }
 }
 
 pub fn generate_circular_mesh(
@@ -428,32 +431,34 @@ pub fn generate_circular_mesh(
     let no_lanes = selected_road.no_lanes;
     let width = LANE_WIDTH * no_lanes as f32;
     let num_of_cuts = (VERTEX_DENSITY * (1000.0 + (end_pos - start_pos).length())) as u32;
-    let (spine_points, spine_dirs) =  curves::spine_points_and_dir(
-        &g_points, 
-        1.0 / (num_of_cuts as f32 - 1.0), 
-        CUT_LENGTH, 
-        num_of_cuts);
-    
+    let (spine_points, spine_dirs) = curves::spine_points_and_dir(
+        &g_points,
+        1.0 / (num_of_cuts as f32 - 1.0),
+        CUT_LENGTH,
+        num_of_cuts,
+    );
 
-    let mut vertices = vec![];
-    for i in 0..spine_points.len() {
-        vertices.append(&mut generate_road_cut(spine_points[i], spine_dirs[i], width));
-    }
-    
-    let vertices = vertices
-        .iter()
-        .map(|p| RoadVertex {
-            position: [p.x, p.y, p.z],
-        })
-        .collect::<Vec<_>>();
-    let indices = generate_indices(spine_points.len() as u32);
+    generate_road_mesh_with_lanes(spine_points, spine_dirs, no_lanes)
 
-    RoadMesh {
-        vertices,
-        indices,
-        lane_vertices: vec![],
-        lane_indices: vec![],
-    }
+    // let mut vertices = vec![];
+    // for i in 0..spine_points.len() {
+    //     vertices.append(&mut generate_road_cut(spine_points[i], spine_dirs[i], width));
+    // }
+    //
+    // let vertices = vertices
+    //     .iter()
+    //     .map(|p| RoadVertex {
+    //         position: [p.x, p.y, p.z],
+    //     })
+    //     .collect::<Vec<_>>();
+    // let indices = generate_indices(spine_points.len() as u32);
+    //
+    // RoadMesh {
+    //     vertices,
+    //     indices,
+    //     lane_vertices: vec![],
+    //     lane_indices: vec![],
+    // }
 }
 
 fn generate_indices(num_cuts: u32) -> Vec<u32> {
@@ -480,8 +485,8 @@ fn generate_road_cut(pos: Vec3, dir: Vec3, width: f32) -> Vec<Vec3> {
     .to_vec()
 }
 
-fn generate_clean_cut(pos: Vec3, dir: Vec3, no_lanes: i8) -> Vec<RoadVertex> {
-    let right_dir = dir.right_hand();
+fn generate_clean_cut(pos: Vec3, dir: Vec3, no_lanes: u8) -> Vec<RoadVertex> {
+    let right_dir = dir.right_hand().normalize();
     let mut vertices = vec![];
     let height = Vec3::new(0.0, ROAD_HEIGHT, 0.0);
     let road_width = LANE_WIDTH * no_lanes as f32;
@@ -507,8 +512,8 @@ fn generate_clean_cut(pos: Vec3, dir: Vec3, no_lanes: i8) -> Vec<RoadVertex> {
     vertices
 }
 
-fn generate_markings_cut(pos: Vec3, dir: Vec3, no_lanes: i8) -> Vec<RoadVertex> {
-    let right_dir = dir.right_hand();
+fn generate_markings_cut(pos: Vec3, dir: Vec3, no_lanes: u8) -> Vec<RoadVertex> {
+    let right_dir = dir.right_hand().normalize();
     let mut vertices = vec![];
     let height = Vec3::new(0.0, ROAD_HEIGHT, 0.0);
     let road_width = LANE_WIDTH * no_lanes as f32;
@@ -543,20 +548,26 @@ fn generate_markings_cut(pos: Vec3, dir: Vec3, no_lanes: i8) -> Vec<RoadVertex> 
     vertices
 }
 
-fn generate_road_mesh_with_lanes(pos_dir: Vec<(Vec3, Vec3)>, no_lanes: i8) -> RoadMesh {
+fn generate_road_mesh_with_lanes(
+    spine_pos: curves::SpinePoints,
+    spine_dir: curves::SpinePoints,
+    no_lanes: u8,
+) -> RoadMesh {
     let mut vertices = vec![];
     let mut indices = vec![];
     let mut lane_vertices = vec![];
     let mut lane_indices = vec![];
     let m_verts = (no_lanes * 2) as u32;
 
-    let (first_pos, first_dir) = pos_dir[0];
+    let first_pos = spine_pos[0];
+    let first_dir = spine_dir[0];
     let first_cut = generate_clean_cut(first_pos, first_dir, no_lanes);
     vertices.append(&mut first_cut.clone());
     lane_vertices.append(&mut first_cut[1..5].to_vec());
 
-    for i in 1..pos_dir.len() {
-        let (pos, dir) = pos_dir[i];
+    for i in 1..spine_pos.len() {
+        let pos = spine_pos[i];
+        let dir = spine_dir[i];
         if i % 3 == 0 {
             let cut = generate_clean_cut(pos, dir, no_lanes);
 
@@ -703,7 +714,6 @@ fn generate_road_mesh_with_lanes(pos_dir: Vec<(Vec3, Vec3)>, no_lanes: i8) -> Ro
                     curri + i + 1,
                 ]);
             }
-
         }
     }
 
