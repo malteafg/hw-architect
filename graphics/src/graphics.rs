@@ -814,6 +814,13 @@ impl GfxState {
             bytemuck::cast_slice(&mesh.indices),
             mesh.indices.len() as u32,
         );
+        self.road_markings_buffer.write(
+            &self.queue,
+            &self.device,
+            bytemuck::cast_slice(&mesh.lane_vertices),
+            bytemuck::cast_slice(&mesh.lane_indices),
+            mesh.indices.len() as u32,
+        );
     }
 
     pub fn update_road_tool_buffer(&mut self, mesh: road::RoadMesh) {

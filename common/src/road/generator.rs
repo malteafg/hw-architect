@@ -1,10 +1,12 @@
 use super::curves;
 use super::network;
 use super::network::{CurveType, NodeBuilder, RoadType, SegmentBuilder};
+use super::LANE_MARKINGS_WIDTH;
 use super::LANE_WIDTH;
+use super::ROAD_HEIGHT;
 use gfx_bridge::roads::{RoadMesh, RoadVertex};
-use utils::VecUtils;
 use glam::*;
+use utils::VecUtils;
 
 const VERTEX_DENSITY: f32 = 0.05;
 const DEFAULT_DIR: Vec3 = Vec3::new(1.0, 0.0, 0.0);
@@ -476,4 +478,251 @@ fn generate_road_cut(pos: Vec3, dir: Vec3, width: f32) -> Vec<Vec3> {
         pos + (left * -(half + 0.1)),
     ]
     .to_vec()
+}
+
+fn generate_clean_cut(pos: Vec3, dir: Vec3, no_lanes: i8) -> Vec<RoadVertex> {
+    let right_dir = dir.right_hand();
+    let mut vertices = vec![];
+    let height = Vec3::new(0.0, ROAD_HEIGHT, 0.0);
+    let road_width = LANE_WIDTH * no_lanes as f32;
+
+    let mut pos = pos - right_dir * (LANE_MARKINGS_WIDTH * 1.5 + road_width / 2.0);
+    vertices.push(RoadVertex::from_vec3(pos));
+
+    pos += right_dir * LANE_MARKINGS_WIDTH + height;
+    vertices.push(RoadVertex::from_vec3(pos));
+
+    pos += right_dir * LANE_MARKINGS_WIDTH;
+    vertices.push(RoadVertex::from_vec3(pos));
+
+    pos += right_dir * (road_width - LANE_MARKINGS_WIDTH);
+    vertices.push(RoadVertex::from_vec3(pos));
+
+    pos += right_dir * LANE_MARKINGS_WIDTH;
+    vertices.push(RoadVertex::from_vec3(pos));
+
+    pos += right_dir * LANE_MARKINGS_WIDTH - height;
+    vertices.push(RoadVertex::from_vec3(pos));
+
+    vertices
+}
+
+fn generate_markings_cut(pos: Vec3, dir: Vec3, no_lanes: i8) -> Vec<RoadVertex> {
+    let right_dir = dir.right_hand();
+    let mut vertices = vec![];
+    let height = Vec3::new(0.0, ROAD_HEIGHT, 0.0);
+    let road_width = LANE_WIDTH * no_lanes as f32;
+
+    let mut pos = pos - right_dir * (LANE_MARKINGS_WIDTH * 1.5 + road_width / 2.0);
+    vertices.push(RoadVertex::from_vec3(pos));
+
+    pos += right_dir * LANE_MARKINGS_WIDTH + height;
+    vertices.push(RoadVertex::from_vec3(pos));
+
+    pos += right_dir * LANE_MARKINGS_WIDTH;
+    vertices.push(RoadVertex::from_vec3(pos));
+
+    // Lanes in between outer lanes
+    for i in 0..no_lanes - 1 {
+        pos += right_dir * (LANE_WIDTH - LANE_MARKINGS_WIDTH);
+        vertices.push(RoadVertex::from_vec3(pos));
+
+        pos += right_dir * LANE_MARKINGS_WIDTH;
+        vertices.push(RoadVertex::from_vec3(pos));
+    }
+
+    pos += right_dir * (LANE_WIDTH - LANE_MARKINGS_WIDTH);
+    vertices.push(RoadVertex::from_vec3(pos));
+
+    pos += right_dir * LANE_MARKINGS_WIDTH;
+    vertices.push(RoadVertex::from_vec3(pos));
+
+    pos += right_dir * LANE_MARKINGS_WIDTH - height;
+    vertices.push(RoadVertex::from_vec3(pos));
+
+    vertices
+}
+
+fn generate_road_mesh_with_lanes(pos_dir: Vec<(Vec3, Vec3)>, no_lanes: i8) -> RoadMesh {
+    let mut vertices = vec![];
+    let mut indices = vec![];
+    let mut lane_vertices = vec![];
+    let mut lane_indices = vec![];
+    let m_verts = (no_lanes * 2) as u32;
+
+    let (first_pos, first_dir) = pos_dir[0];
+    let first_cut = generate_clean_cut(first_pos, first_dir, no_lanes);
+    vertices.append(&mut first_cut.clone());
+    lane_vertices.append(&mut first_cut[1..5].to_vec());
+
+    for i in 1..pos_dir.len() {
+        let (pos, dir) = pos_dir[i];
+        if i % 3 == 0 {
+            let cut = generate_clean_cut(pos, dir, no_lanes);
+
+            let previ = (vertices.len() - 4 - m_verts as usize) as u32;
+            let curri = vertices.len() as u32;
+            vertices.append(&mut cut.clone());
+            indices.append(&mut vec![
+                previ,
+                previ + 1,
+                curri,
+                curri,
+                previ + 1,
+                curri + 1,
+            ]);
+            // connect all middle vertices to corner
+            for i in 0..m_verts - 1 {
+                let i = i as u32;
+                indices.append(&mut vec![curri + 3, previ + 2 + i, previ + 3 + i])
+            }
+            // last triangle for other half of middle
+            indices.append(&mut vec![curri + 3, curri + 2, previ + 2]);
+
+            indices.append(&mut vec![
+                previ + m_verts + 2,
+                previ + m_verts + 3,
+                curri + 4,
+                curri + 4,
+                previ + m_verts + 3,
+                curri + 5,
+            ]);
+
+            let previ = (lane_vertices.len() - 2 - m_verts as usize) as u32;
+            let curri = lane_vertices.len() as u32;
+            lane_vertices.append(&mut cut[1..cut.len() - 1].to_vec());
+            lane_indices.append(&mut vec![
+                previ,
+                previ + 1,
+                curri,
+                curri,
+                previ + 1,
+                curri + 1,
+            ]);
+            lane_indices.append(&mut vec![
+                previ + m_verts,
+                previ + m_verts + 1,
+                curri + 2,
+                curri + 2,
+                previ + m_verts + 1,
+                curri + 3,
+            ]);
+        } else if i % 3 == 1 {
+            let cut = generate_markings_cut(pos, dir, no_lanes);
+
+            let previ = (vertices.len() - 6) as u32;
+            let curri = vertices.len() as u32;
+            vertices.append(&mut cut.clone());
+            indices.append(&mut vec![
+                previ,
+                previ + 1,
+                curri,
+                curri,
+                previ + 1,
+                curri + 1,
+            ]);
+            // connect all middle vertices to corner
+            for i in 0..m_verts - 1 {
+                let i = i as u32;
+                indices.append(&mut vec![previ + 3, curri + 2 + i, curri + 3 + i])
+            }
+            // last triangle for other half of middle
+            indices.append(&mut vec![previ + 3, previ + 2, curri + 2]);
+
+            indices.append(&mut vec![
+                previ + 4,
+                previ + 5,
+                curri + m_verts + 2,
+                curri + m_verts + 2,
+                previ + 5,
+                curri + m_verts + 3,
+            ]);
+
+            lane_vertices.append(&mut cut[1..cut.len() - 1].to_vec());
+            lane_indices.append(&mut vec![
+                previ,
+                previ + 1,
+                curri,
+                curri,
+                previ + 1,
+                curri + 1,
+            ]);
+            lane_indices.append(&mut vec![
+                curri + m_verts,
+                curri + m_verts + 1,
+                previ + 2,
+                previ + 2,
+                curri + m_verts + 1,
+                previ + 3,
+            ]);
+        } else {
+            let cut = generate_clean_cut(pos, dir, no_lanes);
+
+            let previ = (vertices.len() - 4 - m_verts as usize) as u32;
+            let curri = vertices.len() as u32;
+            vertices.append(&mut cut.clone());
+            indices.append(&mut vec![
+                previ,
+                previ + 1,
+                curri,
+                curri,
+                previ + 1,
+                curri + 1,
+            ]);
+
+            for i in 0..m_verts - 1 {
+                let i = i as u32;
+                indices.append(&mut vec![
+                    previ + i + 2,
+                    previ + i + 3,
+                    curri + i + 2,
+                    curri + i + 2,
+                    previ + i + 3,
+                    curri + i + 3,
+                ]);
+            }
+
+            indices.append(&mut vec![
+                previ + m_verts + 2,
+                previ + m_verts + 3,
+                curri + m_verts + 2,
+                curri + m_verts + 2,
+                previ + m_verts + 3,
+                curri + m_verts + 3,
+            ]);
+
+            lane_vertices.append(&mut cut[1..cut.len() - 1].to_vec());
+            for i in 0..no_lanes + 1 {
+                let i = i as u32 * 2;
+                lane_indices.append(&mut vec![
+                    previ + i,
+                    previ + i + 1,
+                    curri + i,
+                    curri + i,
+                    previ + i + 1,
+                    curri + i + 1,
+                ]);
+            }
+
+        }
+    }
+
+    RoadMesh {
+        vertices,
+        indices,
+        lane_vertices,
+        lane_indices,
+    }
+}
+
+trait VertexGenerator {
+    fn from_vec3(pos: Vec3) -> Self;
+}
+
+impl VertexGenerator for RoadVertex {
+    fn from_vec3(pos: Vec3) -> Self {
+        RoadVertex {
+            position: [pos.x, pos.y, pos.z],
+        }
+    }
 }

@@ -61,11 +61,8 @@ pub fn three_quarter_circle_curve(
     snap_line_angle: f32,
     snap: bool,
     allow_projection: bool,
-) -> Option<Vec<Vec<Vec3>>> {
-
+) -> Option<Vec<GuidePoints>> {
     //return Some(vec![spiral_curve(pos1, dir1, pos2, dir1.normalize().right_hand()*50.0)])
-
-
     let (projected_pos2, projected) = if snap {
         (
             snap_circle_projection(pos1, dir1, pos2, snap_line_angle),
@@ -123,7 +120,7 @@ fn curve_mid_point(pos1: Vec3, dir: Vec3, pos2: Vec3) -> Vec3 {
 }
 
 /// The guidepoints for a curve as circular as posible with four guide points, up to half a circle
-pub fn circle_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec<Vec3> {
+pub fn circle_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> GuidePoints {
     let diff = pos2 - pos1;
     let r = dir1 * circle_scale(diff, dir1);
 
@@ -135,8 +132,8 @@ pub fn circle_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> Vec<Vec3> {
     ]
 }
 
-/// Best aproximation of circular curve when constrained by directions at both points
-pub fn circle_curve_fudged(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> Vec<Vec3> {
+/// Best approximation of circular curve when constrained by directions at both points
+pub fn circle_curve_fudged(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> GuidePoints {
     let diff = pos2 - pos1;
     let r = dir1 * circle_scale(diff, dir1);
 
@@ -220,7 +217,7 @@ pub fn match_double_snap_curve_case(
     pos2: Vec3,
     dir2: Vec3,
     case: DoubleSnapCurveCase,
-) -> Vec<Vec<Vec3>> {
+) -> Vec<GuidePoints> {
     let dir2 = -dir2;
     match case {
         DoubleSnapCurveCase::SingleCircle => vec![circle_curve_fudged(pos1, dir1, pos2, dir2)],
@@ -231,7 +228,7 @@ pub fn match_double_snap_curve_case(
     }
 }
 
-fn double_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> Vec<Vec<Vec3>> {
+fn double_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> Vec<GuidePoints> {
     let mut points = Vec::new();
     let ndir1 = dir1.normalize();
     let ndir2 = dir2.normalize();
@@ -251,7 +248,7 @@ fn simple_curve_points(
     dir1: Vec3,
     pos2: Vec3,
     dir2: Vec3,
-) -> anyhow::Result<Vec<Vec3>> {
+) -> anyhow::Result<GuidePoints> {
     if dir1.intersects_in_xz(dir2) {
         Ok(vec![pos1, pos1.intersection_in_xz(dir1, pos2, dir2), pos2])
     } else {
@@ -343,7 +340,7 @@ pub fn calc_bezier_dir(guide_points: &GuidePoints, t: f32) -> Vec3 {
     v * guide_points.len() as f32
 }
 
-pub fn is_inside(guide_points: &Vec<Vec3>, ground_pos: Vec3, width: f32) -> bool {
+pub fn is_inside(guide_points: &GuidePoints, ground_pos: Vec3, width: f32) -> bool {
     let direct_dist = (guide_points[guide_points.len() - 1] - guide_points[0]).length_squared();
 
     let mut close = false;
