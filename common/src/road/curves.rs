@@ -62,6 +62,7 @@ pub fn three_quarter_circle_curve(
     snap: bool,
     allow_projection: bool,
 ) -> Option<Vec<GuidePoints>> {
+    //return Some(vec![spiral_curve(pos1, dir1, pos2, dir1.normalize().right_hand()*50.0)])
     let (projected_pos2, projected) = if snap {
         (
             snap_circle_projection(pos1, dir1, pos2, snap_line_angle),
@@ -298,7 +299,7 @@ fn is_elliptical(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> bool {
     rel <= CLOSE_ENOUGH
 }
 
-pub fn calc_bezier_pos(guide_points: GuidePoints, t: f32) -> Vec3 {
+pub fn calc_bezier_pos(guide_points: &GuidePoints, t: f32) -> Vec3 {
     let mut v = Vec3::new(0.0, 0.0, 0.0);
     let mut r = (1.0 - t).powi(guide_points.len() as i32 - 1);
     let mut l = 1.0;
@@ -319,7 +320,7 @@ pub fn calc_bezier_pos(guide_points: GuidePoints, t: f32) -> Vec3 {
     v
 }
 
-pub fn calc_bezier_dir(guide_points: GuidePoints, t: f32) -> Vec3 {
+pub fn calc_bezier_dir(guide_points: &GuidePoints, t: f32) -> Vec3 {
     let mut v = Vec3::new(0.0, 0.0, 0.0);
     let mut r = (1.0 - t).powi(guide_points.len() as i32 - 2);
     let mut l = 1.0;
@@ -361,10 +362,10 @@ pub fn is_inside(guide_points: &GuidePoints, ground_pos: Vec3, width: f32) -> bo
 
     let mut a = 0.0;
     let mut c = 1.0;
-    let mut point_a = calc_bezier_pos(guide_points.clone(), a);
-    let mut point_c = calc_bezier_pos(guide_points.clone(), c);
+    let mut point_a = calc_bezier_pos(guide_points, a);
+    let mut point_c = calc_bezier_pos(guide_points, c);
     for _ in 0..10 {
-        let point_b = calc_bezier_pos(guide_points.clone(), (a + c) / 2.0);
+        let point_b = calc_bezier_pos(guide_points, (a + c) / 2.0);
         if (point_b - ground_pos).length_squared() < width * width {
             return true;
         }
@@ -380,11 +381,11 @@ pub fn is_inside(guide_points: &GuidePoints, ground_pos: Vec3, width: f32) -> bo
     false
 }
 
-pub fn calc_uniform_spine_points(spine_points: SpinePoints, point_distance: f32) -> SpinePoints {
+pub fn calc_uniform_spine_points(spine_points: SpinePoints, spine_dirs: SpinePoints, point_distance: f32) -> (SpinePoints, SpinePoints) {
 
     let mut segment_length = 0.0;
 
-    for i in 0..(spine_points.len() - 2) {
+    for i in 0..(spine_points.len() - 1) {
         segment_length += (spine_points[i + 1] - spine_points[i]).length();
     }
 
@@ -392,21 +393,58 @@ pub fn calc_uniform_spine_points(spine_points: SpinePoints, point_distance: f32)
     let uniform_dist = segment_length / (num_of_subsegements as f32);
 
     let mut uniform_points: SpinePoints = vec![spine_points[0]];
+    let mut uniform_dirs: SpinePoints = vec![spine_dirs[0]];
     let mut oldpoint = 0;
-    let mut remainder_length = 0.0;
+    let mut track_pos = 0.0;
 
-    while oldpoint < spine_points.len() - 1 {
+    while oldpoint < spine_points.len() - 2 {
         let old_subsegment = spine_points[oldpoint + 1] - spine_points[oldpoint];
         let oss_length = old_subsegment.length();
 
-        if oss_length - remainder_length < uniform_dist {
-            remainder_length -= oss_length;
+        if oss_length - track_pos < uniform_dist {
+            track_pos -= oss_length;
             oldpoint += 1;
         } else {
-            uniform_points.push(spine_points[oldpoint] + old_subsegment / oss_length * (uniform_dist));
-            remainder_length += uniform_dist;
+            
+            let interpolation_factor = (track_pos + uniform_dist) / oss_length;
+            uniform_points.push(spine_points[oldpoint] + old_subsegment / oss_length * interpolation_factor);
+            uniform_dirs.push(spine_dirs[oldpoint + 1] * interpolation_factor + spine_dirs[oldpoint] * (1.0 - interpolation_factor));
+            track_pos += uniform_dist;
         }
     }
+    oldpoint += 1;
+    uniform_points.push(spine_points[oldpoint]);
+    uniform_dirs.push(spine_dirs[oldpoint]);
 
-    uniform_points
+    (uniform_points, uniform_dirs)
+}
+
+
+pub fn spine_points_and_dir(guide_points: &GuidePoints, dt: f32, point_distance: f32, num_of_cuts: u32) -> (SpinePoints, SpinePoints) {
+    let mut points = vec![];
+    let mut dirs = vec![];
+
+    let mut t = 0.0;
+
+    for _ in 0..num_of_cuts {
+        points.push(calc_bezier_pos(guide_points, t));
+        dirs.push(calc_bezier_dir(guide_points, t));
+        t += dt;
+    }
+
+    calc_uniform_spine_points(points, dirs, point_distance)
+}
+
+pub fn spiral_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3, radius: Vec3) -> GuidePoints {
+    let diff = pos2 - pos1;
+    let dir = dir1.normalize();
+
+    let d = ((radius - 4.0/3.0 * diff).cross(dir)).length();
+    let a = d * d - radius.length_squared();
+    let b = 2.0 * (diff.dot(dir)*radius.length_squared() - radius.cross(diff).length()*d);
+    let c = - radius.dot(diff).powi(2);
+
+    let s = -(b + (b * b - 4.0 * a * c).sqrt()) / (2.0 * a);
+
+    return vec![pos1, pos1 + dir * s, pos2]
 }

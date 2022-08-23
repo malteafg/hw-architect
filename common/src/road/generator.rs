@@ -11,6 +11,7 @@ use utils::VecUtils;
 const VERTEX_DENSITY: f32 = 0.05;
 const DEFAULT_DIR: Vec3 = Vec3::new(1.0, 0.0, 0.0);
 const MIN_LENGTH: f32 = 10.0;
+const CUT_LENGTH: f32 = LANE_WIDTH;
 
 #[derive(Clone)]
 pub struct RoadGenerator {
@@ -390,9 +391,17 @@ pub fn generate_straight_mesh(start_pos: Vec3, end_pos: Vec3, selected_road: Roa
     let width = LANE_WIDTH * no_lanes as f32;
 
     let dir = end_pos - start_pos;
-    let mut vertices = generate_road_cut(start_pos, dir, width);
-    let mut vertices2 = generate_road_cut(end_pos, dir, width);
-    vertices.append(&mut vertices2);
+
+    let (spine_points, spine_dirs) = curves::calc_uniform_spine_points(
+        vec![start_pos, end_pos], 
+        vec![dir, dir], 
+        CUT_LENGTH);
+
+    let mut vertices = vec![];
+    for i in 0..spine_points.len() {
+        vertices.append(&mut generate_road_cut(spine_points[i], spine_dirs[i], width));
+    }
+
     let vertices = vertices
         .iter()
         .map(|p| RoadVertex {
@@ -419,38 +428,26 @@ pub fn generate_circular_mesh(
     let no_lanes = selected_road.no_lanes;
     let width = LANE_WIDTH * no_lanes as f32;
     let num_of_cuts = (VERTEX_DENSITY * (1000.0 + (end_pos - start_pos).length())) as u32;
-    let mut t = 0.0;
-    let dt = 1.0 / (num_of_cuts as f32 - 1.0);
-    let mut vertices = Vec::new();
+    let (spine_points, spine_dirs) =  curves::spine_points_and_dir(
+        &g_points, 
+        1.0 / (num_of_cuts as f32 - 1.0), 
+        CUT_LENGTH, 
+        num_of_cuts);
+    
 
-    let mut vertices2 = generate_road_cut(
-        curves::calc_bezier_pos(g_points.clone(), 0.0),
-        curves::calc_bezier_dir(g_points.clone(), 0.0),
-        width,
-    );
-    vertices.append(&mut vertices2);
-    for _ in 0..(num_of_cuts - 2) {
-        t += dt;
-        let mut vertices2 = generate_road_cut(
-            curves::calc_bezier_pos(g_points.clone(), t),
-            curves::calc_bezier_dir(g_points.clone(), t),
-            width,
-        );
-        vertices.append(&mut vertices2);
+    let mut vertices = vec![];
+    for i in 0..spine_points.len() {
+        vertices.append(&mut generate_road_cut(spine_points[i], spine_dirs[i], width));
     }
-    let mut vertices2 = generate_road_cut(
-        curves::calc_bezier_pos(g_points.clone(), 1.0),
-        curves::calc_bezier_dir(g_points, 1.0),
-        width,
-    );
-    vertices.append(&mut vertices2);
+    
     let vertices = vertices
         .iter()
         .map(|p| RoadVertex {
             position: [p.x, p.y, p.z],
         })
         .collect::<Vec<_>>();
-    let indices = generate_indices(num_of_cuts);
+    let indices = generate_indices(spine_points.len() as u32);
+
     RoadMesh {
         vertices,
         indices,
