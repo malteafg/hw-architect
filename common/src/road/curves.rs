@@ -389,7 +389,7 @@ pub fn calc_uniform_spine_points(spine_points: SpinePoints, spine_dirs: SpinePoi
         segment_length += (spine_points[i + 1] - spine_points[i]).length();
     }
 
-    let num_of_subsegements = (segment_length / point_distance).round();
+    let num_of_subsegements = (segment_length / point_distance / 3.0).round() * 3.0;
     let uniform_dist = segment_length / (num_of_subsegements as f32);
 
     let mut uniform_points: SpinePoints = vec![spine_points[0]];
