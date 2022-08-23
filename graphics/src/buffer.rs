@@ -13,12 +13,14 @@ pub struct DBuffer {
 
 impl DBuffer {
     pub fn new(label: &str, usage: BufferUsages, device: &Device) -> Self {
-        let alloc_size = 64;
-        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        let alloc_size = 256;
+        let empty_data = (0..alloc_size).map(|_| 0u8).collect::<Vec<_>>();
+        let usage = usage | BufferUsages::COPY_DST;
+
+        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some(label),
-            size: alloc_size,
+            contents: bytemuck::cast_slice(&empty_data),
             usage,
-            mapped_at_creation: true,
         });
 
         DBuffer {

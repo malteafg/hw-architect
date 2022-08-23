@@ -819,7 +819,7 @@ impl GfxState {
             &self.device,
             bytemuck::cast_slice(&mesh.lane_vertices),
             bytemuck::cast_slice(&mesh.lane_indices),
-            mesh.indices.len() as u32,
+            mesh.lane_indices.len() as u32,
         );
     }
 

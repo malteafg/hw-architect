@@ -372,6 +372,21 @@ pub fn combine_road_meshes(meshes: Vec<SegmentBuilder>) -> RoadMesh {
         indices_count += mesh.vertices.len() as u32;
     }
 
+    indices_count = 0;
+    for segment_builder in meshes.iter() {
+        let mesh = segment_builder.mesh.clone();
+        road_mesh.lane_vertices.append(&mut mesh.lane_vertices.clone());
+        road_mesh.lane_indices.append(
+            &mut mesh
+                .lane_indices
+                .clone()
+                .into_iter()
+                .map(|i| i + indices_count)
+                .collect(),
+        );
+        indices_count += mesh.lane_vertices.len() as u32;
+    }
+
     road_mesh
 }
 
@@ -388,14 +403,14 @@ pub fn empty_mesh() -> RoadMesh {
 
 pub fn generate_straight_mesh(start_pos: Vec3, end_pos: Vec3, selected_road: RoadType) -> RoadMesh {
     let no_lanes = selected_road.no_lanes;
-    let width = LANE_WIDTH * no_lanes as f32;
-
     let dir = end_pos - start_pos;
 
     let (spine_points, spine_dirs) =
         curves::calc_uniform_spine_points(vec![start_pos, end_pos], vec![dir, dir], CUT_LENGTH);
 
     generate_road_mesh_with_lanes(spine_points, spine_dirs, no_lanes)
+
+    // let width = LANE_WIDTH * no_lanes as f32;
     // let mut vertices = vec![];
     // for i in 0..spine_points.len() {
     //     vertices.append(&mut generate_road_cut(
@@ -429,7 +444,6 @@ pub fn generate_circular_mesh(
     g_points: Vec<Vec3>,
 ) -> RoadMesh {
     let no_lanes = selected_road.no_lanes;
-    let width = LANE_WIDTH * no_lanes as f32;
     let num_of_cuts = (VERTEX_DENSITY * (1000.0 + (end_pos - start_pos).length())) as u32;
     let (spine_points, spine_dirs) = curves::spine_points_and_dir(
         &g_points,
@@ -440,6 +454,7 @@ pub fn generate_circular_mesh(
 
     generate_road_mesh_with_lanes(spine_points, spine_dirs, no_lanes)
 
+    // let width = LANE_WIDTH * no_lanes as f32;
     // let mut vertices = vec![];
     // for i in 0..spine_points.len() {
     //     vertices.append(&mut generate_road_cut(spine_points[i], spine_dirs[i], width));
@@ -635,10 +650,10 @@ fn generate_road_mesh_with_lanes(
             // connect all middle vertices to corner
             for i in 0..m_verts - 1 {
                 let i = i as u32;
-                indices.append(&mut vec![previ + 3, curri + 2 + i, curri + 3 + i])
+                indices.append(&mut vec![previ + 3, curri + 3 + i, curri + 2 + i])
             }
             // last triangle for other half of middle
-            indices.append(&mut vec![previ + 3, previ + 2, curri + 2]);
+            indices.append(&mut vec![previ + 2, previ + 3, curri + 2]);
 
             indices.append(&mut vec![
                 previ + 4,
@@ -649,6 +664,8 @@ fn generate_road_mesh_with_lanes(
                 curri + m_verts + 3,
             ]);
 
+            let previ = (lane_vertices.len() - 4) as u32;
+            let curri = lane_vertices.len() as u32;
             lane_vertices.append(&mut cut[1..cut.len() - 1].to_vec());
             lane_indices.append(&mut vec![
                 previ,
@@ -660,14 +677,15 @@ fn generate_road_mesh_with_lanes(
             ]);
             lane_indices.append(&mut vec![
                 curri + m_verts,
-                curri + m_verts + 1,
-                previ + 2,
                 previ + 2,
                 curri + m_verts + 1,
+                previ + 2,
                 previ + 3,
+                curri + m_verts + 1,
             ]);
         } else {
-            let cut = generate_clean_cut(pos, dir, no_lanes);
+            // generates lanes
+            let cut = generate_markings_cut(pos, dir, no_lanes);
 
             let previ = (vertices.len() - 4 - m_verts as usize) as u32;
             let curri = vertices.len() as u32;
@@ -681,12 +699,13 @@ fn generate_road_mesh_with_lanes(
                 curri + 1,
             ]);
 
-            for i in 0..m_verts - 1 {
-                let i = i as u32;
+            for i in 0..no_lanes {
+                let i = i as u32 * 2;
                 indices.append(&mut vec![
                     previ + i + 2,
                     previ + i + 3,
                     curri + i + 2,
+
                     curri + i + 2,
                     previ + i + 3,
                     curri + i + 3,
@@ -702,6 +721,8 @@ fn generate_road_mesh_with_lanes(
                 curri + m_verts + 3,
             ]);
 
+            let previ = (lane_vertices.len() - 2 - m_verts as usize) as u32;
+            let curri = lane_vertices.len() as u32;
             lane_vertices.append(&mut cut[1..cut.len() - 1].to_vec());
             for i in 0..no_lanes + 1 {
                 let i = i as u32 * 2;

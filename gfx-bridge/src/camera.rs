@@ -3,7 +3,7 @@ use utils::{Angle, Mat4Utils, input};
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::time::Duration;
 
-const MIN_CAMERA_PITCH: f32 = 0.15;
+const MIN_CAMERA_PITCH: f32 = -0.15;
 const MAX_CAMERA_PITCH: f32 = 1.5;
 const MIN_CAMERA_DIST: f32 = 30.0;
 const MAX_CAMERA_DIST: f32 = 700.0;

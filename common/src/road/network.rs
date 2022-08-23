@@ -685,6 +685,20 @@ impl RoadGraph {
             indices_count += mesh.vertices.len() as u32;
         }
 
+        indices_count = 0;
+        for (_, mesh) in self.road_meshes.iter() {
+            road_mesh.lane_vertices.append(&mut mesh.lane_vertices.clone());
+            road_mesh.lane_indices.append(
+                &mut mesh
+                    .lane_indices
+                    .clone()
+                    .into_iter()
+                    .map(|i| i + indices_count)
+                    .collect(),
+            );
+            indices_count += mesh.lane_vertices.len() as u32;
+        }
+
         road_mesh
     }
 
