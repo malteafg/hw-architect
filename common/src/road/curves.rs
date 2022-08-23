@@ -396,18 +396,20 @@ pub fn calc_uniform_spine_points(spine_points: SpinePoints, spine_dirs: SpinePoi
     let mut uniform_dirs: SpinePoints = vec![spine_dirs[0]];
     let mut oldpoint = 0;
     let mut track_pos = 0.0;
+    let mut within_subsegment = true;
 
-    while oldpoint < spine_points.len() - 2 {
+    while oldpoint < spine_points.len() - 2 || within_subsegment {
         let old_subsegment = spine_points[oldpoint + 1] - spine_points[oldpoint];
         let oss_length = old_subsegment.length();
 
-        if oss_length - track_pos < uniform_dist {
+        within_subsegment = track_pos < oss_length - uniform_dist;
+
+        if !within_subsegment && oldpoint < spine_points.len() - 2{
             track_pos -= oss_length;
             oldpoint += 1;
         } else {
-            
             let interpolation_factor = (track_pos + uniform_dist) / oss_length;
-            uniform_points.push(spine_points[oldpoint] + old_subsegment / oss_length * interpolation_factor);
+            uniform_points.push(spine_points[oldpoint] + old_subsegment * interpolation_factor);
             uniform_dirs.push(spine_dirs[oldpoint + 1] * interpolation_factor + spine_dirs[oldpoint] * (1.0 - interpolation_factor));
             track_pos += uniform_dist;
         }
