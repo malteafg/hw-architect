@@ -1,7 +1,7 @@
 mod buffer;
-pub mod graphics;
+pub mod renderer;
 mod model;
 pub mod resources;
-mod terrain;
 mod texture;
 mod vertex;
+mod shaders;

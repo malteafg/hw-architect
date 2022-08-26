@@ -1,6 +1,76 @@
 use rand::prelude::*;
 use wgpu::util::DeviceExt;
 
+pub struct TerrainState {
+    terrain_mesh: TerrainMesh,
+    terrain_render_pipeline: wgpu::RenderPipeline,
+}
+
+impl TerrainState {
+    pub fn new(
+        device: &wgpu::Device,
+        color_format: wgpu::TextureFormat,
+        terrain_shader: wgpu::ShaderModule,
+        camera_bind_group_layout: &wgpu::BindGroupLayout,
+    ) -> Self {
+        let terrain_mesh = TerrainMesh::new(device);
+        let terrain_render_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("terrain_pipeline_layout"),
+                bind_group_layouts: &[camera_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+            use crate::vertex::Vertex;
+            super::create_render_pipeline(
+                device,
+                &layout,
+                color_format,
+                Some(crate::texture::Texture::DEPTH_FORMAT),
+                &[TerrainVertex::desc()],
+                terrain_shader,
+                "terrain_pipeline",
+            )
+        };
+
+        Self {
+            terrain_mesh,
+            terrain_render_pipeline,
+        }
+    }
+}
+
+pub trait RenderTerrain<'a> {
+    fn render_terrain(
+        &mut self,
+        terrain_state: &'a TerrainState,
+        camera_bind_group: &'a wgpu::BindGroup,
+    );
+}
+
+impl<'a, 'b> RenderTerrain<'b> for wgpu::RenderPass<'a>
+where
+    'b: 'a,
+{
+    fn render_terrain(
+        &mut self,
+        terrain_state: &'b TerrainState,
+        camera_bind_group: &'b wgpu::BindGroup,
+    ) {
+        self.set_pipeline(&terrain_state.terrain_render_pipeline);
+
+        // render terrain
+        self.set_pipeline(&terrain_state.terrain_render_pipeline);
+        self.set_vertex_buffer(0, terrain_state.terrain_mesh.vertex_buffer.slice(..));
+        self.set_index_buffer(
+            terrain_state.terrain_mesh.index_buffer.slice(..),
+            wgpu::IndexFormat::Uint32,
+        );
+        self.set_bind_group(0, camera_bind_group, &[]);
+        self.draw_indexed(0..terrain_state.terrain_mesh.size as u32, 0, 0..1);
+    }
+}
+
+// TODO moves this code to somewhere on the cpu side / bridge side
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct TerrainVertex {

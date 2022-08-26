@@ -99,7 +99,6 @@ impl InputHandler {
     pub fn get_mouse_pos(&self) -> MousePos {
         self.mouse_pos
     }
-
     // pub fn get_modifier_state(&self) -> ModifierState {
     //     self.modifiers
     // }

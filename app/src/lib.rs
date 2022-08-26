@@ -9,25 +9,33 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
+mod camera;
 mod configuration;
 mod input_handler;
+
 use common::road::tool;
-use gfx_bridge::camera;
-use graphics::graphics::*;
+use graphics::renderer;
 use utils::input;
 
 struct State {
-    gfx: GfxState,
+    gfx: renderer::GfxState,
+    gfx_data: gfx_bridge::GfxData,
+    window_size: PhysicalSize<u32>,
     camera: camera::Camera,
     camera_controller: camera::CameraController,
+    projection: camera::Projection,
     input_handler: input_handler::InputHandler,
     road_tool: tool::ToolState,
     ground_pos: Vec3,
 }
 
 impl State {
-    async fn new(window: &Window, input_handler: input_handler::InputHandler) -> Self {
-        let gfx = GfxState::new(window).await;
+    async fn new(
+        window: &Window,
+        input_handler: input_handler::InputHandler,
+    ) -> Self {
+        let gfx = renderer::GfxState::new(window).await;
+        let window_size = window.inner_size();
 
         let camera = camera::Camera::new(
             Vec3::new(0.0, 0.0, 0.0),
@@ -36,11 +44,16 @@ impl State {
             100.0,
         );
         let camera_controller = camera::CameraController::default();
+        let projection =
+            camera::Projection::new(window_size.width, window_size.height, 45.0f32.to_radians(), 5.0, 2000.0);
 
         Self {
             gfx,
+            gfx_data: gfx_bridge::GfxData::default(),
+            window_size,
             camera,
             camera_controller,
+            projection,
             input_handler,
             road_tool: tool::ToolState::default(),
             ground_pos: Vec3::new(0.0, 0.0, 0.0),
@@ -49,11 +62,7 @@ impl State {
 
     fn key_input(&mut self, action: input::KeyAction) {
         self.camera_controller.process_keyboard(action);
-        let road_tool_mesh = self.road_tool.process_keyboard(action);
-        match road_tool_mesh {
-            Some(mesh) => self.gfx.update_road_tool_buffer(mesh),
-            None => {}
-        };
+        self.road_tool.process_keyboard(&mut self.gfx_data, action);
     }
 
     fn mouse_input(&mut self, event: input::MouseEvent) {
@@ -65,35 +74,53 @@ impl State {
             _ => {}
         };
 
-        let (road_mesh, road_tool_mesh) = self.road_tool.mouse_input(event);
-        match road_mesh {
-            Some(mesh) => self.gfx.update_road_buffer(mesh),
-            None => {}
-        };
-        match road_tool_mesh {
-            Some(mesh) => self.gfx.update_road_tool_buffer(mesh),
-            None => {}
-        };
+        self.road_tool.mouse_input(&mut self.gfx_data, event);
     }
 
     fn update(&mut self, dt: instant::Duration) {
         if self.camera_controller.update_camera(&mut self.camera, dt) {
             self.update_ground_pos();
         }
-        self.gfx.update(dt, &self.camera);
+        use utils::Mat4Utils;
+        let view_pos = self.camera.calc_pos().extend(1.0).into();
+        let view_proj = (gfx_bridge::OPENGL_TO_WGPU_MATRIX
+            * self.projection.calc_matrix()
+            * self.camera.calc_matrix())
+        .to_4x4();
+        self.gfx.update(
+            &mut self.gfx_data,
+            dt,
+            gfx_bridge::CameraView::new(view_pos, view_proj),
+        );
+        self.gfx_data = gfx_bridge::GfxData::default();
     }
 
     fn update_ground_pos(&mut self) {
-        let (ray, pos) = self
-            .gfx
-            .calc_ray(&self.camera, self.input_handler.get_mouse_pos());
+        let (ray, pos) = self.calc_ray();
         let ground_pos = pos + ray * (-pos.y / ray.y);
         self.ground_pos = ground_pos;
-        let road_tool_mesh = self.road_tool.update_ground_pos(self.ground_pos);
-        match road_tool_mesh {
-            Some(mesh) => self.gfx.update_road_tool_buffer(mesh),
-            None => {}
-        };
+        self.road_tool
+            .update_ground_pos(&mut self.gfx_data, self.ground_pos);
+    }
+
+    fn resize(&mut self, new_size: PhysicalSize<u32>) {
+        self.gfx.resize(new_size);
+        self.projection.resize(new_size.width, new_size.height);
+    }
+
+    fn calc_ray(&self) -> (Vec3, Vec3) {
+        let mouse_pos = self.input_handler.get_mouse_pos();
+        let screen_vec = Vec4::new(
+            2.0 * mouse_pos.x as f32 / self.window_size.width as f32 - 1.0,
+            1.0 - 2.0 * mouse_pos.y as f32 / self.window_size.height as f32,
+            1.0,
+            1.0,
+        );
+        let eye_vec = self.projection.calc_matrix().inverse() * screen_vec;
+        let full_vec = self.camera.calc_matrix().inverse() * Vec4::new(eye_vec.x, eye_vec.y, -1.0, 0.0);
+        let processed_vec = Vec3::new(full_vec.x, full_vec.y, full_vec.z).normalize();
+
+        (processed_vec, self.camera.calc_pos())
     }
 }
 
@@ -161,10 +188,10 @@ pub async fn run() {
                     #[cfg(not(target_arch = "wasm32"))]
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                     WindowEvent::Resized(physical_size) => {
-                        state.gfx.resize(*physical_size);
+                        state.resize(*physical_size);
                     }
                     WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                        state.gfx.resize(**new_inner_size);
+                        state.resize(**new_inner_size);
                     }
                     _ => {}
                 },
@@ -177,7 +204,7 @@ pub async fn run() {
                         Ok(_) => {}
                         // Reconfigure the surface if it's lost or outdated
                         Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                            state.gfx.resize(state.gfx.size)
+                            state.resize(state.window_size)
                         }
                         // The system is out of memory, we should probably quit
                         Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
