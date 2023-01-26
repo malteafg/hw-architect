@@ -7,9 +7,15 @@ use winit::window::WindowId;
 pub type KeyMap = BTreeMap<(VirtualKeyCode, ModifierState), Action>;
 
 pub struct InputHandler {
+    /// The key map in use.
     key_map: KeyMap,
+    /// Maintains the current state of ctrl, alt and shift. Does not distinguish
+    /// between left and right modifiers.
     modifiers: ModifierState,
+    /// Maintains the current MousePos.
     mouse_pos: MousePos,
+    /// A list maintaining in which order the mouse buttons have been pressed.
+    /// Once a mouse button has been released, it is removed from the list.
     pressed_buttons: Vec<Mouse>,
 }
 
@@ -23,6 +29,7 @@ impl InputHandler {
         }
     }
 
+    /// Takes a winit event and converts it to a hw-architect InputEvent.
     pub fn process_input(&mut self, event: &Event<()>, this_window_id: WindowId) -> InputEvent {
         match event {
             Event::WindowEvent {
@@ -96,6 +103,8 @@ impl InputHandler {
         }
     }
 
+    /// Returns the last recorded mouse position in pixels from the top left
+    /// corner of the window
     pub fn get_mouse_pos(&self) -> MousePos {
         self.mouse_pos
     }
@@ -104,6 +113,8 @@ impl InputHandler {
     // }
 }
 
+/// Translates the keycode as it is written in the keymap config to a winit
+/// VirtualKeyCode
 pub fn parse_key_code(key: &String) -> anyhow::Result<VirtualKeyCode> {
     match key.to_lowercase().as_str() {
         "a" => Ok(VirtualKeyCode::A),

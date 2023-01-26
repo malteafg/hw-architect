@@ -9,6 +9,13 @@ use utils::input;
 use utils::loader;
 use yaml_rust::{Yaml, YamlLoader};
 
+/// Returns the user config stored at:
+///
+/// Linux: /home/Alice/.config/hw-architect/config.yml
+///
+/// Windows: C:\Users\Alice\AppData\Roaming\simaflux\hw-architect\config.yml
+///
+/// Mac: /Users/Alice/Library/Application Support/com.simaflux.hw-architect/config.yml
 fn load_user_config_to_yaml(file: &str) -> anyhow::Result<Yaml> {
     ProjectDirs::from("com", "simaflux", "hw-architect")
         .and_then(|proj_dirs| {
@@ -25,6 +32,7 @@ fn load_user_config_to_yaml(file: &str) -> anyhow::Result<Yaml> {
 }
 
 #[cfg(debug_assertions)]
+/// Returns the user config (dev config) stored at project_root/config.yml.
 fn load_dev_config_to_yaml(file: &str) -> anyhow::Result<Yaml> {
     let config_file = fs::read_to_string(file)?;
     let docs = YamlLoader::load_from_str(&config_file)?;
@@ -36,18 +44,28 @@ fn load_dev_config_to_yaml(file: &str) -> anyhow::Result<Yaml> {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+/// Configuration of the window.
 pub struct WindowConfig {
+    /// Width of the window given in pixels.
     pub width: i32,
+    /// Height of the window given in pixels.
     pub height: i32,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+/// Configuration of highway architect.
 pub struct Config {
+    /// The window configuration
     pub window: WindowConfig,
+    /// The key map to use. Default is "qwerty", and default options are "qwerty 
+    /// and wokmok"
     pub key_map: String,
 }
 
 impl Config {
+    /// Updates self with values of the variables that are set in another yaml.
+    /// If some variables are not set in the other yaml, the values of self are
+    /// used again.
     fn update_from_yaml(self, yaml: Yaml) -> Self {
         let width = yaml["window"]["width"]
             .as_i64()
@@ -66,6 +84,7 @@ impl Config {
     }
 }
 
+/// Loads the configuration file for highway architect
 pub async fn load_config() -> anyhow::Result<Config> {
     let config_file = loader::load_string("config/base_config.yml").await?;
     let base_config: Config = serde_yaml::from_str(&config_file)?;
@@ -84,6 +103,11 @@ pub async fn load_config() -> anyhow::Result<Config> {
 
 type KeyConfig = BTreeMap<String, Vec<String>>;
 
+/// Loads and returns the given keymap
+///
+/// # Arguments
+///
+/// * `key_map` - Default and ONLY (for now) options are "qwerty" "wokmok"
 pub async fn load_key_map(key_map: String) -> anyhow::Result<input_handler::KeyMap> {
     let key_config_path = format!("config/{}.yml", &key_map);
     #[cfg(debug_assertions)]
