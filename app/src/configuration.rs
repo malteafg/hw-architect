@@ -1,3 +1,5 @@
+//! Handles the configuration files for highway architect.
+
 use crate::input_handler;
 use anyhow::anyhow;
 use directories::ProjectDirs;
@@ -31,8 +33,8 @@ fn load_user_config_to_yaml(file: &str) -> anyhow::Result<Yaml> {
         .ok_or_else(|| anyhow!("failed to update with user config"))
 }
 
-#[cfg(debug_assertions)]
 /// Returns the user config (dev config) stored at project_root/config.yml.
+#[cfg(debug_assertions)]
 fn load_dev_config_to_yaml(file: &str) -> anyhow::Result<Yaml> {
     let config_file = fs::read_to_string(file)?;
     let docs = YamlLoader::load_from_str(&config_file)?;
@@ -43,8 +45,8 @@ fn load_dev_config_to_yaml(file: &str) -> anyhow::Result<Yaml> {
     }
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 /// Configuration of the window.
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct WindowConfig {
     /// Width of the window given in pixels.
     pub width: i32,
@@ -52,8 +54,8 @@ pub struct WindowConfig {
     pub height: i32,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 /// Configuration of highway architect.
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct Config {
     /// The window configuration
     pub window: WindowConfig,

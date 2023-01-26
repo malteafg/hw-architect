@@ -1,3 +1,6 @@
+//! Handles the input system for highway architect, including translating winit
+//! events into the desired hw-architect events.
+
 use std::collections::BTreeMap;
 use utils::input::*;
 use winit::dpi::PhysicalPosition;
@@ -12,7 +15,8 @@ pub struct InputHandler {
     /// Maintains the current state of ctrl, alt and shift. Does not distinguish
     /// between left and right modifiers.
     modifiers: ModifierState,
-    /// Maintains the current MousePos.
+    /// Maintains the current mouse position on the window in pixels, relative
+    /// to the top left corner.
     mouse_pos: MousePos,
     /// A list maintaining in which order the mouse buttons have been pressed.
     /// Once a mouse button has been released, it is removed from the list.
@@ -29,7 +33,7 @@ impl InputHandler {
         }
     }
 
-    /// Takes a winit event and converts it to a hw-architect InputEvent.
+    /// Takes a winit event and converts it to a hw-architect [`InputEvent`].
     pub fn process_input(&mut self, event: &Event<()>, this_window_id: WindowId) -> InputEvent {
         match event {
             Event::WindowEvent {
@@ -114,7 +118,7 @@ impl InputHandler {
 }
 
 /// Translates the keycode as it is written in the keymap config to a winit
-/// VirtualKeyCode
+/// [`VirtualKeyCode`]
 pub fn parse_key_code(key: &String) -> anyhow::Result<VirtualKeyCode> {
     match key.to_lowercase().as_str() {
         "a" => Ok(VirtualKeyCode::A),

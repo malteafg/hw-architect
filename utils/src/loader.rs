@@ -1,3 +1,5 @@
+//! This module handles I/O
+
 use cfg_if::cfg_if;
 
 #[cfg(target_arch = "wasm32")]
@@ -13,6 +15,8 @@ fn format_url(file_name: &str) -> reqwest::Url {
     base.join(file_name).unwrap()
 }
 
+/// Loads a file relative to the res directory as a [`String`] object. This is
+/// useful for loading plaintext such as yaml files.
 pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
     cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
@@ -35,6 +39,8 @@ pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
     Ok(txt)
 }
 
+/// Loads a file relative to the res directoly as a [`Vec`] of bytes ([`u8`]).
+/// This is useful for loading textures, models and such.
 pub async fn load_binary(file_name: &str) -> anyhow::Result<Vec<u8>> {
     cfg_if! {
         if #[cfg(target_arch = "wasm32")] {

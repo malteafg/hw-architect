@@ -1,6 +1,8 @@
-#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy)]
+//! Defines all types associated with different types of input events.
+
 /// A state of the modifier keys, shift, ctrl and alt. Does not distinguish
 /// between right and left modifier keys.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy)]
 pub struct ModifierState {
     pub shift: bool,
     pub ctrl: bool,
@@ -12,9 +14,9 @@ pub struct ModifierState {
 /// one event signalling that key is now unpressed.
 pub type KeyAction = (Action, bool);
 
+/// Enum containing all possible actions that a user can do with a keyboard.
 #[derive(EnumString, Display, PartialEq, Debug, Clone, Copy)]
 #[strum(serialize_all = "snake_case")]
-/// Enum containing all possible actions that a user can do with a keyboard.
 pub enum Action {
     CameraLeft,
     CameraRight,
@@ -34,15 +36,15 @@ pub enum Action {
     Exit,
 }
 
-#[derive(Debug, Clone, Copy)]
 /// Position of mouse given in pixels from top left corner of window.
+#[derive(Debug, Clone, Copy)]
 pub struct MousePos {
     pub x: f64,
     pub y: f64,
 }
 
-#[derive(Debug, Clone, Copy)]
 /// Mouse movement since last input update given in pixels.
+#[derive(Debug, Clone, Copy)]
 pub struct MouseDelta {
     pub dx: f64,
     pub dy: f64,

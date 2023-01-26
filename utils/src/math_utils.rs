@@ -1,6 +1,10 @@
+//! Contains utils for math as traits that are implemented for different math 
+//! types.
+
 use glam::*;
 use std::f32::consts::PI;
 
+/// Defines utility functions intended for vector types
 pub trait VecUtils {
     fn proj(self, target: Self) -> Self;
     fn anti_proj(self, target: Self) -> Self;
@@ -55,6 +59,7 @@ impl VecUtils for Vec3 {
     }
 }
 
+/// Defines utility functions intended for 4x4 matrices
 pub trait Mat4Utils {
     fn look_to_rh(eye: Vec3, dir: Vec3, up: Vec3) -> Self;
     fn to_4x4(self) -> [[f32; 4]; 4];
@@ -84,6 +89,7 @@ impl Mat4Utils for Mat4 {
     }
 }
 
+/// Defines functions associated with angle computations.
 pub trait Angle {
     fn rad_normalize(self) -> Self;
 }

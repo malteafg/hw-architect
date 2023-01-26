@@ -12,6 +12,9 @@ clean:
 doc:
 	cargo doc --no-deps --workspace --document-private-items
 
+doc-all:
+	cargo doc --workspace --document-private-items
+
 browse:
 	cargo doc --no-deps --workspace --document-private-items --open
 
