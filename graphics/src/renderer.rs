@@ -2,12 +2,15 @@ mod road_renderer;
 pub mod terrain_renderer;
 
 use glam::*;
+use utils::{VecUtils,Mat3Utils,Mat4Utils};
 use wgpu::util::DeviceExt;
 
 use crate::vertex::Vertex;
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::{model, resources, texture};
+use crate::{model, resources, texture, buffer};
+
+use gfx_bridge::InstanceRaw;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -18,6 +21,22 @@ struct LightUniform {
     color: [f32; 3],
     // Due to uniforms requiring 16 byte (4 float) spacing, we need to use a padding field here
     _padding2: u32,
+}
+
+struct Instance {
+    position: Vec3,
+    rotation: Quat,
+}
+
+impl Instance {
+    fn to_raw(&self) -> InstanceRaw {
+        let model =
+            Mat4::from_translation(self.position) * Mat4::from_quat(self.rotation);
+        InstanceRaw {
+            model: model.to_4x4(),
+            normal: Mat3::from_quat(self.rotation).to_3x3(),
+        }
+    }
 }
 
 pub struct GfxState {
@@ -35,6 +54,9 @@ pub struct GfxState {
     light_render_pipeline: wgpu::RenderPipeline,
     terrain_renderer: terrain_renderer::TerrainState,
     road_renderer: road_renderer::RoadState,
+    sphere_render_pipeline: wgpu::RenderPipeline,
+    instances: Vec<Instance>,
+    instance_buffer: buffer::DBuffer,
 }
 
 pub fn create_render_pipeline(
@@ -99,6 +121,8 @@ pub fn create_render_pipeline(
         multiview: None,
     })
 }
+
+const NUM_INSTANCES_PER_ROW: u32 = 10;
 
 impl GfxState {
     pub async fn new(window: &Window) -> Self {
@@ -225,7 +249,7 @@ impl GfxState {
             texture::Texture::create_depth_texture(&device, &config, "depth_texture");
 
         let obj_model =
-            resources::load_model("cube.obj", &device, &queue, &texture_bind_group_layout)
+            resources::load_model("cube", &device, &queue, &texture_bind_group_layout)
                 .await
                 .unwrap();
 
@@ -296,6 +320,55 @@ impl GfxState {
             &camera_bind_group_layout,
         );
 
+        const SPACE_BETWEEN: f32 = 3.0;
+        let instances = (0..NUM_INSTANCES_PER_ROW)
+            .flat_map(|z| {
+                (0..NUM_INSTANCES_PER_ROW).map(move |x| {
+                    let x = SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
+                    let z = SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
+
+                    let position = Vec3 { x, y: 0.0, z };
+
+                    let rotation = if position == Vec3::ZERO {
+                        Quat::from_axis_angle(
+                            Vec3::unit_z(),
+                            0.0,
+                        )
+                    } else {
+                        Quat::from_axis_angle(position.normalize(), 
+                                                            std::f32::consts::PI / 4.)
+                    };
+
+                    Instance { position, rotation }
+                })
+            })
+            .collect::<Vec<_>>();
+        let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+        let mut instance_buffer =
+            buffer::DBuffer::new("instance_buffer", wgpu::BufferUsages::VERTEX, &device);
+        instance_buffer.write(&queue, &device, &bytemuck::cast_slice(&instance_data));
+
+        let sphere_render_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("sphere_pipeline_layout"),
+                bind_group_layouts: &[
+                    &texture_bind_group_layout,
+                    &camera_bind_group_layout,
+                    &light_bind_group_layout,
+                ],
+                push_constant_ranges: &[],
+            });
+            create_render_pipeline(
+                &device,
+                &layout,
+                config.format,
+                Some(texture::Texture::DEPTH_FORMAT),
+                &[model::ModelVertex::desc(), InstanceRaw::desc()],
+                shaders.remove(crate::shaders::BASIC).unwrap(),
+                "sphere_renderer",
+            )
+        };
+
         Self {
             surface,
             device,
@@ -311,6 +384,9 @@ impl GfxState {
             light_render_pipeline,
             terrain_renderer,
             road_renderer,
+            sphere_render_pipeline,
+            instances,
+            instance_buffer,
         }
     }
 
@@ -366,6 +442,32 @@ impl GfxState {
 
             use road_renderer::RenderRoad;
             render_pass.render_roads(&self.road_renderer, &self.camera_bind_group);
+
+            use model::DrawModel;
+            // let mesh = &self.obj_model.meshes[0];
+            // let material = &self.obj_model.materials[mesh.material];
+            // render_pass.draw_mesh_instanced(
+            //     mesh,
+            //     material,
+            //     0..self.instances.len() as u32,
+            //     &self.camera_bind_group,
+            //     &self.light_bind_group,
+            // );
+
+            match self.instance_buffer.get_buffer_slice() {
+                Some(buffer_slice) => {
+                    render_pass.set_vertex_buffer(1, buffer_slice);
+                    render_pass.set_pipeline(&self.sphere_render_pipeline);
+                    render_pass.draw_model_instanced(
+                        &self.obj_model,
+                        0..self.instances.len() as u32,
+                        &self.camera_bind_group,
+                        &self.light_bind_group,
+                    );
+                    //render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
+                }
+                None => {}
+            }
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -415,4 +517,46 @@ impl GfxState {
         );
     }
 
+    pub fn add_instance(&mut self, position: Vec3) {
+        let rotation = if position == Vec3::ZERO {
+            Quat::from_axis_angle(
+                Vec3::unit_z(),
+                0.0,
+            )
+        } else {
+            Quat::from_axis_angle(position.normalize(), 
+                                                std::f32::consts::PI / 4.)
+        };
+        self.instances.push(Instance {
+            position,
+            rotation,
+        });
+        let instance_data = self
+            .instances
+            .iter()
+            .map(Instance::to_raw)
+            .collect::<Vec<_>>();
+        self.instance_buffer.write(
+            &self.queue,
+            &self.device,
+            &bytemuck::cast_slice(&instance_data),
+        );
+    }
+
+    pub fn remove_instance(&mut self) {
+        if self.instances.len() != 0 {
+            self.instances.remove(0);
+            let instance_data = self
+                .instances
+                .iter()
+                .map(Instance::to_raw)
+                .collect::<Vec<_>>();
+            self.instance_buffer.write(
+                &self.queue,
+                &self.device,
+                &bytemuck::cast_slice(&instance_data),
+            );
+        }
+    }
 }
+

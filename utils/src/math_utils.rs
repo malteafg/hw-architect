@@ -16,6 +16,9 @@ pub trait VecUtils {
     fn side(self, other: Self) -> f32;
     fn right_hand(self) -> Self;
     fn left_hand(self) -> Self;
+    fn unit_x() -> Self;
+    fn unit_y() -> Self;
+    fn unit_z() -> Self;
 }
 
 impl VecUtils for Vec3 {
@@ -57,6 +60,18 @@ impl VecUtils for Vec3 {
     fn right_hand(self) -> Self {
         Self::new(-self.z, self.y, self.x)
     }
+
+    fn unit_x() -> Self {
+        Vec3 { x: 1.0, y: 0.0, z: 0.0 }
+    }
+
+    fn unit_y() -> Self {
+        Vec3 { x: 0.0, y: 1.0, z: 0.0 }
+    }
+
+    fn unit_z() -> Self {
+        Vec3 { x: 0.0, y: 0.0, z: 1.0 }
+    }
 }
 
 /// Defines utility functions intended for 4x4 matrices
@@ -85,6 +100,21 @@ impl Mat4Utils for Mat4 {
             self.y_axis.into(),
             self.z_axis.into(),
             self.w_axis.into(),
+        ]
+    }
+}
+
+/// Defines utility functions intended for 4x4 matrices
+pub trait Mat3Utils {
+    fn to_3x3(self) -> [[f32; 3]; 3];
+}
+
+impl Mat3Utils for Mat3 {
+    fn to_3x3(self) -> [[f32; 3]; 3] {
+        [
+            self.x_axis.into(),
+            self.y_axis.into(),
+            self.z_axis.into(),
         ]
     }
 }

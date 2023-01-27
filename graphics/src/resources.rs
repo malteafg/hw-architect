@@ -1,4 +1,4 @@
-use std::io::{BufReader, Cursor};
+use std::{io::{BufReader, Cursor}, fmt::format};
 
 use wgpu::util::DeviceExt;
 
@@ -15,13 +15,16 @@ pub async fn load_texture(
     texture::Texture::from_bytes(device, queue, &data, file_name, is_normal_map)
 }
 
+/// Loads 3D models from the res/models directory. To load the cube model for
+/// instance simply pass "cube" as the file name
 pub async fn load_model(
     file_name: &str,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     layout: &wgpu::BindGroupLayout,
 ) -> anyhow::Result<model::Model> {
-    let obj_text = loader::load_string(file_name).await?;
+    let path = format!("models/{file_name}/");
+    let obj_text = loader::load_string(&format!("{path}{file_name}.obj")).await?;
     let obj_cursor = Cursor::new(obj_text);
     let mut obj_reader = BufReader::new(obj_cursor);
 
@@ -33,7 +36,9 @@ pub async fn load_model(
             ..Default::default()
         },
         |p| async move {
-            let mat_text = loader::load_string(&p).await.unwrap();
+            let file = p.replace(".mtl", "");
+            let path = format!("models/{file}/{p}");
+            let mat_text = loader::load_string(&path).await.unwrap();
             tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mat_text)))
         },
     )
@@ -41,8 +46,10 @@ pub async fn load_model(
 
     let mut materials = Vec::new();
     for m in obj_materials? {
-        let diffuse_texture = load_texture(&m.diffuse_texture, false, device, queue).await?;
-        let normal_texture = load_texture(&m.normal_texture, true, device, queue).await?;
+        let diffuse_path = m.diffuse_texture;
+        let normal_path = m.normal_texture;
+        let diffuse_texture = load_texture(&format!("{path}{diffuse_path}"), false, device, queue).await?;
+        let normal_texture = load_texture(&format!("{path}{normal_path}"), true, device, queue).await?;
 
         materials.push(model::Material::new(
             device,

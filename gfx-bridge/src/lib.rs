@@ -58,3 +58,11 @@ impl CameraView {
         }
     }
 }
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct InstanceRaw {
+    pub model: [[f32; 4]; 4],
+    pub normal: [[f32; 3]; 3],
+}
+
