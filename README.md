@@ -69,3 +69,43 @@ Graphics (can be changed, open for other options):
 
 ### phase x - trains
 - Train tracks and trains
+
+## Structure
+### Data
+#### Simulation Data
+- Road Graph
+  - Road nodes
+  - Lane connectors
+- Cars Data
+  - Position/Orientation
+  - Collision data
+  - Speed data
+  - Location on road graph
+
+#### World data
+- Tree positions
+
+#### Graphics data
+- Road Mesh
+- Terrain Mesh
+- Car position, orientation and model
+- Tree position, orientation and model
+- Sphere position
+
+### Functionality
+#### Simulation
+- Has flush function which returns a data structure to tool, that contains all
+  changes since last flush
+  - This includes cars, whose positions have changed, and changes to the road 
+    graph.
+
+#### Tool
+- Contains the functionality to take data from simulation and world, and then
+  translate and pass it to graphics. Maybe tool computes the graphics as well
+
+#### Graphics
+- Has functionality to take information from tool, compute the graphics, and
+  store the data on the gpu
+  - Store it in ram as well (or just the raw data that can generate gpu data),
+    such that we can partition data in to chunks and not make large writes to
+    gpu all at once

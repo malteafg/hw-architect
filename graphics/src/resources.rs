@@ -44,6 +44,7 @@ pub async fn load_model(
     )
     .await?;
 
+    dbg!(path.clone());
     let mut materials = Vec::new();
     for m in obj_materials? {
         let diffuse_path = m.diffuse_texture;
