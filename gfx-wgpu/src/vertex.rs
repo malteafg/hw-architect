@@ -1,6 +1,6 @@
 use crate::model::ModelVertex;
 use crate::renderer::terrain_renderer::TerrainVertex;
-use gfx_bridge::{RoadVertex,InstanceRaw};
+use gfx_api::{RoadVertex,InstanceRaw};
 use std::mem;
 
 pub trait Vertex {

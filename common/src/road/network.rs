@@ -1,7 +1,7 @@
 use super::curves;
 use super::generator;
 use super::LANE_WIDTH;
-use gfx_bridge::RoadMesh;
+use gfx_api::RoadMesh;
 use glam::*;
 use std::collections::{HashMap, VecDeque};
 use utils::VecUtils;

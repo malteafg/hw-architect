@@ -4,7 +4,7 @@ use super::network::{CurveType, NodeBuilder, RoadType, SegmentBuilder};
 use super::LANE_MARKINGS_WIDTH;
 use super::LANE_WIDTH;
 use super::ROAD_HEIGHT;
-use gfx_bridge::{RoadMesh, RoadVertex};
+use gfx_api::{RoadMesh, RoadVertex};
 use glam::*;
 use utils::VecUtils;
 

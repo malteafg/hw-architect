@@ -18,8 +18,8 @@ use utils::input;
 use gfx_api::Gfx;
 
 struct State {
-    gfx: graphics::GfxState,
-    gfx_data: gfx_bridge::GfxData,
+    gfx: gfx_wgpu::GfxState,
+    gfx_data: gfx_api::GfxData,
     window_size: PhysicalSize<u32>,
     camera: camera::Camera,
     camera_controller: camera::CameraController,
@@ -34,7 +34,8 @@ impl State {
         window: &Window,
         input_handler: input_handler::InputHandler,
     ) -> Self {
-        let gfx = graphics::GfxState::new(window).await;
+        // change line to use other gpu backend
+        let gfx = gfx_wgpu::GfxState::new(window).await;
         let window_size = window.inner_size();
 
         let camera = camera::Camera::new(
@@ -49,7 +50,7 @@ impl State {
 
         Self {
             gfx,
-            gfx_data: gfx_bridge::GfxData::default(),
+            gfx_data: gfx_api::GfxData::default(),
             window_size,
             camera,
             camera_controller,
@@ -83,16 +84,16 @@ impl State {
         }
         use utils::Mat4Utils;
         let view_pos = self.camera.calc_pos().extend(1.0).into();
-        let view_proj = (gfx_bridge::OPENGL_TO_WGPU_MATRIX
+        let view_proj = (gfx_api::OPENGL_TO_WGPU_MATRIX
             * self.projection.calc_matrix()
             * self.camera.calc_matrix())
         .to_4x4();
         self.gfx.update(
             &mut self.gfx_data,
             dt,
-            gfx_bridge::CameraView::new(view_pos, view_proj),
+            gfx_api::CameraView::new(view_pos, view_proj),
         );
-        self.gfx_data = gfx_bridge::GfxData::default();
+        self.gfx_data = gfx_api::GfxData::default();
     }
 
     fn update_ground_pos(&mut self) {

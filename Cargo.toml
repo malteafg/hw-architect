@@ -1,10 +1,10 @@
 [workspace]
 members = [
 "app",
-"graphics",
-"gfx-bridge",
-"utils",
+"gfx-wgpu",
 "gfx-api",
+"utils",
+"common",
 ]
 default-members = [
 "app",

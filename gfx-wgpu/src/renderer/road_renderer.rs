@@ -102,7 +102,7 @@ impl RoadState {
                 &layout,
                 color_format,
                 Some(texture::Texture::DEPTH_FORMAT),
-                &[gfx_bridge::RoadVertex::desc()],
+                &[gfx_api::RoadVertex::desc()],
                 road_shader,
                 "road_render_pipeline",
             )
@@ -141,7 +141,7 @@ impl RoadState {
         &mut self,
         queue: &wgpu::Queue,
         device: &wgpu::Device,
-        gfx_data: &mut gfx_bridge::GfxData,
+        gfx_data: &mut gfx_api::GfxData,
     ) {
         if let Some(mesh) = gfx_data.road_mesh.take() {
             self.road_buffer.write(

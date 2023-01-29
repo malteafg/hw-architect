@@ -1,7 +1,7 @@
 use super::generator;
 use super::network;
 use generator::RoadGeneratorTool;
-use gfx_bridge::GfxData;
+use gfx_api::GfxData;
 use glam::*;
 use utils::input;
 

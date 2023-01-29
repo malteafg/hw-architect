@@ -10,7 +10,7 @@ use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::{buffer, model, resources, texture};
 
-use gfx_bridge::InstanceRaw;
+use gfx_api::InstanceRaw;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -216,7 +216,7 @@ impl GfxState {
 
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
-            contents: bytemuck::cast_slice(&[gfx_bridge::CameraView::default()]),
+            contents: bytemuck::cast_slice(&[gfx_api::CameraView::default()]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -486,9 +486,9 @@ impl gfx_api::Gfx for GfxState {
 
     fn update(
         &mut self,
-        gfx_data: &mut gfx_bridge::GfxData,
+        gfx_data: &mut gfx_api::GfxData,
         dt: instant::Duration,
-        camera_view: gfx_bridge::CameraView,
+        camera_view: gfx_api::CameraView,
     ) {
         self.queue
             .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[camera_view]));
