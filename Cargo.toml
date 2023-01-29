@@ -4,6 +4,7 @@ members = [
 "graphics",
 "gfx-bridge",
 "utils",
+"gfx-api",
 ]
 default-members = [
 "app",

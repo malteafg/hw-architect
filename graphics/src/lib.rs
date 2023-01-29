@@ -1,7 +1,9 @@
 mod buffer;
-pub mod renderer;
+mod renderer;
 mod model;
-pub mod resources;
+mod resources;
 mod texture;
 mod vertex;
 mod shaders;
+
+pub use renderer::GfxState;

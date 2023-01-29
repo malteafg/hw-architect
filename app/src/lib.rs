@@ -14,11 +14,11 @@ mod configuration;
 mod input_handler;
 
 use common::road::tool;
-use graphics::renderer;
 use utils::input;
+use gfx_api::Gfx;
 
 struct State {
-    gfx: renderer::GfxState,
+    gfx: graphics::GfxState,
     gfx_data: gfx_bridge::GfxData,
     window_size: PhysicalSize<u32>,
     camera: camera::Camera,
@@ -34,7 +34,7 @@ impl State {
         window: &Window,
         input_handler: input_handler::InputHandler,
     ) -> Self {
-        let gfx = renderer::GfxState::new(window).await;
+        let gfx = graphics::GfxState::new(window).await;
         let window_size = window.inner_size();
 
         let camera = camera::Camera::new(

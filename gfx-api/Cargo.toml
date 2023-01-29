@@ -1,0 +1,23 @@
+[package]
+name = "gfx-api"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# Allow Rust to build rust static library (rlib) and c compatible library (cdylib)
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+utils = { path = "../utils" }
+gfx-bridge = { path = "../gfx-bridge/" }
+
+winit = "0.26"
+wgpu = "0.13"
+
+glam = { version = "0.21.3", default-features = false, features = ["serde", "bytemuck"] }
+bytemuck = { version = "1.4", features = [ "derive" ] }
+instant = "0.1"
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }

@@ -1,4 +1,4 @@
-use std::{io::{BufReader, Cursor}, fmt::format};
+use std::io::{BufReader, Cursor};
 
 use wgpu::util::DeviceExt;
 
@@ -44,13 +44,14 @@ pub async fn load_model(
     )
     .await?;
 
-    dbg!(path.clone());
     let mut materials = Vec::new();
     for m in obj_materials? {
         let diffuse_path = m.diffuse_texture;
         let normal_path = m.normal_texture;
-        let diffuse_texture = load_texture(&format!("{path}{diffuse_path}"), false, device, queue).await?;
-        let normal_texture = load_texture(&format!("{path}{normal_path}"), true, device, queue).await?;
+        let diffuse_texture =
+            load_texture(&format!("{path}{diffuse_path}"), false, device, queue).await?;
+        let normal_texture =
+            load_texture(&format!("{path}{normal_path}"), true, device, queue).await?;
 
         materials.push(model::Material::new(
             device,

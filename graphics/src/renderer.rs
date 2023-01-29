@@ -2,13 +2,13 @@ mod road_renderer;
 pub mod terrain_renderer;
 
 use glam::*;
-use utils::{VecUtils,Mat3Utils,Mat4Utils};
+use utils::{Mat3Utils, Mat4Utils, VecUtils};
 use wgpu::util::DeviceExt;
 
 use crate::vertex::Vertex;
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::{model, resources, texture, buffer};
+use crate::{buffer, model, resources, texture};
 
 use gfx_bridge::InstanceRaw;
 
@@ -30,8 +30,7 @@ struct Instance {
 
 impl Instance {
     fn to_raw(&self) -> InstanceRaw {
-        let model =
-            Mat4::from_translation(self.position) * Mat4::from_quat(self.rotation);
+        let model = Mat4::from_translation(self.position) * Mat4::from_quat(self.rotation);
         InstanceRaw {
             model: model.to_4x4(),
             normal: Mat3::from_quat(self.rotation).to_3x3(),
@@ -330,13 +329,9 @@ impl GfxState {
                     let position = Vec3 { x, y: 0.0, z };
 
                     let rotation = if position == Vec3::ZERO {
-                        Quat::from_axis_angle(
-                            Vec3::unit_z(),
-                            0.0,
-                        )
+                        Quat::from_axis_angle(Vec3::unit_z(), 0.0)
                     } else {
-                        Quat::from_axis_angle(position.normalize(), 
-                                                            std::f32::consts::PI / 4.)
+                        Quat::from_axis_angle(position.normalize(), std::f32::consts::PI / 4.)
                     };
 
                     Instance { position, rotation }
@@ -389,8 +384,10 @@ impl GfxState {
             instance_buffer,
         }
     }
+}
 
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+impl gfx_api::Gfx for GfxState {
+    fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -476,7 +473,7 @@ impl GfxState {
         Ok(())
     }
 
-    pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
+    fn resize(&mut self, new_size: PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
@@ -487,17 +484,14 @@ impl GfxState {
             texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
     }
 
-    pub fn update(
+    fn update(
         &mut self,
         gfx_data: &mut gfx_bridge::GfxData,
         dt: instant::Duration,
         camera_view: gfx_bridge::CameraView,
     ) {
-        self.queue.write_buffer(
-            &self.camera_buffer,
-            0,
-            bytemuck::cast_slice(&[camera_view]),
-        );
+        self.queue
+            .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[camera_view]));
 
         self.road_renderer
             .update(&self.queue, &self.device, gfx_data);
@@ -517,20 +511,13 @@ impl GfxState {
         );
     }
 
-    pub fn add_instance(&mut self, position: Vec3) {
+    fn add_instance(&mut self, position: Vec3) {
         let rotation = if position == Vec3::ZERO {
-            Quat::from_axis_angle(
-                Vec3::unit_z(),
-                0.0,
-            )
+            Quat::from_axis_angle(Vec3::unit_z(), 0.0)
         } else {
-            Quat::from_axis_angle(position.normalize(), 
-                                                std::f32::consts::PI / 4.)
+            Quat::from_axis_angle(position.normalize(), std::f32::consts::PI / 4.)
         };
-        self.instances.push(Instance {
-            position,
-            rotation,
-        });
+        self.instances.push(Instance { position, rotation });
         let instance_data = self
             .instances
             .iter()
@@ -543,7 +530,7 @@ impl GfxState {
         );
     }
 
-    pub fn remove_instance(&mut self) {
+    fn remove_instance(&mut self) {
         if self.instances.len() != 0 {
             self.instances.remove(0);
             let instance_data = self
@@ -559,4 +546,3 @@ impl GfxState {
         }
     }
 }
-

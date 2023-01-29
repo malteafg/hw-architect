@@ -12,6 +12,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 utils = { path = "../utils" }
 gfx-bridge = { path = "../gfx-bridge" }
+gfx-api = { path = "../gfx-api" }
 
 winit = "0.26"
 wgpu = "0.13"
