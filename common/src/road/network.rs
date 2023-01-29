@@ -458,7 +458,7 @@ pub struct RoadGraph {
     backward_refs: HashMap<NodeId, Vec<LeadingPair>>,
     node_id_count: u32,
     segment_id_count: u32,
-    road_meshes: HashMap<RoadElementId, RoadMesh>,
+    road_meshes: HashMap<SegmentId, RoadMesh>,
 }
 
 impl Default for RoadGraph {
@@ -559,7 +559,7 @@ impl RoadGraph {
                 let (segment, mesh) = segment_builder.build(node_ids[i], node_ids[i + 1]);
                 let id = segment_ids[i];
                 self.segment_map.insert(id, segment);
-                self.road_meshes.insert(RoadElementId::Segment(id), mesh);
+                self.road_meshes.insert(id, mesh);
             });
 
         // update forward_refs and backward_refs
@@ -625,7 +625,7 @@ impl RoadGraph {
             .remove_segment_from_lane_map(segment_id);
         self.get_node_mut(segment.to_node)
             .remove_segment_from_lane_map(segment_id);
-        self.road_meshes.remove(&RoadElementId::Segment(segment_id));
+        self.road_meshes.remove(&segment_id);
         self.forward_refs
             .get_mut(&segment.from_node)
             .expect("node does not exist in forward map")
@@ -797,8 +797,3 @@ pub struct NodeId(u32);
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct SegmentId(u32);
 
-#[derive(PartialEq, Eq, Hash)]
-pub enum RoadElementId {
-    // Node(NodeId),
-    Segment(SegmentId),
-}

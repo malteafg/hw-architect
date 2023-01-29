@@ -13,8 +13,6 @@ crate-type = ["cdylib", "rlib"]
 utils = { path = "../utils" }
 gfx-api = { path = "../gfx-api" }
 
-glam = { version = "0.21.3", default-features = false, features = ["serde", "bytemuck"] }
-bytemuck = { version = "1.4", features = [ "derive" ] }
+glam = { version = "0.22", default-features = false, features = ["serde", "bytemuck"] }
+bytemuck = { version = "1.13", features = [ "derive" ] }
 anyhow = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-# itertools = "0.10.2"

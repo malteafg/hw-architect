@@ -13,13 +13,13 @@ crate-type = ["cdylib", "rlib"]
 utils = { path = "../utils" }
 gfx-api = { path = "../gfx-api" }
 
-winit = "0.26"
-wgpu = "0.13"
-glam = { version = "0.21.3", default-features = false, features = ["serde", "bytemuck"] }
+winit = "0.27"
+wgpu = "0.14"
+glam = { version = "0.22", default-features = false, features = ["serde", "bytemuck"] }
 
-bytemuck = { version = "1.4", features = [ "derive" ] }
+bytemuck = { version = "1.13", features = [ "derive" ] }
 anyhow = "1.0"
-tobj = { version = "3.2.1", features = [
+tobj = { version = "3.2", features = [
   "async",
 ]}
 instant = "0.1"

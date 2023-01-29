@@ -23,10 +23,6 @@ pub trait Gfx {
         dt: instant::Duration,
     );
 
-    /// Given a the position of the mouse on the screen and the camera, the ray is computed and
-    /// returned.
-    fn compute_ray(&self, mouse_pos: glam::Vec2, camera: &Camera) -> utils::Ray;
-
     fn add_instance(&mut self, position: glam::Vec3);
 
     fn remove_instance(&mut self);
@@ -51,19 +47,13 @@ pub trait GfxData {
 
     /// Updates the camera and computes new view and projection matrices.
     fn update_camera(&mut self, camera: &Camera);
+
+    /// Given a the position of the mouse on the screen and the camera, the ray is computed and
+    /// returned.
+    fn compute_ray(&self, mouse_pos: glam::Vec2, camera: &Camera) -> utils::Ray;
 }
 
 // Legacy code from gfx_bridge
-use glam::{Mat4, Vec4};
-/// The dependency on glam should be removed
-#[rustfmt::skip]
-pub const OPENGL_TO_WGPU_MATRIX: Mat4 = Mat4::from_cols(
-    Vec4::new(1.0, 0.0, 0.0, 0.0),
-    Vec4::new(0.0, 1.0, 0.0, 0.0),
-    Vec4::new(0.0, 0.0, 0.5, 0.0),
-    Vec4::new(0.0, 0.0, 0.5, 1.0),
-);
-
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct RoadVertex {

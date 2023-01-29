@@ -1,6 +1,5 @@
-use gfx_api::CameraView;
 use glam::*;
-use utils::{Angle, Mat4Utils, input};
+use utils::{Angle, input};
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::time::Duration;
 

@@ -12,6 +12,14 @@ use crate::{buffer, model, resources, texture};
 
 use gfx_api::InstanceRaw;
 
+#[rustfmt::skip]
+pub const OPENGL_TO_WGPU_MATRIX: Mat4 = Mat4::from_cols(
+    Vec4::new(1.0, 0.0, 0.0, 0.0),
+    Vec4::new(0.0, 1.0, 0.0, 0.0),
+    Vec4::new(0.0, 0.0, 0.5, 0.0),
+    Vec4::new(0.0, 0.0, 0.5, 1.0),
+);
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct LightUniform {
@@ -197,6 +205,7 @@ impl GfxState {
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: wgpu::CompositeAlphaMode::Opaque,
         };
         surface.configure(&device, &config);
 
@@ -544,20 +553,6 @@ impl gfx_api::Gfx for GfxState {
         );
     }
 
-    fn compute_ray(&self, mouse_pos: Vec2, camera: &Camera) -> utils::Ray {
-        let screen_vec = Vec4::new(
-            2.0 * mouse_pos.x as f32 / self.window_width as f32 - 1.0,
-            1.0 - 2.0 * mouse_pos.y as f32 / self.window_height as f32,
-            1.0,
-            1.0,
-        );
-        let eye_vec = self.projection.calc_matrix().inverse() * screen_vec;
-        let full_vec = camera.compute_view_matrix().inverse() * Vec4::new(eye_vec.x, eye_vec.y, -1.0, 0.0);
-        let processed_vec = Vec3::new(full_vec.x, full_vec.y, full_vec.z).normalize();
-
-        utils::Ray::new(camera.calc_pos(), processed_vec)
-    }
-
     fn add_instance(&mut self, position: Vec3) {
         let rotation = if position == Vec3::ZERO {
             Quat::from_axis_angle(Vec3::Z, 0.0)
@@ -611,7 +606,7 @@ impl gfx_api::GfxData for GfxState {
 
     fn update_camera(&mut self, camera: &Camera) {
         let view_pos = camera.calc_pos().extend(1.0).into();
-        let view_proj = (gfx_api::OPENGL_TO_WGPU_MATRIX
+        let view_proj = (OPENGL_TO_WGPU_MATRIX
             * self.projection.calc_matrix()
             * camera.compute_view_matrix())
         .to_4x4();
@@ -619,5 +614,19 @@ impl gfx_api::GfxData for GfxState {
         self.queue
             .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[camera_view]));
 
+    }
+
+    fn compute_ray(&self, mouse_pos: Vec2, camera: &Camera) -> utils::Ray {
+        let screen_vec = Vec4::new(
+            2.0 * mouse_pos.x as f32 / self.window_width as f32 - 1.0,
+            1.0 - 2.0 * mouse_pos.y as f32 / self.window_height as f32,
+            1.0,
+            1.0,
+        );
+        let eye_vec = self.projection.calc_matrix().inverse() * screen_vec;
+        let full_vec = camera.compute_view_matrix().inverse() * Vec4::new(eye_vec.x, eye_vec.y, -1.0, 0.0);
+        let processed_vec = Vec3::new(full_vec.x, full_vec.y, full_vec.z).normalize();
+
+        utils::Ray::new(camera.calc_pos(), processed_vec)
     }
 }

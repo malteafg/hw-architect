@@ -87,6 +87,7 @@ impl State {
 
     fn update_ground_pos(&mut self) {
         let mouse_pos = self.input_handler.get_mouse_pos();
+        use gfx_api::GfxData;
         let ray = self.gfx.compute_ray(glam::Vec2::new(mouse_pos.x as f32, mouse_pos.y as f32), &self.camera);
         let ground_pos = ray.pos + ray.dir * (-ray.pos.y / ray.dir.y);
         self.ground_pos = ground_pos;

@@ -10,21 +10,11 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-glam = { version = "0.21.3", default-features = false, features = ["serde", "bytemuck"] }
+glam = { version = "0.22", default-features = false, features = ["serde", "bytemuck"] }
 
 anyhow = "1.0"
 cfg-if = "1"
 
-strum = "0.13.0"
-strum_macros = "0.13.0"
+strum = "0.24.0"
+strum_macros = "0.24.0"
 
-# Specific for web assembly
-# Only included if targeting wasm32 architecture
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-reqwest = { version = "0.11" }
-web-sys = { version = "0.3", features = [
-  "Document",
-  "Window",
-  "Element",
-  "Location",
-]}
