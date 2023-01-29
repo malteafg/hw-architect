@@ -1,6 +1,6 @@
-use super::LANE_WIDTH;
-use utils::VecUtils;
 use glam::*;
+use utils::consts::LANE_WIDTH;
+use utils::VecUtils;
 
 const PRETTY_CLOSE: f32 = 0.97;
 const CLOSE_ENOUGH: f32 = 0.95;
@@ -31,7 +31,9 @@ pub type SpinePoints = Vec<Vec3>;
 // snap_three_quarter_circle_curve makes circular curves but snaps to
 // 90 degree intervals of road curvature
 
-pub fn guide_points_and_direction(guide_points: Vec<GuidePoints>) -> (Vec<(GuidePoints, Vec3)>, Vec3) {
+pub fn guide_points_and_direction(
+    guide_points: Vec<GuidePoints>,
+) -> (Vec<(GuidePoints, Vec3)>, Vec3) {
     let mut result: Vec<(Vec<Vec3>, Vec3)> = Vec::new();
     for curve in guide_points.iter() {
         result.push((
@@ -381,8 +383,11 @@ pub fn is_inside(guide_points: &GuidePoints, ground_pos: Vec3, width: f32) -> bo
     false
 }
 
-pub fn calc_uniform_spine_points(spine_points: SpinePoints, spine_dirs: SpinePoints, point_distance: f32) -> (SpinePoints, SpinePoints) {
-
+pub fn calc_uniform_spine_points(
+    spine_points: SpinePoints,
+    spine_dirs: SpinePoints,
+    point_distance: f32,
+) -> (SpinePoints, SpinePoints) {
     let mut segment_length = 0.0;
 
     for i in 0..(spine_points.len() - 1) {
@@ -404,13 +409,16 @@ pub fn calc_uniform_spine_points(spine_points: SpinePoints, spine_dirs: SpinePoi
 
         within_subsegment = track_pos < oss_length - uniform_dist;
 
-        if !within_subsegment && oldpoint < spine_points.len() - 2{
+        if !within_subsegment && oldpoint < spine_points.len() - 2 {
             track_pos -= oss_length;
             oldpoint += 1;
         } else {
             let interpolation_factor = (track_pos + uniform_dist) / oss_length;
             uniform_points.push(spine_points[oldpoint] + old_subsegment * interpolation_factor);
-            uniform_dirs.push(spine_dirs[oldpoint + 1] * interpolation_factor + spine_dirs[oldpoint] * (1.0 - interpolation_factor));
+            uniform_dirs.push(
+                spine_dirs[oldpoint + 1] * interpolation_factor
+                    + spine_dirs[oldpoint] * (1.0 - interpolation_factor),
+            );
             track_pos += uniform_dist;
         }
     }
@@ -421,8 +429,12 @@ pub fn calc_uniform_spine_points(spine_points: SpinePoints, spine_dirs: SpinePoi
     (uniform_points, uniform_dirs)
 }
 
-
-pub fn spine_points_and_dir(guide_points: &GuidePoints, dt: f32, point_distance: f32, num_of_cuts: u32) -> (SpinePoints, SpinePoints) {
+pub fn spine_points_and_dir(
+    guide_points: &GuidePoints,
+    dt: f32,
+    point_distance: f32,
+    num_of_cuts: u32,
+) -> (SpinePoints, SpinePoints) {
     let mut points = vec![];
     let mut dirs = vec![];
 
@@ -441,12 +453,12 @@ pub fn spiral_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3, radius: Vec3) -> GuidePo
     let diff = pos2 - pos1;
     let dir = dir1.normalize();
 
-    let d = ((radius - 4.0/3.0 * diff).cross(dir)).length();
+    let d = ((radius - 4.0 / 3.0 * diff).cross(dir)).length();
     let a = d * d - radius.length_squared();
-    let b = 2.0 * (diff.dot(dir)*radius.length_squared() - radius.cross(diff).length()*d);
-    let c = - radius.dot(diff).powi(2);
+    let b = 2.0 * (diff.dot(dir) * radius.length_squared() - radius.cross(diff).length() * d);
+    let c = -radius.dot(diff).powi(2);
 
     let s = -(b + (b * b - 4.0 * a * c).sqrt()) / (2.0 * a);
 
-    return vec![pos1, pos1 + dir * s, pos2]
+    return vec![pos1, pos1 + dir * s, pos2];
 }

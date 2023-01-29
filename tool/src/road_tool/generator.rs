@@ -1,11 +1,9 @@
-use super::curves;
-use super::network;
-use super::network::{CurveType, NodeBuilder, RoadType, SegmentBuilder};
-use super::LANE_MARKINGS_WIDTH;
-use super::LANE_WIDTH;
-use super::ROAD_HEIGHT;
 use gfx_api::{RoadMesh, RoadVertex};
 use glam::*;
+use simulation::curves;
+use simulation::network;
+use simulation::network::{CurveType, LNodeBuilder, RoadType, SegmentBuilder};
+use utils::consts::{LANE_MARKINGS_WIDTH, LANE_WIDTH, ROAD_HEIGHT};
 use utils::VecUtils;
 
 const VERTEX_DENSITY: f32 = 0.05;
@@ -15,13 +13,24 @@ const CUT_LENGTH: f32 = 5.0;
 
 #[derive(Clone)]
 pub struct RoadGenerator {
-    nodes: Vec<NodeBuilder>,
+    nodes: Vec<LNodeBuilder>,
     segments: Vec<SegmentBuilder>,
     init_pos: Vec3,
     init_dir: Option<Vec3>,
     start_road_type: RoadType,
     reverse: bool,
     init_reverse: bool,
+}
+
+impl network::RoadGen for RoadGenerator {
+    fn extract(self) -> (Vec<LNodeBuilder>, Vec<SegmentBuilder>, RoadType, bool) {
+        (
+            self.nodes,
+            self.segments,
+            self.start_road_type,
+            self.reverse,
+        )
+    }
 }
 
 impl RoadGenerator {
@@ -40,8 +49,8 @@ impl RoadGenerator {
         let mesh = generate_straight_mesh(start_pos, end_pos, sel_road_type);
 
         let nodes = vec![
-            NodeBuilder::new(start_pos, start_dir),
-            NodeBuilder::new(end_pos, start_dir),
+            LNodeBuilder::new(start_pos, start_dir),
+            LNodeBuilder::new(end_pos, start_dir),
         ];
         let segments = vec![SegmentBuilder::new(
             sel_road_type,
@@ -58,16 +67,6 @@ impl RoadGenerator {
             reverse,
             init_reverse: reverse,
         }
-    }
-
-    // for use when building road
-    pub fn extract(self) -> (Vec<NodeBuilder>, Vec<SegmentBuilder>, RoadType, bool) {
-        (
-            self.nodes,
-            self.segments,
-            self.start_road_type,
-            self.reverse,
-        )
     }
 
     fn update_dir_locked(&mut self, ground_pos: Vec3, dir: Vec3) {
@@ -104,7 +103,7 @@ impl RoadGenerator {
                 }
                 let (g_points_vec, start_dir) = curves::guide_points_and_direction(g_points_vec);
 
-                self.nodes = vec![NodeBuilder::new(start_pos, start_dir)];
+                self.nodes = vec![LNodeBuilder::new(start_pos, start_dir)];
                 self.segments = vec![];
                 g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
                     let start_pos = g_points[0];
@@ -115,7 +114,7 @@ impl RoadGenerator {
                         self.start_road_type,
                         g_points.clone(),
                     );
-                    self.nodes.push(NodeBuilder::new(end_pos, end_dir));
+                    self.nodes.push(LNodeBuilder::new(end_pos, end_dir));
                     self.segments
                         .push(SegmentBuilder::new(self.start_road_type, g_points, mesh));
                 });
@@ -133,8 +132,8 @@ impl RoadGenerator {
     fn update_straight(&mut self, start_pos: Vec3, end_pos: Vec3, dir: Vec3) {
         let mesh = generate_straight_mesh(start_pos, end_pos, self.start_road_type);
         self.nodes = vec![
-            NodeBuilder::new(start_pos, dir),
-            NodeBuilder::new(end_pos, dir),
+            LNodeBuilder::new(start_pos, dir),
+            LNodeBuilder::new(end_pos, dir),
         ];
         self.segments = vec![SegmentBuilder::new(
             self.start_road_type,
@@ -165,14 +164,14 @@ impl RoadGenerator {
             curves::match_double_snap_curve_case(start_pos, start_dir, end_pos, end_dir, snap_case),
         ); // use snap_three_quarter_circle_curve for snapping
            // and free_three_quarter_circle_curve otherwise
-        self.nodes = vec![NodeBuilder::new(start_pos, start_dir)];
+        self.nodes = vec![LNodeBuilder::new(start_pos, start_dir)];
         self.segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
             let start_pos = g_points[0];
             let end_pos = g_points[g_points.len() - 1];
             let mesh =
                 generate_circular_mesh(start_pos, end_pos, self.start_road_type, g_points.clone());
-            self.nodes.push(NodeBuilder::new(end_pos, end_dir));
+            self.nodes.push(LNodeBuilder::new(end_pos, end_dir));
             // TODO update curvetype to be correct
             self.segments.push(SegmentBuilder::new(
                 RoadType {
@@ -205,14 +204,14 @@ impl RoadGenerator {
         }
 
         let (g_points_vec, start_dir) = curves::guide_points_and_direction(g_points_vec);
-        self.nodes = vec![NodeBuilder::new(start_pos, start_dir)];
+        self.nodes = vec![LNodeBuilder::new(start_pos, start_dir)];
         self.segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
             let start_pos = g_points[0];
             let end_pos = g_points[g_points.len() - 1];
             let mesh =
                 generate_circular_mesh(start_pos, end_pos, self.start_road_type, g_points.clone());
-            self.nodes.push(NodeBuilder::new(end_pos, end_dir));
+            self.nodes.push(LNodeBuilder::new(end_pos, end_dir));
             // TODO update curvetype to be correct
             self.segments.push(SegmentBuilder::new(
                 RoadType {
@@ -545,7 +544,7 @@ fn generate_markings_cut(pos: Vec3, dir: Vec3, no_lanes: u8) -> Vec<RoadVertex> 
     vertices.push(RoadVertex::from_vec3(pos));
 
     // Lanes in between outer lanes
-    for i in 0..no_lanes - 1 {
+    for _ in 0..no_lanes - 1 {
         pos += right_dir * (LANE_WIDTH - LANE_MARKINGS_WIDTH);
         vertices.push(RoadVertex::from_vec3(pos));
 

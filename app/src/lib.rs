@@ -12,18 +12,18 @@ use winit::{
 mod configuration;
 mod input_handler;
 
-use common::road::tool;
 use gfx_api::Gfx;
+use tool::{camera_controller, road_tool};
 use utils::input;
 
 struct State {
     gfx: gfx_wgpu::GfxState,
-    gfx_data: tool::GfxData,
+    gfx_data: road_tool::GfxData,
     window_size: PhysicalSize<u32>,
     camera: gfx_api::Camera,
-    camera_controller: common::CameraController,
+    camera_controller: camera_controller::CameraController,
     input_handler: input_handler::InputHandler,
-    road_tool: tool::ToolState,
+    road_tool: road_tool::ToolState,
     ground_pos: Vec3,
 }
 
@@ -39,16 +39,16 @@ impl State {
             50.0f32.to_radians(),
             100.0,
         );
-        let camera_controller = common::CameraController::default();
+        let camera_controller = camera_controller::CameraController::default();
 
         Self {
             gfx,
-            gfx_data: tool::GfxData::default(),
+            gfx_data: road_tool::GfxData::default(),
             window_size,
             camera,
             camera_controller,
             input_handler,
-            road_tool: tool::ToolState::default(),
+            road_tool: road_tool::ToolState::default(),
             ground_pos: Vec3::new(0.0, 0.0, 0.0),
         }
     }
@@ -80,7 +80,7 @@ impl State {
         self.gfx.set_road_mesh(self.gfx_data.road_mesh.clone());
         self.gfx
             .set_road_tool_mesh(self.gfx_data.road_tool_mesh.clone());
-        self.gfx_data = tool::GfxData::default();
+        self.gfx_data = road_tool::GfxData::default();
     }
 
     fn update_ground_pos(&mut self) {

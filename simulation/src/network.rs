@@ -1,11 +1,10 @@
-use super::curves;
-use super::generator;
-use super::LANE_WIDTH;
+use crate::curves;
 use gfx_api::RoadMesh;
 use glam::*;
 use std::collections::{HashMap, VecDeque};
+use utils::consts::LANE_WIDTH;
+use utils::id::{NodeId, SegmentId};
 use utils::VecUtils;
-use utils::id::{NodeId,SegmentId};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub enum CurveType {
@@ -215,7 +214,7 @@ impl LaneMapUtils for LaneMap {
 }
 
 #[derive(Clone, Debug)]
-pub struct Node {
+pub struct LNode {
     pos: Vec3,
     dir: Vec3,
     incoming_lanes: LaneMap,
@@ -223,18 +222,18 @@ pub struct Node {
 }
 
 #[derive(Clone, Copy)]
-pub struct NodeBuilder {
+pub struct LNodeBuilder {
     pub pos: Vec3,
     pub dir: Vec3,
 }
 
-impl NodeBuilder {
+impl LNodeBuilder {
     pub fn new(pos: Vec3, dir: Vec3) -> Self {
-        NodeBuilder { pos, dir }
+        LNodeBuilder { pos, dir }
     }
 
-    fn build(self, no_lanes: u8, lane_map: (Option<SegmentId>, Option<SegmentId>)) -> Node {
-        Node {
+    fn build(self, no_lanes: u8, lane_map: (Option<SegmentId>, Option<SegmentId>)) -> LNode {
+        LNode {
             pos: self.pos,
             dir: self.dir,
             incoming_lanes: LaneMap::create(no_lanes, lane_map.0),
@@ -243,7 +242,7 @@ impl NodeBuilder {
     }
 }
 
-impl Node {
+impl LNode {
     pub fn get_dir(&self) -> Vec3 {
         self.dir
     }
@@ -414,7 +413,7 @@ impl Node {
 }
 
 #[derive(Debug, Clone)]
-struct Segment {
+struct LSegment {
     road_type: RoadType,
     guide_points: curves::GuidePoints,
     from_node: NodeId,
@@ -437,9 +436,9 @@ impl SegmentBuilder {
         }
     }
 
-    fn build(self, from_node: NodeId, to_node: NodeId) -> (Segment, RoadMesh) {
+    fn build(self, from_node: NodeId, to_node: NodeId) -> (LSegment, RoadMesh) {
         (
-            Segment {
+            LSegment {
                 road_type: self.road_type,
                 guide_points: self.guide_points,
                 from_node,
@@ -453,8 +452,8 @@ impl SegmentBuilder {
 type LeadingPair = (NodeId, SegmentId);
 
 pub struct RoadGraph {
-    node_map: HashMap<NodeId, Node>,
-    segment_map: HashMap<SegmentId, Segment>,
+    node_map: HashMap<NodeId, LNode>,
+    segment_map: HashMap<SegmentId, LSegment>,
     forward_refs: HashMap<NodeId, Vec<LeadingPair>>,
     backward_refs: HashMap<NodeId, Vec<LeadingPair>>,
     node_id_count: u32,
@@ -488,7 +487,7 @@ impl Default for RoadGraph {
 impl RoadGraph {
     pub fn add_road(
         &mut self,
-        road: generator::RoadGenerator,
+        road: impl RoadGen,
         selected_node: Option<SnapConfig>,
         snapped_node: Option<SnapConfig>,
     ) -> (RoadMesh, Option<SnapConfig>) {
@@ -643,25 +642,25 @@ impl RoadGraph {
         Some(self.combine_road_meshes())
     }
 
-    fn get_node_mut(&mut self, node: NodeId) -> &mut Node {
+    fn get_node_mut(&mut self, node: NodeId) -> &mut LNode {
         self.node_map
             .get_mut(&node)
             .expect("Node does not exist in node map")
     }
 
-    pub fn get_node(&self, node: NodeId) -> &Node {
+    pub fn get_node(&self, node: NodeId) -> &LNode {
         self.node_map
             .get(&node)
             .expect("Node does not exist in node map")
     }
 
-    fn _get_segment_mut(&mut self, segment: SegmentId) -> &mut Segment {
+    fn _get_segment_mut(&mut self, segment: SegmentId) -> &mut LSegment {
         self.segment_map
             .get_mut(&segment)
             .expect("Segment does not exist in segment map")
     }
 
-    fn get_segment(&self, segment: SegmentId) -> &Segment {
+    fn get_segment(&self, segment: SegmentId) -> &LSegment {
         self.segment_map
             .get(&segment)
             .expect("Segment does not exist in segment map")
@@ -795,3 +794,6 @@ impl RoadGraph {
     }
 }
 
+pub trait RoadGen {
+    fn extract(self) -> (Vec<LNodeBuilder>, Vec<SegmentBuilder>, RoadType, bool);
+}

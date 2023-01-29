@@ -1,0 +1,19 @@
+[package]
+name = "tool"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# Allow Rust to build rust static library (rlib) and c compatible library (cdylib)
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+utils = { path = "../utils" }
+simulation = { path = "../simulation" }
+gfx-api = { path = "../gfx-api" }
+
+glam = { version = "0.22", default-features = false, features = ["serde", "bytemuck"] }
+bytemuck = { version = "1.13", features = [ "derive" ] }
+anyhow = "1.0"

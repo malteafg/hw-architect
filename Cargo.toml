@@ -4,7 +4,8 @@ members = [
 "gfx-wgpu",
 "gfx-api",
 "utils",
-"common",
+"tool",
+"simulation"
 ]
 default-members = [
 "app",

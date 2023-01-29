@@ -1,8 +1,9 @@
-use super::generator;
-use super::network;
+mod generator;
+
 use generator::RoadGeneratorTool;
 use gfx_api::RoadMesh;
 use glam::*;
+use simulation::network;
 use utils::input;
 
 #[derive(Clone, Copy)]

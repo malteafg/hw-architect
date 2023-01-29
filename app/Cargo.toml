@@ -12,7 +12,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 gfx-wgpu = { path = "../gfx-wgpu"  }
 gfx-api = { path = "../gfx-api" }
-common = { path = "../common"}
+tool = { path = "../tool"}
 utils = { path = "../utils"}
 
 winit = "0.27"
