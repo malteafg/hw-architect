@@ -5,6 +5,7 @@ use gfx_api::RoadMesh;
 use glam::*;
 use std::collections::{HashMap, VecDeque};
 use utils::VecUtils;
+use utils::id::{NodeId,SegmentId};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub enum CurveType {
@@ -687,7 +688,9 @@ impl RoadGraph {
 
         indices_count = 0;
         for (_, mesh) in self.road_meshes.iter() {
-            road_mesh.lane_vertices.append(&mut mesh.lane_vertices.clone());
+            road_mesh
+                .lane_vertices
+                .append(&mut mesh.lane_vertices.clone());
             road_mesh.lane_indices.append(
                 &mut mesh
                     .lane_indices
@@ -791,9 +794,4 @@ impl RoadGraph {
         }
     }
 }
-
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub struct NodeId(u32);
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub struct SegmentId(u32);
 

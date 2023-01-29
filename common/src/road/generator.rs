@@ -375,7 +375,9 @@ pub fn combine_road_meshes(meshes: Vec<SegmentBuilder>) -> RoadMesh {
     indices_count = 0;
     for segment_builder in meshes.iter() {
         let mesh = segment_builder.mesh.clone();
-        road_mesh.lane_vertices.append(&mut mesh.lane_vertices.clone());
+        road_mesh
+            .lane_vertices
+            .append(&mut mesh.lane_vertices.clone());
         road_mesh.lane_indices.append(
             &mut mesh
                 .lane_indices
@@ -705,7 +707,6 @@ fn generate_road_mesh_with_lanes(
                     previ + i + 2,
                     previ + i + 3,
                     curri + i + 2,
-
                     curri + i + 2,
                     previ + i + 3,
                     curri + i + 3,

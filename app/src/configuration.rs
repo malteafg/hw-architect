@@ -59,7 +59,7 @@ pub struct WindowConfig {
 pub struct Config {
     /// The window configuration
     pub window: WindowConfig,
-    /// The key map to use. Default is "qwerty", and default options are "qwerty 
+    /// The key map to use. Default is "qwerty", and default options are "qwerty
     /// and wokmok"
     pub key_map: String,
 }

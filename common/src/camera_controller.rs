@@ -1,7 +1,7 @@
 use glam::*;
-use utils::{Angle, input};
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::time::Duration;
+use utils::{input, Angle};
 
 const MIN_CAMERA_PITCH: f32 = -0.15;
 const MAX_CAMERA_PITCH: f32 = 1.5;

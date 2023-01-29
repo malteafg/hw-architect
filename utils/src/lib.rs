@@ -17,3 +17,5 @@ pub use math_utils::Ray;
 pub mod loader;
 
 pub mod input;
+
+pub mod id;

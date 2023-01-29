@@ -13,8 +13,8 @@ mod configuration;
 mod input_handler;
 
 use common::road::tool;
-use utils::input;
 use gfx_api::Gfx;
+use utils::input;
 
 struct State {
     gfx: gfx_wgpu::GfxState,
@@ -28,10 +28,7 @@ struct State {
 }
 
 impl State {
-    async fn new(
-        window: &Window,
-        input_handler: input_handler::InputHandler,
-    ) -> Self {
+    async fn new(window: &Window, input_handler: input_handler::InputHandler) -> Self {
         // change line to use other gpu backend
         let gfx = gfx_wgpu::GfxState::new(window).await;
         let window_size = window.inner_size();
@@ -81,14 +78,18 @@ impl State {
         self.gfx.update(dt);
         use gfx_api::GfxData;
         self.gfx.set_road_mesh(self.gfx_data.road_mesh.clone());
-        self.gfx.set_road_tool_mesh(self.gfx_data.road_tool_mesh.clone());
+        self.gfx
+            .set_road_tool_mesh(self.gfx_data.road_tool_mesh.clone());
         self.gfx_data = tool::GfxData::default();
     }
 
     fn update_ground_pos(&mut self) {
         let mouse_pos = self.input_handler.get_mouse_pos();
         use gfx_api::GfxData;
-        let ray = self.gfx.compute_ray(glam::Vec2::new(mouse_pos.x as f32, mouse_pos.y as f32), &self.camera);
+        let ray = self.gfx.compute_ray(
+            glam::Vec2::new(mouse_pos.x as f32, mouse_pos.y as f32),
+            &self.camera,
+        );
         let ground_pos = ray.pos + ray.dir * (-ray.pos.y / ray.dir.y);
         self.ground_pos = ground_pos;
         self.road_tool
