@@ -14,8 +14,8 @@ utils = { path = "../utils" }
 
 winit = "0.26"
 wgpu = "0.13"
-
 glam = { version = "0.21.3", default-features = false, features = ["serde", "bytemuck"] }
+
 bytemuck = { version = "1.4", features = [ "derive" ] }
 instant = "0.1"
 anyhow = "1.0"

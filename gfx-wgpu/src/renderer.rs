@@ -486,15 +486,11 @@ impl gfx_api::Gfx for GfxState {
 
     fn update(
         &mut self,
-        gfx_data: &mut gfx_api::GfxData,
         dt: instant::Duration,
         camera_view: gfx_api::CameraView,
     ) {
         self.queue
             .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[camera_view]));
-
-        self.road_renderer
-            .update(&self.queue, &self.device, gfx_data);
 
         // Update the light
         let old_position: Vec3 = self.light_uniform.position.into();
@@ -544,5 +540,21 @@ impl gfx_api::Gfx for GfxState {
                 &bytemuck::cast_slice(&instance_data),
             );
         }
+    }
+}
+
+use gfx_api::RoadMesh;
+
+impl gfx_api::GfxData for GfxState {
+    
+    fn set_road_mesh(&mut self, road_mesh: Option<RoadMesh>) {
+        self.road_renderer
+            .update_road_mesh(&self.queue, &self.device, road_mesh);
+    }
+
+    fn set_road_tool_mesh(&mut self, road_mesh: Option<RoadMesh>) {
+        self.road_renderer
+            .update_road_tool_mesh(&self.queue, &self.device, road_mesh);
+
     }
 }

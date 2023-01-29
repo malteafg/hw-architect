@@ -4,6 +4,7 @@ use crate::{
 };
 use glam::*;
 use wgpu::util::DeviceExt;
+use gfx_api::RoadMesh;
 
 pub struct RoadState {
     road_buffer: buffer::VIBuffer,
@@ -137,13 +138,13 @@ impl RoadState {
         }
     }
 
-    pub fn update(
+    pub fn update_road_mesh(
         &mut self,
         queue: &wgpu::Queue,
         device: &wgpu::Device,
-        gfx_data: &mut gfx_api::GfxData,
+        mesh: Option<RoadMesh>,
     ) {
-        if let Some(mesh) = gfx_data.road_mesh.take() {
+        if let Some(mesh) = mesh {
             self.road_buffer.write(
                 queue,
                 device,
@@ -159,7 +160,15 @@ impl RoadState {
                 mesh.lane_indices.len() as u32,
             );
         }
-        if let Some(mesh) = gfx_data.road_tool_mesh.take() {
+    }
+
+    pub fn update_road_tool_mesh(
+        &mut self,
+        queue: &wgpu::Queue,
+        device: &wgpu::Device,
+        mesh: Option<RoadMesh>,
+    ) {
+        if let Some(mesh) = mesh {
             self.road_tool_buffer.write(
                 queue,
                 device,

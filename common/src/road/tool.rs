@@ -1,7 +1,7 @@
 use super::generator;
 use super::network;
 use generator::RoadGeneratorTool;
-use gfx_api::GfxData;
+use gfx_api::RoadMesh;
 use glam::*;
 use utils::input;
 
@@ -21,6 +21,12 @@ pub struct ToolState {
     road_generator: generator::RoadGeneratorTool,
     ground_pos: Vec3,
     mode: Mode,
+}
+
+#[derive(Default)]
+pub struct GfxData {
+    pub road_mesh: Option<RoadMesh>,
+    pub road_tool_mesh: Option<RoadMesh>,
 }
 
 impl Default for ToolState {

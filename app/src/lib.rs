@@ -19,7 +19,7 @@ use gfx_api::Gfx;
 
 struct State {
     gfx: gfx_wgpu::GfxState,
-    gfx_data: gfx_api::GfxData,
+    gfx_data: tool::GfxData,
     window_size: PhysicalSize<u32>,
     camera: camera::Camera,
     camera_controller: camera::CameraController,
@@ -50,7 +50,7 @@ impl State {
 
         Self {
             gfx,
-            gfx_data: gfx_api::GfxData::default(),
+            gfx_data: tool::GfxData::default(),
             window_size,
             camera,
             camera_controller,
@@ -89,11 +89,13 @@ impl State {
             * self.camera.calc_matrix())
         .to_4x4();
         self.gfx.update(
-            &mut self.gfx_data,
             dt,
             gfx_api::CameraView::new(view_pos, view_proj),
         );
-        self.gfx_data = gfx_api::GfxData::default();
+        use gfx_api::GfxData;
+        self.gfx.set_road_mesh(self.gfx_data.road_mesh.clone());
+        self.gfx.set_road_tool_mesh(self.gfx_data.road_tool_mesh.clone());
+        self.gfx_data = tool::GfxData::default();
     }
 
     fn update_ground_pos(&mut self) {

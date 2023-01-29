@@ -1,18 +1,21 @@
 //! This crate defines the api for the graphics engine that hw-architect uses. The only interaction
 //! that other crates are allowed to have to a graphics engine must go through this api, to keep
 //! things modular.
+//! Dependency on wgpu in Gfx.render, on winit in Gfx.render and on glam in OPENGL_TO_WGPU_MATRIX
+//! should be removed
 
 pub trait Gfx {
     // render should contain error handling as well
     // fn render(&mut self) -> Result<(), wgpu::SurfaceError>;
+    /// This method should be changed to a generic way of handling errors, such that this crate
+    /// does not depend on wgpu
     fn render(&mut self) -> Result<(), wgpu::SurfaceError>;
 
-    // depends on winit
+    /// Dependency on winit should be removed
     fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>);
 
     fn update(
         &mut self,
-        gfx_data: &mut GfxData,
         dt: instant::Duration,
         camera_view: CameraView,
     );
@@ -20,11 +23,28 @@ pub trait Gfx {
     fn add_instance(&mut self, position: glam::Vec3);
 
     fn remove_instance(&mut self);
+
+    // some function that loads gfx data from a file on startup. This should be coded in such a way
+    // that Gfx can be used without being dependent on GfxData
+    // fn load_gfx();
+}
+
+/// This trait defines how tool is allowed to interact with the data that is needed by the gpu
+pub trait GfxData {
+    // TODO, rewrite the following when ID's are properly introduced
+    // fn add_road_mesh(meshes: Vec<RoadMesh>);
+    // use road ids or something
+    // fn remove_road_mesh(meshes: Vec<RoadMesh>);
+
+    fn set_road_mesh(&mut self, road_mesh: Option<RoadMesh>);
+
+    /// Sets the mesh for the road tool. None is intended to signal that no mesh should be rendered
+    fn set_road_tool_mesh(&mut self, road_mesh: Option<RoadMesh>);
 }
 
 // Legacy code from gfx_bridge
 use glam::{Mat4, Vec4};
-
+/// The dependency on glam should be removed
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: Mat4 = Mat4::from_cols(
     Vec4::new(1.0, 0.0, 0.0, 0.0),
@@ -32,12 +52,6 @@ pub const OPENGL_TO_WGPU_MATRIX: Mat4 = Mat4::from_cols(
     Vec4::new(0.0, 0.0, 0.5, 0.0),
     Vec4::new(0.0, 0.0, 0.5, 1.0),
 );
-
-#[derive(Default)]
-pub struct GfxData {
-    pub road_mesh: Option<RoadMesh>,
-    pub road_tool_mesh: Option<RoadMesh>,
-}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
