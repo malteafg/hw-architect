@@ -16,6 +16,7 @@
     init().then(() => {
       console.log("WASM Loaded");
     });
+    document.addEventListener('contextmenu', event => event.preventDefault());
   </script>
   <style>
     canvas {

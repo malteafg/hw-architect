@@ -18,3 +18,8 @@ doc-all:
 browse:
 	cargo doc --no-deps --workspace --document-private-items --open
 
+web:
+	wasm-pack build app/ --out-dir ../pkg --target web --dev
+
+web-run:
+	python3 -m http.server
