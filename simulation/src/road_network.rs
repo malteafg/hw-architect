@@ -6,6 +6,11 @@ use utils::consts::LANE_WIDTH;
 use utils::id::{NodeId, SegmentId};
 use utils::VecUtils;
 
+mod snap;
+pub use snap::SnapConfig;
+
+use snap::SnapRange;
+
 #[derive(Debug, Default, Clone, Copy)]
 pub enum CurveType {
     #[default]
@@ -17,51 +22,6 @@ pub enum CurveType {
 pub struct RoadType {
     pub no_lanes: u8,
     pub curve_type: CurveType,
-}
-
-type SnapRange = Vec<i8>;
-
-trait SnapRangeTrait {
-    fn create(start: i8, end: i8) -> Self;
-    fn reduce_size(&self, end: u8) -> Self;
-}
-
-impl SnapRangeTrait for SnapRange {
-    fn create(start: i8, end: i8) -> Self {
-        let mut snap_range = vec![];
-        for i in 0..end - start {
-            snap_range.push(i as i8 + start)
-        }
-        snap_range
-    }
-
-    fn reduce_size(&self, end: u8) -> Self {
-        let mut snap_range = vec![];
-        for i in self.iter() {
-            if *i >= 0 && *i < end as i8 {
-                snap_range.push(*i)
-            }
-        }
-        snap_range
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct SnapConfig {
-    pub node_id: NodeId,
-    pub pos: Vec3,
-    pub dir: Vec3,
-    pub snap_range: SnapRange,
-    // Reverse means that outgoing lanes exist, and incoming does not
-    pub reverse: bool,
-}
-
-impl PartialEq for SnapConfig {
-    fn eq(&self, other: &Self) -> bool {
-        self.node_id == other.node_id
-            && self.snap_range == other.snap_range
-            && self.reverse == other.reverse
-    }
 }
 
 type LaneMap = VecDeque<Option<SegmentId>>;
@@ -104,8 +64,8 @@ impl LaneMapUtils for LaneMap {
 
     fn contains_some_in_range(&self, range: SnapRange) -> bool {
         let mut contains_some = false;
-        for i in range {
-            if self[i as usize].is_some() {
+        for i in range.iter() {
+            if self[*i as usize].is_some() {
                 contains_some = true;
             }
         }
@@ -139,15 +99,15 @@ impl LaneMapUtils for LaneMap {
     }
 
     fn get_range_of_segment(&self, segment_id: SegmentId) -> SnapRange {
-        let mut range = vec![];
+        let mut snap_range = vec![];
         for (i, id) in self.iter().enumerate() {
             if let Some(id) = id {
                 if *id == segment_id {
-                    range.push(i as i8);
+                    snap_range.push(i as i8);
                 }
             }
         }
-        range
+        SnapRange::from_vec(snap_range)
     }
 
     fn is_middle_segment(&self, segment_id: SegmentId) -> bool {
@@ -325,7 +285,7 @@ impl LNode {
             let start_pos = self.pos - lane_width_dir * diff as f32 / 2.0;
             for (i, l) in lane_map.iter().enumerate() {
                 if l.is_none() {
-                    possible_snaps.push(vec![]);
+                    possible_snaps.push(SnapRange::empty());
                     possible_snaps.iter_mut().for_each(|s| s.push(i as i8));
                     possible_snaps.retain_mut(|s| {
                         if s.len() as u8 == no_lanes {

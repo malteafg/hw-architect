@@ -1,8 +1,8 @@
 use gfx_api::{RoadMesh, RoadVertex};
 use glam::*;
 use simulation::curves;
-use simulation::network;
-use simulation::network::{CurveType, LNodeBuilder, RoadType, SegmentBuilder};
+use simulation::road_network as network;
+use simulation::road_network::{CurveType, LNodeBuilder, RoadType, SegmentBuilder};
 use utils::consts::{LANE_MARKINGS_WIDTH, LANE_WIDTH, ROAD_HEIGHT};
 use utils::VecUtils;
 

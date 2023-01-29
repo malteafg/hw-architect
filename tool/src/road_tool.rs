@@ -3,7 +3,7 @@ mod generator;
 use generator::RoadGeneratorTool;
 use gfx_api::RoadMesh;
 use glam::*;
-use simulation::network;
+use simulation::road_network as network;
 use utils::input;
 
 #[derive(Clone, Copy)]
