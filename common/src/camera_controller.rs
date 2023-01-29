@@ -1,3 +1,4 @@
+use gfx_api::CameraView;
 use glam::*;
 use utils::{Angle, Mat4Utils, input};
 use std::f32::consts::{FRAC_PI_2, PI};
@@ -17,71 +18,6 @@ const MOUSE_VERTICAL_SENSITIVITY: f32 = 0.002;
 const NUM_OF_MOVE_BUTTONS: i32 = 6;
 
 // const SAFE_FRAC_PI_2: f32 = FRAC_PI_2 - 0.0001;
-
-#[derive(Debug)]
-pub struct Camera {
-    pub target: Vec3,
-    yaw: f32,
-    pitch: f32,
-    dist_to_target: f32,
-}
-
-impl Camera {
-    pub fn new(target: Vec3, yaw: f32, pitch: f32, dist_to_target: f32) -> Self {
-        Self {
-            target,
-            yaw,
-            pitch,
-            dist_to_target,
-        }
-    }
-
-    pub fn calc_pos(&self) -> Vec3 {
-        let (sin_pitch, cos_pitch) = self.pitch.sin_cos();
-        let (sin_yaw, cos_yaw) = self.yaw.sin_cos();
-
-        self.target
-            + (Vec3::new(-cos_yaw, 0.0, -sin_yaw) * cos_pitch + Vec3::new(0.0, sin_pitch, 0.0))
-                * self.dist_to_target
-    }
-
-    pub fn calc_matrix(&self) -> Mat4 {
-        let (sin_pitch, cos_pitch) = self.pitch.sin_cos();
-        let (sin_yaw, cos_yaw) = self.yaw.sin_cos();
-
-        Mat4::look_to_rh(
-            self.calc_pos(),
-            Vec3::new(cos_pitch * cos_yaw, -sin_pitch, cos_pitch * sin_yaw).normalize(),
-            Vec3::Y,
-        )
-    }
-}
-
-pub struct Projection {
-    aspect: f32,
-    fovy: f32,
-    znear: f32,
-    zfar: f32,
-}
-
-impl Projection {
-    pub fn new(width: u32, height: u32, fovy: f32, znear: f32, zfar: f32) -> Self {
-        Self {
-            aspect: width as f32 / height as f32,
-            fovy,
-            znear,
-            zfar,
-        }
-    }
-
-    pub fn resize(&mut self, width: u32, height: u32) {
-        self.aspect = width as f32 / height as f32;
-    }
-
-    pub fn calc_matrix(&self) -> Mat4 {
-        Mat4::perspective_rh(self.fovy, self.aspect, self.znear, self.zfar)
-    }
-}
 
 #[derive(Debug)]
 pub struct CameraController {
@@ -231,7 +167,7 @@ impl CameraController {
         }
     }
 
-    pub fn update_camera(&mut self, camera: &mut Camera, dt: Duration) -> bool {
+    pub fn update_camera(&mut self, camera: &mut gfx_api::Camera, dt: Duration) -> bool {
         let dt = dt.as_secs_f32();
 
         let pos = camera.calc_pos();
@@ -243,7 +179,7 @@ impl CameraController {
         pos != camera.calc_pos()
     }
 
-    fn update_progress(&mut self, camera: &mut Camera, dt: f32) {
+    fn update_progress(&mut self, camera: &mut gfx_api::Camera, dt: f32) {
         if self.move_init {
             self.move_init = false;
             self.progression_speed *= 36.0
@@ -288,7 +224,7 @@ impl CameraController {
         }
     }
 
-    fn update_manuel(&mut self, camera: &mut Camera, dt: f32) {
+    fn update_manuel(&mut self, camera: &mut gfx_api::Camera, dt: f32) {
         camera.yaw = center(camera.yaw - self.delta_yaw, PI);
         camera.pitch = restrainf(
             camera.pitch + self.delta_pitch,

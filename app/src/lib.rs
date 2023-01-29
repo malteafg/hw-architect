@@ -9,7 +9,6 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-mod camera;
 mod configuration;
 mod input_handler;
 
@@ -21,9 +20,8 @@ struct State {
     gfx: gfx_wgpu::GfxState,
     gfx_data: tool::GfxData,
     window_size: PhysicalSize<u32>,
-    camera: camera::Camera,
-    camera_controller: camera::CameraController,
-    projection: camera::Projection,
+    camera: gfx_api::Camera,
+    camera_controller: common::CameraController,
     input_handler: input_handler::InputHandler,
     road_tool: tool::ToolState,
     ground_pos: Vec3,
@@ -38,15 +36,13 @@ impl State {
         let gfx = gfx_wgpu::GfxState::new(window).await;
         let window_size = window.inner_size();
 
-        let camera = camera::Camera::new(
+        let camera = gfx_api::Camera::new(
             Vec3::new(0.0, 0.0, 0.0),
             2.0f32.to_radians(),
             50.0f32.to_radians(),
             100.0,
         );
-        let camera_controller = camera::CameraController::default();
-        let projection =
-            camera::Projection::new(window_size.width, window_size.height, 45.0f32.to_radians(), 5.0, 2000.0);
+        let camera_controller = common::CameraController::default();
 
         Self {
             gfx,
@@ -54,7 +50,6 @@ impl State {
             window_size,
             camera,
             camera_controller,
-            projection,
             input_handler,
             road_tool: tool::ToolState::default(),
             ground_pos: Vec3::new(0.0, 0.0, 0.0),
@@ -82,16 +77,8 @@ impl State {
         if self.camera_controller.update_camera(&mut self.camera, dt) {
             self.update_ground_pos();
         }
-        use utils::Mat4Utils;
-        let view_pos = self.camera.calc_pos().extend(1.0).into();
-        let view_proj = (gfx_api::OPENGL_TO_WGPU_MATRIX
-            * self.projection.calc_matrix()
-            * self.camera.calc_matrix())
-        .to_4x4();
-        self.gfx.update(
-            dt,
-            gfx_api::CameraView::new(view_pos, view_proj),
-        );
+        self.gfx.update_camera(&self.camera);
+        self.gfx.update(dt);
         use gfx_api::GfxData;
         self.gfx.set_road_mesh(self.gfx_data.road_mesh.clone());
         self.gfx.set_road_tool_mesh(self.gfx_data.road_tool_mesh.clone());
@@ -99,8 +86,9 @@ impl State {
     }
 
     fn update_ground_pos(&mut self) {
-        let (ray, pos) = self.calc_ray();
-        let ground_pos = pos + ray * (-pos.y / ray.y);
+        let mouse_pos = self.input_handler.get_mouse_pos();
+        let ray = self.gfx.compute_ray(glam::Vec2::new(mouse_pos.x as f32, mouse_pos.y as f32), &self.camera);
+        let ground_pos = ray.pos + ray.dir * (-ray.pos.y / ray.dir.y);
         self.ground_pos = ground_pos;
         self.road_tool
             .update_ground_pos(&mut self.gfx_data, self.ground_pos);
@@ -108,22 +96,6 @@ impl State {
 
     fn resize(&mut self, new_size: PhysicalSize<u32>) {
         self.gfx.resize(new_size);
-        self.projection.resize(new_size.width, new_size.height);
-    }
-
-    fn calc_ray(&self) -> (Vec3, Vec3) {
-        let mouse_pos = self.input_handler.get_mouse_pos();
-        let screen_vec = Vec4::new(
-            2.0 * mouse_pos.x as f32 / self.window_size.width as f32 - 1.0,
-            1.0 - 2.0 * mouse_pos.y as f32 / self.window_size.height as f32,
-            1.0,
-            1.0,
-        );
-        let eye_vec = self.projection.calc_matrix().inverse() * screen_vec;
-        let full_vec = self.camera.calc_matrix().inverse() * Vec4::new(eye_vec.x, eye_vec.y, -1.0, 0.0);
-        let processed_vec = Vec3::new(full_vec.x, full_vec.y, full_vec.z).normalize();
-
-        (processed_vec, self.camera.calc_pos())
     }
 }
 

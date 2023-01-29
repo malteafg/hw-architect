@@ -2,7 +2,7 @@ mod road_renderer;
 pub mod terrain_renderer;
 
 use glam::*;
-use utils::{Mat3Utils, Mat4Utils, VecUtils};
+use utils::{Mat3Utils, Mat4Utils};
 use wgpu::util::DeviceExt;
 
 use crate::vertex::Vertex;
@@ -38,11 +38,41 @@ impl Instance {
     }
 }
 
+pub struct Projection {
+    aspect: f32,
+    fovy: f32,
+    znear: f32,
+    zfar: f32,
+}
+
+impl Projection {
+    pub fn new(width: u32, height: u32, fovy: f32, znear: f32, zfar: f32) -> Self {
+        Self {
+            aspect: width as f32 / height as f32,
+            fovy,
+            znear,
+            zfar,
+        }
+    }
+
+    pub fn resize(&mut self, width: u32, height: u32) {
+        self.aspect = width as f32 / height as f32;
+    }
+
+    pub fn calc_matrix(&self) -> Mat4 {
+        Mat4::perspective_rh(self.fovy, self.aspect, self.znear, self.zfar)
+    }
+}
+
+
 pub struct GfxState {
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
+    window_width: u32,
+    window_height: u32,
+    projection: Projection,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     depth_texture: texture::Texture,
@@ -170,6 +200,9 @@ impl GfxState {
         };
         surface.configure(&device, &config);
 
+        let window_width = size.width;
+        let window_height = size.height;
+
         // load shaders
         let mut shaders = crate::shaders::load_shaders(&device);
 
@@ -213,6 +246,9 @@ impl GfxState {
                 ],
                 label: Some("texture_bind_group_layout"),
             });
+
+        let projection =
+            Projection::new(window_width, window_height, 45.0f32.to_radians(), 5.0, 2000.0);
 
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
@@ -329,7 +365,7 @@ impl GfxState {
                     let position = Vec3 { x, y: 0.0, z };
 
                     let rotation = if position == Vec3::ZERO {
-                        Quat::from_axis_angle(Vec3::unit_z(), 0.0)
+                        Quat::from_axis_angle(Vec3::Z, 0.0)
                     } else {
                         Quat::from_axis_angle(position.normalize(), std::f32::consts::PI / 4.)
                     };
@@ -369,6 +405,9 @@ impl GfxState {
             device,
             queue,
             config,
+            window_width,
+            window_height,
+            projection,
             camera_buffer,
             camera_bind_group,
             depth_texture,
@@ -482,16 +521,14 @@ impl gfx_api::Gfx for GfxState {
 
         self.depth_texture =
             texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
+
+        self.projection.resize(new_size.width, new_size.height);
     }
 
     fn update(
         &mut self,
         dt: instant::Duration,
-        camera_view: gfx_api::CameraView,
     ) {
-        self.queue
-            .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[camera_view]));
-
         // Update the light
         let old_position: Vec3 = self.light_uniform.position.into();
         self.light_uniform.position = (Quat::from_axis_angle(
@@ -507,9 +544,23 @@ impl gfx_api::Gfx for GfxState {
         );
     }
 
+    fn compute_ray(&self, mouse_pos: Vec2, camera: &Camera) -> utils::Ray {
+        let screen_vec = Vec4::new(
+            2.0 * mouse_pos.x as f32 / self.window_width as f32 - 1.0,
+            1.0 - 2.0 * mouse_pos.y as f32 / self.window_height as f32,
+            1.0,
+            1.0,
+        );
+        let eye_vec = self.projection.calc_matrix().inverse() * screen_vec;
+        let full_vec = camera.compute_view_matrix().inverse() * Vec4::new(eye_vec.x, eye_vec.y, -1.0, 0.0);
+        let processed_vec = Vec3::new(full_vec.x, full_vec.y, full_vec.z).normalize();
+
+        utils::Ray::new(camera.calc_pos(), processed_vec)
+    }
+
     fn add_instance(&mut self, position: Vec3) {
         let rotation = if position == Vec3::ZERO {
-            Quat::from_axis_angle(Vec3::unit_z(), 0.0)
+            Quat::from_axis_angle(Vec3::Z, 0.0)
         } else {
             Quat::from_axis_angle(position.normalize(), std::f32::consts::PI / 4.)
         };
@@ -544,6 +595,7 @@ impl gfx_api::Gfx for GfxState {
 }
 
 use gfx_api::RoadMesh;
+use gfx_api::Camera;
 
 impl gfx_api::GfxData for GfxState {
     
@@ -555,6 +607,17 @@ impl gfx_api::GfxData for GfxState {
     fn set_road_tool_mesh(&mut self, road_mesh: Option<RoadMesh>) {
         self.road_renderer
             .update_road_tool_mesh(&self.queue, &self.device, road_mesh);
+    }
+
+    fn update_camera(&mut self, camera: &Camera) {
+        let view_pos = camera.calc_pos().extend(1.0).into();
+        let view_proj = (gfx_api::OPENGL_TO_WGPU_MATRIX
+            * self.projection.calc_matrix()
+            * camera.compute_view_matrix())
+        .to_4x4();
+        let camera_view = gfx_api::CameraView::new(view_pos, view_proj);
+        self.queue
+            .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[camera_view]));
 
     }
 }

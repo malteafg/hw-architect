@@ -12,6 +12,7 @@ pub use math_utils::Mat4Utils;
 pub use math_utils::Mat3Utils;
 pub use math_utils::Angle;
 pub use math_utils::Round;
+pub use math_utils::Ray;
 
 pub mod loader;
 

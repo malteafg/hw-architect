@@ -1,4 +1,4 @@
-//! Contains utils for math as traits that are implemented for different math 
+//! Contains utils for math as traits that are implemented for different math
 //! types.
 
 use glam::*;
@@ -16,9 +16,6 @@ pub trait VecUtils {
     fn side(self, other: Self) -> f32;
     fn right_hand(self) -> Self;
     fn left_hand(self) -> Self;
-    fn unit_x() -> Self;
-    fn unit_y() -> Self;
-    fn unit_z() -> Self;
 }
 
 impl VecUtils for Vec3 {
@@ -60,18 +57,6 @@ impl VecUtils for Vec3 {
     fn right_hand(self) -> Self {
         Self::new(-self.z, self.y, self.x)
     }
-
-    fn unit_x() -> Self {
-        Vec3 { x: 1.0, y: 0.0, z: 0.0 }
-    }
-
-    fn unit_y() -> Self {
-        Vec3 { x: 0.0, y: 1.0, z: 0.0 }
-    }
-
-    fn unit_z() -> Self {
-        Vec3 { x: 0.0, y: 0.0, z: 1.0 }
-    }
 }
 
 /// Defines utility functions intended for 4x4 matrices
@@ -111,11 +96,7 @@ pub trait Mat3Utils {
 
 impl Mat3Utils for Mat3 {
     fn to_3x3(self) -> [[f32; 3]; 3] {
-        [
-            self.x_axis.into(),
-            self.y_axis.into(),
-            self.z_axis.into(),
-        ]
+        [self.x_axis.into(), self.y_axis.into(), self.z_axis.into()]
     }
 }
 
@@ -137,6 +118,18 @@ pub trait Round {
 impl Round for f32 {
     fn round_half_down(self) -> Self {
         let remainder = self % 1.0;
-        self - remainder + if remainder <= 0.5 {0.0} else {1.0}
+        self - remainder + if remainder <= 0.5 { 0.0 } else { 1.0 }
+    }
+}
+
+#[derive(Copy, Clone, Default, Debug)]
+pub struct Ray {
+    pub pos: Vec3,
+    pub dir: Vec3,
+}
+
+impl Ray {
+    pub fn new(pos: Vec3, dir: Vec3) -> Self {
+        Ray { pos, dir }
     }
 }

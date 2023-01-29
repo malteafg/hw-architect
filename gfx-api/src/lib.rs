@@ -4,6 +4,10 @@
 //! Dependency on wgpu in Gfx.render, on winit in Gfx.render and on glam in OPENGL_TO_WGPU_MATRIX
 //! should be removed
 
+mod camera;
+pub use camera::Camera;
+
+/// This trait defines how a gpu engine should be interacted with
 pub trait Gfx {
     // render should contain error handling as well
     // fn render(&mut self) -> Result<(), wgpu::SurfaceError>;
@@ -17,8 +21,11 @@ pub trait Gfx {
     fn update(
         &mut self,
         dt: instant::Duration,
-        camera_view: CameraView,
     );
+
+    /// Given a the position of the mouse on the screen and the camera, the ray is computed and
+    /// returned.
+    fn compute_ray(&self, mouse_pos: glam::Vec2, camera: &Camera) -> utils::Ray;
 
     fn add_instance(&mut self, position: glam::Vec3);
 
@@ -35,11 +42,15 @@ pub trait GfxData {
     // fn add_road_mesh(meshes: Vec<RoadMesh>);
     // use road ids or something
     // fn remove_road_mesh(meshes: Vec<RoadMesh>);
-
+    /// Temporary until proper road system.
     fn set_road_mesh(&mut self, road_mesh: Option<RoadMesh>);
 
-    /// Sets the mesh for the road tool. None is intended to signal that no mesh should be rendered
+    /// Sets the mesh for the road tool. None is intended to signal that no mesh should be
+    /// rendered.
     fn set_road_tool_mesh(&mut self, road_mesh: Option<RoadMesh>);
+
+    /// Updates the camera and computes new view and projection matrices.
+    fn update_camera(&mut self, camera: &Camera);
 }
 
 // Legacy code from gfx_bridge
@@ -68,6 +79,8 @@ pub struct RoadMesh {
     pub lane_indices: Vec<u32>,
 }
 
+// Represents a cameras position and projection view matrix in raw form. It cannot be computed
+// without the projection from the gpu side
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CameraView {
