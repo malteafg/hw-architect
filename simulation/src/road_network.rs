@@ -1,7 +1,7 @@
 use crate::curves;
 use gfx_api::RoadMesh;
 use glam::*;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use utils::consts::LANE_WIDTH;
 use utils::id::{NodeId, SegmentId};
 use utils::VecUtils;
@@ -10,6 +10,8 @@ mod snap;
 pub use snap::SnapConfig;
 
 use snap::SnapRange;
+mod lanes;
+use lanes::LaneMap;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub enum CurveType {
@@ -22,155 +24,6 @@ pub enum CurveType {
 pub struct RoadType {
     pub no_lanes: u8,
     pub curve_type: CurveType,
-}
-
-type LaneMap = VecDeque<Option<SegmentId>>;
-
-trait LaneMapUtils {
-    fn contains_none(&self) -> bool;
-    fn contains_some(&self) -> bool;
-    fn contains_different_somes(&self) -> bool;
-    fn contains_some_in_range(&self, range: SnapRange) -> bool;
-    fn is_same(&self) -> bool;
-    fn get_range_of_segment(&self, segment_id: SegmentId) -> SnapRange;
-    fn is_middle_segment(&self, segment_id: SegmentId) -> bool;
-    fn is_continuous(&self) -> bool;
-    fn remove_segment(&mut self, segment_id: SegmentId);
-    fn create(no_lanes: u8, id: Option<SegmentId>) -> Self;
-    fn update(&mut self, snap_range: &SnapRange, segment_id: SegmentId);
-    fn expand(&mut self, snap_range: &SnapRange, segment_id: Option<SegmentId>);
-}
-
-impl LaneMapUtils for LaneMap {
-    fn contains_none(&self) -> bool {
-        let mut contains_none = false;
-        for seg in self {
-            if seg.is_none() {
-                contains_none = true;
-            }
-        }
-        contains_none
-    }
-
-    fn contains_some(&self) -> bool {
-        let mut contains_some = false;
-        for seg in self {
-            if seg.is_some() {
-                contains_some = true;
-            }
-        }
-        contains_some
-    }
-
-    fn contains_some_in_range(&self, range: SnapRange) -> bool {
-        let mut contains_some = false;
-        for i in range.iter() {
-            if self[*i as usize].is_some() {
-                contains_some = true;
-            }
-        }
-        contains_some
-    }
-
-    fn contains_different_somes(&self) -> bool {
-        let mut temp: Option<SegmentId> = None;
-        for ele in self {
-            match (temp, ele) {
-                (Some(a), Some(b)) => {
-                    if a != *b {
-                        return true;
-                    }
-                }
-                (None, _) => temp = *ele,
-                _ => {}
-            }
-        }
-        false
-    }
-
-    fn is_same(&self) -> bool {
-        let temp = self[0];
-        for seg in self {
-            if *seg != temp {
-                return false;
-            }
-        }
-        true
-    }
-
-    fn get_range_of_segment(&self, segment_id: SegmentId) -> SnapRange {
-        let mut snap_range = vec![];
-        for (i, id) in self.iter().enumerate() {
-            if let Some(id) = id {
-                if *id == segment_id {
-                    snap_range.push(i as i8);
-                }
-            }
-        }
-        SnapRange::from_vec(snap_range)
-    }
-
-    fn is_middle_segment(&self, segment_id: SegmentId) -> bool {
-        let segment_range = self.get_range_of_segment(segment_id);
-        let bottom_range = SnapRange::create(0, segment_range[0]);
-        let top_range = SnapRange::create(segment_range[0] + 1, self.len() as i8);
-        self.contains_some_in_range(bottom_range) && self.contains_some_in_range(top_range)
-    }
-
-    fn is_continuous(&self) -> bool {
-        let mut some_seen = false;
-        let mut none_seen = false;
-        let mut some = None;
-        for &seg in self {
-            if seg.is_some() && !none_seen {
-                some_seen = true;
-                some = seg;
-            } else if seg.is_some() && some_seen && seg != some {
-                return false;
-            } else if seg.is_none() && some_seen {
-                none_seen = true
-            }
-        }
-        true
-    }
-
-    fn remove_segment(&mut self, segment_id: SegmentId) {
-        for seg in self.iter_mut() {
-            if let Some(id) = seg {
-                if *id == segment_id {
-                    *seg = None;
-                }
-            }
-        }
-    }
-
-    fn create(no_lanes: u8, id: Option<SegmentId>) -> Self {
-        let mut vec = VecDeque::new();
-        for _ in 0..no_lanes {
-            vec.push_back(id)
-        }
-        vec
-    }
-
-    fn update(&mut self, snap_range: &SnapRange, segment_id: SegmentId) {
-        for i in snap_range.iter() {
-            if self[*i as usize].replace(segment_id).is_some() {
-                panic!("Some segment was overriden in an update of a nodes lane map")
-            }
-        }
-    }
-
-    fn expand(&mut self, snap_range: &SnapRange, segment_id: Option<SegmentId>) {
-        let len = self.len() as i8;
-        for i in snap_range.iter() {
-            if *i < 0 {
-                self.push_front(segment_id);
-            }
-            if *i >= len {
-                self.push_back(segment_id);
-            }
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -270,7 +123,7 @@ impl LNode {
 
     fn get_snap_configs_from_map(
         &self,
-        lane_map: &VecDeque<Option<SegmentId>>,
+        lane_map: &LaneMap,
         reverse: bool,
         no_lanes: u8,
         node_id: NodeId,
