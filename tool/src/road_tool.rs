@@ -3,8 +3,10 @@ mod generator;
 use generator::RoadGeneratorTool;
 use gfx_api::RoadMesh;
 use glam::*;
-use simulation::road_network as network;
+use simulation::road_network::{self as network, RoadGen};
 use utils::input;
+use std::collections::HashMap;
+use utils::id::SegmentId;
 
 #[derive(Clone, Copy)]
 enum Mode {
@@ -22,6 +24,7 @@ pub struct ToolState {
     road_generator: generator::RoadGeneratorTool,
     ground_pos: Vec3,
     mode: Mode,
+    road_meshes: HashMap<SegmentId, RoadMesh>,
 }
 
 #[derive(Default)]
@@ -43,6 +46,7 @@ impl Default for ToolState {
             road_generator: RoadGeneratorTool::default(),
             ground_pos: Vec3::new(0.0, 0.0, 0.0),
             mode: Mode::SelectPos,
+            road_meshes: HashMap::new(),
         }
     }
 }
@@ -154,8 +158,12 @@ impl ToolState {
             Mode::Build => self.build_road(gfx_data),
             Mode::Bulldoze => {
                 let segment_id = self.road_graph.get_segment_inside(self.ground_pos);
-                let road_mesh = segment_id.map(|id| self.road_graph.remove_segment(id));
-                gfx_data.road_mesh = road_mesh.flatten();
+                if let Some(id) = segment_id {
+                    if self.road_graph.remove_segment(id) {
+                        self.road_meshes.remove(&id);
+                        gfx_data.road_mesh = Some(self.combine_road_meshes())
+                    }
+                }
             }
         }
     }
@@ -198,13 +206,57 @@ impl ToolState {
         self.mode = Mode::Build;
     }
 
+    // iterate over road_meshes and return vec of RoadVertex
+    // in the future separate road_meshes into "chunks"
+    fn combine_road_meshes(&self) -> RoadMesh {
+        let mut indices_count = 0;
+        let mut road_mesh: RoadMesh = RoadMesh::default();
+
+        for (_, mesh) in self.road_meshes.iter() {
+            road_mesh.vertices.append(&mut mesh.vertices.clone());
+            road_mesh.indices.append(
+                &mut mesh
+                    .indices
+                    .clone()
+                    .into_iter()
+                    .map(|i| i + indices_count)
+                    .collect(),
+            );
+            indices_count += mesh.vertices.len() as u32;
+        }
+
+        indices_count = 0;
+        for (_, mesh) in self.road_meshes.iter() {
+            road_mesh
+                .lane_vertices
+                .append(&mut mesh.lane_vertices.clone());
+            road_mesh.lane_indices.append(
+                &mut mesh
+                    .lane_indices
+                    .clone()
+                    .into_iter()
+                    .map(|i| i + indices_count)
+                    .collect(),
+            );
+            indices_count += mesh.lane_vertices.len() as u32;
+        }
+
+        road_mesh
+    }
+
+
     fn build_road(&mut self, gfx_data: &mut GfxData) {
-        let (road_mesh, new_node) = self.road_graph.add_road(
-            self.road_generator.extract(),
+        let road_generator = self.road_generator.extract();
+        let segments = road_generator.clone().extract().1;
+        let (segment_ids, new_node) = self.road_graph.add_road(
+            road_generator,
             self.sel_node.clone(),
             self.snapped_node.clone(),
         );
-        gfx_data.road_mesh = Some(road_mesh);
+        for i in 0..segment_ids.len() {
+            self.road_meshes.insert(segment_ids[i], segments[i].mesh.clone());
+        }
+        gfx_data.road_mesh = Some(self.combine_road_meshes());
         // TODO have add_road return new_node in such a way that is not necessary to check snapped_node
         if self.snapped_node.is_some() {
             self.reset_snap(gfx_data, Mode::SelectPos);

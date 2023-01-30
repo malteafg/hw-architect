@@ -249,16 +249,13 @@ impl SegmentBuilder {
         }
     }
 
-    fn build(self, from_node: NodeId, to_node: NodeId) -> (LSegment, RoadMesh) {
-        (
-            LSegment {
-                road_type: self.road_type,
-                guide_points: self.guide_points,
-                from_node,
-                to_node,
-            },
-            self.mesh,
-        )
+    fn build(self, from_node: NodeId, to_node: NodeId) -> LSegment {
+        LSegment {
+            road_type: self.road_type,
+            guide_points: self.guide_points,
+            from_node,
+            to_node,
+        }
     }
 }
 
@@ -271,7 +268,6 @@ pub struct RoadGraph {
     backward_refs: HashMap<NodeId, Vec<LeadingPair>>,
     node_id_count: u32,
     segment_id_count: u32,
-    road_meshes: HashMap<SegmentId, RoadMesh>,
 }
 
 impl Default for RoadGraph {
@@ -283,7 +279,6 @@ impl Default for RoadGraph {
 
         let node_id_count = 0;
         let segment_id_count = 0;
-        let road_meshes = HashMap::new();
 
         Self {
             node_map,
@@ -292,18 +287,19 @@ impl Default for RoadGraph {
             backward_refs,
             node_id_count,
             segment_id_count,
-            road_meshes,
         }
     }
 }
 
 impl RoadGraph {
+    /// At this point the road generator tool has allowed the construction of this road. The return
+    /// of a segment id is temporary.
     pub fn add_road(
         &mut self,
         road: impl RoadGen,
         selected_node: Option<SnapConfig>,
         snapped_node: Option<SnapConfig>,
-    ) -> (RoadMesh, Option<SnapConfig>) {
+    ) -> (Vec<SegmentId>, Option<SnapConfig>) {
         let (node_list, segment_list, road_type, reverse) = road.extract();
         let mut new_snap_index = 0;
 
@@ -369,10 +365,9 @@ impl RoadGraph {
             .into_iter()
             .enumerate()
             .for_each(|(i, segment_builder)| {
-                let (segment, mesh) = segment_builder.build(node_ids[i], node_ids[i + 1]);
+                let segment = segment_builder.build(node_ids[i], node_ids[i + 1]);
                 let id = segment_ids[i];
                 self.segment_map.insert(id, segment);
-                self.road_meshes.insert(id, mesh);
             });
 
         // update forward_refs and backward_refs
@@ -398,8 +393,7 @@ impl RoadGraph {
             .get(0)
             .cloned();
 
-        // TODO recompute meshes for affected nodes
-        (self.combine_road_meshes(), new_snap)
+        (segment_ids, new_snap)
     }
 
     fn remove_node_if_not_exists(&mut self, node_id: NodeId) {
@@ -420,7 +414,8 @@ impl RoadGraph {
         }
     }
 
-    pub fn remove_segment(&mut self, segment_id: SegmentId) -> Option<RoadMesh> {
+    /// The return bool signals whether the segment was allowed to be removed or not.
+    pub fn remove_segment(&mut self, segment_id: SegmentId) -> bool {
         // check if deletion is valid
         let segment = self.get_segment(segment_id).clone();
         let from_node = self.get_node(segment.from_node);
@@ -429,7 +424,7 @@ impl RoadGraph {
             || !to_node.can_remove_segment(segment_id, true)
         {
             dbg!("Cannot bulldoze segment");
-            return None;
+            return false;
         }
 
         // remove any reference to this segment
@@ -438,7 +433,6 @@ impl RoadGraph {
             .remove_segment_from_lane_map(segment_id);
         self.get_node_mut(segment.to_node)
             .remove_segment_from_lane_map(segment_id);
-        self.road_meshes.remove(&segment_id);
         self.forward_refs
             .get_mut(&segment.from_node)
             .expect("node does not exist in forward map")
@@ -452,7 +446,7 @@ impl RoadGraph {
         self.remove_node_if_not_exists(segment.from_node);
         self.remove_node_if_not_exists(segment.to_node);
 
-        Some(self.combine_road_meshes())
+        true
     }
 
     fn get_node_mut(&mut self, node: NodeId) -> &mut LNode {
@@ -477,44 +471,6 @@ impl RoadGraph {
         self.segment_map
             .get(&segment)
             .expect("Segment does not exist in segment map")
-    }
-
-    // iterate over road_meshes and return vec of RoadVertex
-    // in the future separate road_meshes into "chunks"
-    fn combine_road_meshes(&self) -> RoadMesh {
-        let mut indices_count = 0;
-        let mut road_mesh: RoadMesh = RoadMesh::default();
-
-        for (_, mesh) in self.road_meshes.iter() {
-            road_mesh.vertices.append(&mut mesh.vertices.clone());
-            road_mesh.indices.append(
-                &mut mesh
-                    .indices
-                    .clone()
-                    .into_iter()
-                    .map(|i| i + indices_count)
-                    .collect(),
-            );
-            indices_count += mesh.vertices.len() as u32;
-        }
-
-        indices_count = 0;
-        for (_, mesh) in self.road_meshes.iter() {
-            road_mesh
-                .lane_vertices
-                .append(&mut mesh.lane_vertices.clone());
-            road_mesh.lane_indices.append(
-                &mut mesh
-                    .lane_indices
-                    .clone()
-                    .into_iter()
-                    .map(|i| i + indices_count)
-                    .collect(),
-            );
-            indices_count += mesh.lane_vertices.len() as u32;
-        }
-
-        road_mesh
     }
 
     pub fn get_node_snap_configs(

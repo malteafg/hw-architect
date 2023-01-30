@@ -2,9 +2,9 @@ use super::snap::SnapRange;
 use std::collections::VecDeque;
 use utils::id::SegmentId;
 
-/// Defines the an order of {`SegmentId`}'s that a node uses to keep track of which segments are
-/// incoming and outgoing to and from itself. None is used to signal that there is no segment
-/// present at this lane
+/// Defines an order of {`SegmentId`}'s that an {`LNode`} uses to keep track of which segments are
+/// incoming and outgoing to and from itself. Thus an {`LNode`} has two {`LaneMap`}s. None is used
+/// to signal that there is no segment present at this lane
 #[derive(Debug, Clone, PartialEq)]
 pub(super) struct LaneMap(VecDeque<Option<SegmentId>>);
 
