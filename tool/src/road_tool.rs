@@ -4,9 +4,9 @@ use generator::RoadGeneratorTool;
 use gfx_api::RoadMesh;
 use glam::*;
 use simulation::road_network::{self as network, RoadGen};
-use utils::input;
 use std::collections::HashMap;
-use utils::id::SegmentId;
+use utils::id::{NodeId, SegmentId};
+use utils::input;
 
 #[derive(Clone, Copy)]
 enum Mode {
@@ -25,6 +25,8 @@ pub struct ToolState {
     ground_pos: Vec3,
     mode: Mode,
     road_meshes: HashMap<SegmentId, RoadMesh>,
+    node_id_count: u32,
+    segment_id_count: u32,
 }
 
 #[derive(Default)]
@@ -47,6 +49,8 @@ impl Default for ToolState {
             ground_pos: Vec3::new(0.0, 0.0, 0.0),
             mode: Mode::SelectPos,
             road_meshes: HashMap::new(),
+            node_id_count: 0,
+            segment_id_count: 0,
         }
     }
 }
@@ -79,6 +83,18 @@ impl ToolState {
                 _ => {}
             },
         }
+    }
+
+    fn generate_node_id(&mut self) -> NodeId {
+        let node_id = self.node_id_count;
+        self.node_id_count += 1;
+        NodeId(node_id)
+    }
+
+    fn generate_segment_id(&mut self) -> SegmentId {
+        let segment_id = self.segment_id_count;
+        self.segment_id_count += 1;
+        SegmentId(segment_id)
     }
 
     fn switch_lane_no(&mut self, gfx_data: &mut GfxData, no_lanes: u8) {
@@ -244,17 +260,37 @@ impl ToolState {
         road_mesh
     }
 
-
+    /// Constructs the road that is being generated.
     fn build_road(&mut self, gfx_data: &mut GfxData) {
         let road_generator = self.road_generator.extract();
+
+        // Id gen and other stuff is just temporary
         let segments = road_generator.clone().extract().1;
-        let (segment_ids, new_node) = self.road_graph.add_road(
+        let num_segment_ids = segments.len();
+        let segment_ids: Vec<SegmentId> = (0..num_segment_ids)
+            .map(|_| self.generate_segment_id())
+            .collect();
+
+        let mut num_node_ids = segments.len() - 1;
+        if self.snapped_node.is_none() {
+            num_node_ids += 1;
+        };
+        if self.sel_node.is_none() {
+            num_node_ids += 1;
+        };
+        let node_ids = (0..num_node_ids).map(|_| self.generate_node_id()).collect();
+
+        let new_node = self.road_graph.add_road(
             road_generator,
             self.sel_node.clone(),
             self.snapped_node.clone(),
+            node_ids,
+            segment_ids.clone(),
         );
-        for i in 0..segment_ids.len() {
-            self.road_meshes.insert(segment_ids[i], segments[i].mesh.clone());
+
+        for i in 0..num_segment_ids {
+            self.road_meshes
+                .insert(segment_ids[i], segments[i].mesh.clone());
         }
         gfx_data.road_mesh = Some(self.combine_road_meshes());
         // TODO have add_road return new_node in such a way that is not necessary to check snapped_node

@@ -266,8 +266,6 @@ pub struct RoadGraph {
     segment_map: HashMap<SegmentId, LSegment>,
     forward_refs: HashMap<NodeId, Vec<LeadingPair>>,
     backward_refs: HashMap<NodeId, Vec<LeadingPair>>,
-    node_id_count: u32,
-    segment_id_count: u32,
 }
 
 impl Default for RoadGraph {
@@ -277,16 +275,11 @@ impl Default for RoadGraph {
         let forward_refs = HashMap::new();
         let backward_refs = HashMap::new();
 
-        let node_id_count = 0;
-        let segment_id_count = 0;
-
         Self {
             node_map,
             segment_map,
             forward_refs,
             backward_refs,
-            node_id_count,
-            segment_id_count,
         }
     }
 }
@@ -299,7 +292,9 @@ impl RoadGraph {
         road: impl RoadGen,
         selected_node: Option<SnapConfig>,
         snapped_node: Option<SnapConfig>,
-    ) -> (Vec<SegmentId>, Option<SnapConfig>) {
+        node_ids: Vec<NodeId>,
+        segment_ids: Vec<SegmentId>,
+    ) -> Option<SnapConfig> {
         let (node_list, segment_list, road_type, reverse) = road.extract();
         let mut new_snap_index = 0;
 
@@ -320,13 +315,8 @@ impl RoadGraph {
             new_snap_index = nodes.len() - 1;
         }
 
-        // Create new segments
-        let segment_ids: Vec<SegmentId> = segment_list
-            .iter()
-            .map(|_| self.generate_segment_id())
-            .collect();
-
-        let mut node_ids = vec![];
+        let mut node_id_counter = 0;
+        let mut new_node_ids = vec![];
         nodes.iter().enumerate().for_each(|(i, node)| {
             let node_id = match node {
                 Some(snap_config) => {
@@ -341,7 +331,8 @@ impl RoadGraph {
                 }
                 None => {
                     // generate new node
-                    let node_id = self.generate_node_id();
+                    let node_id = node_ids[node_id_counter];
+                    node_id_counter += 1;
                     self.forward_refs.insert(node_id, Vec::new());
                     self.backward_refs.insert(node_id, Vec::new());
                     self.node_map.insert(
@@ -358,42 +349,42 @@ impl RoadGraph {
                     node_id
                 }
             };
-            node_ids.push(node_id);
+            new_node_ids.push(node_id);
         });
 
         segment_list
             .into_iter()
             .enumerate()
             .for_each(|(i, segment_builder)| {
-                let segment = segment_builder.build(node_ids[i], node_ids[i + 1]);
+                let segment = segment_builder.build(new_node_ids[i], new_node_ids[i + 1]);
                 let id = segment_ids[i];
                 self.segment_map.insert(id, segment);
             });
 
         // update forward_refs and backward_refs
-        node_ids.iter().enumerate().for_each(|(i, node_id)| {
+        new_node_ids.iter().enumerate().for_each(|(i, node_id)| {
             if let Some(backward_id) = segment_ids.get(((i as i32 - 1) % 100) as usize) {
                 self.backward_refs
                     .get_mut(node_id)
                     .expect("NodeId does not exist in backward_refs")
-                    .push((node_ids[i - 1], *backward_id));
+                    .push((new_node_ids[i - 1], *backward_id));
             }
             if let Some(forward_id) = segment_ids.get(i) {
                 self.forward_refs
                     .get_mut(node_id)
                     .expect("NodeId does not exist in forward_refs")
-                    .push((node_ids[i + 1], *forward_id));
+                    .push((new_node_ids[i + 1], *forward_id));
             }
         });
 
-        let new_snap_id = node_ids[new_snap_index];
+        let new_snap_id = new_node_ids[new_snap_index];
         let new_snap = self
             .get_node(new_snap_id)
             .get_snap_configs(road_type.no_lanes, new_snap_id)
             .get(0)
             .cloned();
 
-        (segment_ids, new_snap)
+        new_snap
     }
 
     fn remove_node_if_not_exists(&mut self, node_id: NodeId) {
@@ -518,18 +509,6 @@ impl RoadGraph {
             }
         }
         None
-    }
-
-    fn generate_node_id(&mut self) -> NodeId {
-        let node_id = self.node_id_count;
-        self.node_id_count += 1;
-        NodeId(node_id)
-    }
-
-    fn generate_segment_id(&mut self) -> SegmentId {
-        let segment_id = self.segment_id_count;
-        self.segment_id_count += 1;
-        SegmentId(segment_id)
     }
 
     #[cfg(debug_assertions)]
