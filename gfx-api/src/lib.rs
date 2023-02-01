@@ -18,10 +18,7 @@ pub trait Gfx {
     /// Dependency on winit should be removed
     fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>);
 
-    fn update(
-        &mut self,
-        dt: instant::Duration,
-    );
+    fn update(&mut self, dt: instant::Duration);
 
     fn add_instance(&mut self, position: glam::Vec3);
 
@@ -32,26 +29,43 @@ pub trait Gfx {
     // fn load_gfx();
 }
 
-/// This trait defines how tool is allowed to interact with the data that is needed by the gpu
-pub trait GfxData {
-    // TODO, rewrite the following when ID's are properly introduced
-    // fn add_road_mesh(meshes: Vec<RoadMesh>);
-    // use road ids or something
-    // fn remove_road_mesh(meshes: Vec<RoadMesh>);
-    /// Temporary until proper road system.
-    fn set_road_mesh(&mut self, road_mesh: Option<RoadMesh>);
+/// Module is used as a convenient way of importing all the data associated traits.
+pub mod data {
+    use super::*;
+    use std::collections::HashMap;
+    use utils::id::SegmentId;
 
-    /// Sets the mesh for the road tool. None is intended to signal that no mesh should be
-    /// rendered.
-    fn set_road_tool_mesh(&mut self, road_mesh: Option<RoadMesh>);
+    /// This trait defines how tool is allowed to interact with the data associated with roads,
+    /// that is needed by the gpu.
+    pub trait GfxRoadData {
+        /// Adds a set of road meshes to the renderer such that they are now rendered. Fewer calls
+        /// to this is strongly preferred, for performance reasons.
+        fn add_road_meshes(&mut self, meshes: HashMap<SegmentId, RoadMesh>);
 
-    /// Updates the camera and computes new view and projection matrices.
-    fn update_camera(&mut self, camera: &Camera);
+        /// Removes a set of road meshes given by their ids, such that their are no longer rendered
+        /// and stored by the renderer. Fewer calls to this is stongly preferred, for performance
+        /// reasons.
+        fn remove_road_meshes(&mut self, ids: Vec<SegmentId>);
 
-    /// Given a the position of the mouse on the screen and the camera, the ray is computed and
-    /// returned.
-    fn compute_ray(&self, mouse_pos: glam::Vec2, camera: &Camera) -> utils::Ray;
+        /// Sets the mesh for the road tool. None is intended to signal that no mesh should be
+        /// rendered.
+        fn set_road_tool_mesh(&mut self, road_mesh: Option<RoadMesh>);
+    }
+
+    /// This trait defines how tool is allowed to interact with the data associated with the camera,
+    /// that is needed by the gpu.
+    pub trait GfxCameraData {
+        /// Updates the camera and computes new view and projection matrices.
+        fn update_camera(&mut self, camera: &Camera);
+
+        /// Given a the position of the mouse on the screen and the camera, the ray is computed and
+        /// returned.
+        fn compute_ray(&self, mouse_pos: glam::Vec2, camera: &Camera) -> utils::Ray;
+    }
 }
+
+pub use data::GfxCameraData;
+pub use data::GfxRoadData;
 
 // Legacy code from gfx_bridge
 #[repr(C)]

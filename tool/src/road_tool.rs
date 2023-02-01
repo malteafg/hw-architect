@@ -1,12 +1,12 @@
 mod generator;
 
 use generator::RoadGeneratorTool;
-use gfx_api::RoadMesh;
+use gfx_api::GfxRoadData;
 use glam::*;
 use simulation::road_network::{self as network, RoadGen};
-use std::collections::HashMap;
 use utils::id::{NodeId, SegmentId};
 use utils::input;
+use std::collections::HashMap;
 
 #[derive(Clone, Copy)]
 enum Mode {
@@ -24,15 +24,8 @@ pub struct ToolState {
     road_generator: generator::RoadGeneratorTool,
     ground_pos: Vec3,
     mode: Mode,
-    road_meshes: HashMap<SegmentId, RoadMesh>,
     node_id_count: u32,
     segment_id_count: u32,
-}
-
-#[derive(Default)]
-pub struct GfxData {
-    pub road_mesh: Option<RoadMesh>,
-    pub road_tool_mesh: Option<RoadMesh>,
 }
 
 impl Default for ToolState {
@@ -48,7 +41,6 @@ impl Default for ToolState {
             road_generator: RoadGeneratorTool::default(),
             ground_pos: Vec3::new(0.0, 0.0, 0.0),
             mode: Mode::SelectPos,
-            road_meshes: HashMap::new(),
             node_id_count: 0,
             segment_id_count: 0,
         }
@@ -56,7 +48,7 @@ impl Default for ToolState {
 }
 
 impl ToolState {
-    pub fn process_keyboard(&mut self, gfx_data: &mut GfxData, key: input::KeyAction) {
+    pub fn process_keyboard(&mut self, gfx_data: &mut impl GfxRoadData, key: input::KeyAction) {
         use input::Action::*;
         let (action, pressed) = key;
         if pressed {
@@ -72,7 +64,7 @@ impl ToolState {
                 CycleRoadType => self.switch_curve_type(gfx_data),
                 ToggleBulldoze => {
                     self.mode = Mode::Bulldoze;
-                    gfx_data.road_tool_mesh = Some(generator::empty_mesh());
+                    gfx_data.set_road_tool_mesh(Some(generator::empty_mesh()));
                 }
                 OneLane => self.switch_lane_no(gfx_data, 1),
                 TwoLane => self.switch_lane_no(gfx_data, 2),
@@ -97,7 +89,7 @@ impl ToolState {
         SegmentId(segment_id)
     }
 
-    fn switch_lane_no(&mut self, gfx_data: &mut GfxData, no_lanes: u8) {
+    fn switch_lane_no(&mut self, gfx_data: &mut impl GfxRoadData, no_lanes: u8) {
         if self.sel_road_type.no_lanes == no_lanes {
             return;
         };
@@ -110,7 +102,7 @@ impl ToolState {
         }
     }
 
-    fn switch_curve_type(&mut self, gfx_data: &mut GfxData) {
+    fn switch_curve_type(&mut self, gfx_data: &mut impl GfxRoadData) {
         use network::CurveType::*;
         match self.sel_road_type.curve_type {
             Straight => {
@@ -134,7 +126,7 @@ impl ToolState {
         }
     }
 
-    pub fn mouse_input(&mut self, gfx_data: &mut GfxData, event: input::MouseEvent) {
+    pub fn mouse_input(&mut self, gfx_data: &mut impl GfxRoadData, event: input::MouseEvent) {
         use input::MouseEvent;
 
         match event {
@@ -146,7 +138,7 @@ impl ToolState {
         }
     }
 
-    fn left_click(&mut self, gfx_data: &mut GfxData) {
+    fn left_click(&mut self, gfx_data: &mut impl GfxRoadData) {
         use network::CurveType;
         match self.mode {
             Mode::SelectPos => match self.snapped_node.clone() {
@@ -156,7 +148,7 @@ impl ToolState {
                 None => {
                     self.road_generator =
                         RoadGeneratorTool::new(self.ground_pos, None, self.sel_road_type, false);
-                    gfx_data.road_tool_mesh = self.road_generator.get_mesh();
+                    gfx_data.set_road_tool_mesh(self.road_generator.get_mesh());
 
                     self.mode = Mode::SelectDir;
                 }
@@ -166,7 +158,7 @@ impl ToolState {
                 CurveType::Curved => {
                     self.road_generator.lock_dir(self.ground_pos);
                     self.road_generator.update_pos(self.ground_pos);
-                    gfx_data.road_tool_mesh = self.road_generator.get_mesh();
+                    gfx_data.set_road_tool_mesh(self.road_generator.get_mesh());
 
                     self.mode = Mode::Build;
                 }
@@ -176,15 +168,14 @@ impl ToolState {
                 let segment_id = self.road_graph.get_segment_inside(self.ground_pos);
                 if let Some(id) = segment_id {
                     if self.road_graph.remove_segment(id) {
-                        self.road_meshes.remove(&id);
-                        gfx_data.road_mesh = Some(self.combine_road_meshes())
+                        gfx_data.remove_road_meshes(vec![id])
                     }
                 }
             }
         }
     }
 
-    fn right_click(&mut self, gfx_data: &mut GfxData) {
+    fn right_click(&mut self, gfx_data: &mut impl GfxRoadData) {
         use network::CurveType;
         match self.mode {
             Mode::SelectPos | Mode::Bulldoze => {
@@ -205,7 +196,7 @@ impl ToolState {
         }
     }
 
-    fn select_node(&mut self, gfx_data: &mut GfxData, snapped_node: network::SnapConfig) {
+    fn select_node(&mut self, gfx_data: &mut impl GfxRoadData, snapped_node: network::SnapConfig) {
         let node = self.road_graph.get_node(snapped_node.node_id);
 
         self.road_generator = generator::RoadGeneratorTool::new(
@@ -215,53 +206,16 @@ impl ToolState {
             snapped_node.reverse,
         );
         self.road_generator.update_pos(self.ground_pos);
-        gfx_data.road_tool_mesh = self.road_generator.get_mesh();
+        gfx_data.set_road_tool_mesh(self.road_generator.get_mesh());
 
         self.sel_node = Some(snapped_node);
         self.snapped_node = None;
         self.mode = Mode::Build;
     }
 
-    // iterate over road_meshes and return vec of RoadVertex
-    // in the future separate road_meshes into "chunks"
-    fn combine_road_meshes(&self) -> RoadMesh {
-        let mut indices_count = 0;
-        let mut road_mesh: RoadMesh = RoadMesh::default();
-
-        for (_, mesh) in self.road_meshes.iter() {
-            road_mesh.vertices.append(&mut mesh.vertices.clone());
-            road_mesh.indices.append(
-                &mut mesh
-                    .indices
-                    .clone()
-                    .into_iter()
-                    .map(|i| i + indices_count)
-                    .collect(),
-            );
-            indices_count += mesh.vertices.len() as u32;
-        }
-
-        indices_count = 0;
-        for (_, mesh) in self.road_meshes.iter() {
-            road_mesh
-                .lane_vertices
-                .append(&mut mesh.lane_vertices.clone());
-            road_mesh.lane_indices.append(
-                &mut mesh
-                    .lane_indices
-                    .clone()
-                    .into_iter()
-                    .map(|i| i + indices_count)
-                    .collect(),
-            );
-            indices_count += mesh.lane_vertices.len() as u32;
-        }
-
-        road_mesh
-    }
-
     /// Constructs the road that is being generated.
-    fn build_road(&mut self, gfx_data: &mut GfxData) {
+    fn build_road(&mut self, gfx_data: &mut impl GfxRoadData) {
+        let road_meshes = self.road_generator.get_road_meshes();
         let road_generator = self.road_generator.extract();
 
         // Id gen and other stuff is just temporary
@@ -288,11 +242,12 @@ impl ToolState {
             segment_ids.clone(),
         );
 
+        let mut mesh_map = HashMap::new();
         for i in 0..num_segment_ids {
-            self.road_meshes
-                .insert(segment_ids[i], segments[i].mesh.clone());
+            mesh_map.insert(segment_ids[i], road_meshes[i].clone());
         }
-        gfx_data.road_mesh = Some(self.combine_road_meshes());
+        gfx_data.add_road_meshes(mesh_map);
+
         // TODO have add_road return new_node in such a way that is not necessary to check snapped_node
         if self.snapped_node.is_some() {
             self.reset_snap(gfx_data, Mode::SelectPos);
@@ -303,7 +258,7 @@ impl ToolState {
         }
     }
 
-    fn reset_snap(&mut self, gfx_data: &mut GfxData, new_mode: Mode) {
+    fn reset_snap(&mut self, gfx_data: &mut impl GfxRoadData, new_mode: Mode) {
         if let Mode::SelectPos = new_mode {
             self.road_generator = RoadGeneratorTool::default();
         };
@@ -313,24 +268,24 @@ impl ToolState {
         self.check_snapping(gfx_data);
     }
 
-    fn update_no_snap(&mut self, gfx_data: &mut GfxData) {
+    fn update_no_snap(&mut self, gfx_data: &mut impl GfxRoadData) {
         self.snapped_node = None;
         let empty_mesh = Some(generator::empty_mesh());
 
         match self.mode {
-            Mode::SelectPos | Mode::Bulldoze => gfx_data.road_tool_mesh = empty_mesh,
+            Mode::SelectPos | Mode::Bulldoze => gfx_data.set_road_tool_mesh(empty_mesh),
             Mode::SelectDir => {
                 self.road_generator.update_pos(self.ground_pos);
-                gfx_data.road_tool_mesh = self.road_generator.get_mesh();
+                gfx_data.set_road_tool_mesh(self.road_generator.get_mesh());
             }
             Mode::Build => {
                 self.road_generator.update_pos(self.ground_pos);
-                gfx_data.road_tool_mesh = self.road_generator.get_mesh();
+                gfx_data.set_road_tool_mesh(self.road_generator.get_mesh());
             }
         };
     }
 
-    fn update_snap(&mut self, gfx_data: &mut GfxData, snap_configs: Vec<network::SnapConfig>) {
+    fn update_snap(&mut self, gfx_data: &mut impl GfxRoadData, snap_configs: Vec<network::SnapConfig>) {
         match self.mode {
             Mode::SelectPos => {
                 let snap_config = &snap_configs[0];
@@ -341,7 +296,7 @@ impl ToolState {
                     snap_config.reverse,
                 );
                 self.snapped_node = Some(snap_config.clone());
-                gfx_data.road_tool_mesh = road_generator.get_mesh();
+                gfx_data.set_road_tool_mesh(road_generator.get_mesh());
             }
             Mode::SelectDir | Mode::Build => {
                 for snap_config in snap_configs {
@@ -351,17 +306,17 @@ impl ToolState {
                         .is_some()
                     {
                         self.snapped_node = Some(snap_config);
-                        gfx_data.road_tool_mesh = self.road_generator.get_mesh();
+                        gfx_data.set_road_tool_mesh(self.road_generator.get_mesh());
                         return;
                     }
                 }
                 self.update_no_snap(gfx_data);
             }
-            Mode::Bulldoze => gfx_data.road_tool_mesh = Some(generator::empty_mesh()),
+            Mode::Bulldoze => gfx_data.set_road_tool_mesh(Some(generator::empty_mesh())),
         };
     }
 
-    fn check_snapping(&mut self, gfx_data: &mut GfxData) {
+    fn check_snapping(&mut self, gfx_data: &mut impl GfxRoadData) {
         if let Some((_snap_id, snap_configs)) = self
             .road_graph
             .get_node_snap_configs(self.ground_pos, self.sel_road_type.no_lanes)
@@ -376,7 +331,7 @@ impl ToolState {
         }
     }
 
-    pub fn update_ground_pos(&mut self, gfx_data: &mut GfxData, ground_pos: Vec3) {
+    pub fn update_ground_pos(&mut self, gfx_data: &mut impl GfxRoadData, ground_pos: Vec3) {
         self.ground_pos = ground_pos;
         self.check_snapping(gfx_data);
     }

@@ -11,7 +11,6 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 utils = { path = "../utils" }
-gfx-api = { path = "../gfx-api" }
 
 glam = { version = "0.22", default-features = false, features = ["serde", "bytemuck"] }
 bytemuck = { version = "1.13", features = [ "derive" ] }

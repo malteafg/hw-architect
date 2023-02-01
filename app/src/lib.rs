@@ -18,7 +18,6 @@ use utils::input;
 
 struct State {
     gfx: gfx_wgpu::GfxState,
-    gfx_data: road_tool::GfxData,
     window_size: PhysicalSize<u32>,
     camera: gfx_api::Camera,
     camera_controller: camera_controller::CameraController,
@@ -43,7 +42,6 @@ impl State {
 
         Self {
             gfx,
-            gfx_data: road_tool::GfxData::default(),
             window_size,
             camera,
             camera_controller,
@@ -55,7 +53,7 @@ impl State {
 
     fn key_input(&mut self, action: input::KeyAction) {
         self.camera_controller.process_keyboard(action);
-        self.road_tool.process_keyboard(&mut self.gfx_data, action);
+        self.road_tool.process_keyboard(&mut self.gfx, action);
     }
 
     fn mouse_input(&mut self, event: input::MouseEvent) {
@@ -67,25 +65,21 @@ impl State {
             _ => {}
         };
 
-        self.road_tool.mouse_input(&mut self.gfx_data, event);
+        self.road_tool.mouse_input(&mut self.gfx, event);
     }
 
     fn update(&mut self, dt: instant::Duration) {
         if self.camera_controller.update_camera(&mut self.camera, dt) {
             self.update_ground_pos();
         }
+        use gfx_api::data::*;
         self.gfx.update_camera(&self.camera);
         self.gfx.update(dt);
-        use gfx_api::GfxData;
-        self.gfx.set_road_mesh(self.gfx_data.road_mesh.clone());
-        self.gfx
-            .set_road_tool_mesh(self.gfx_data.road_tool_mesh.clone());
-        self.gfx_data = road_tool::GfxData::default();
     }
 
     fn update_ground_pos(&mut self) {
         let mouse_pos = self.input_handler.get_mouse_pos();
-        use gfx_api::GfxData;
+        use gfx_api::data::*;
         let ray = self.gfx.compute_ray(
             glam::Vec2::new(mouse_pos.x as f32, mouse_pos.y as f32),
             &self.camera,
@@ -93,7 +87,7 @@ impl State {
         let ground_pos = ray.pos + ray.dir * (-ray.pos.y / ray.dir.y);
         self.ground_pos = ground_pos;
         self.road_tool
-            .update_ground_pos(&mut self.gfx_data, self.ground_pos);
+            .update_ground_pos(&mut self.gfx, self.ground_pos);
     }
 
     fn resize(&mut self, new_size: PhysicalSize<u32>) {

@@ -2,9 +2,11 @@ use crate::{
     buffer::{self, VIBuffer},
     texture,
 };
-use glam::*;
-use wgpu::util::DeviceExt;
 use gfx_api::RoadMesh;
+use glam::*;
+use std::collections::HashMap;
+use utils::id::SegmentId;
+use wgpu::util::DeviceExt;
 
 pub struct RoadState {
     road_buffer: buffer::VIBuffer,
@@ -14,6 +16,7 @@ pub struct RoadState {
     road_color_bind_group: wgpu::BindGroup,
     road_markings_color_bind_group: wgpu::BindGroup,
     road_tool_color_bind_group: wgpu::BindGroup,
+    road_meshes: HashMap<SegmentId, RoadMesh>,
 }
 
 impl RoadState {
@@ -134,35 +137,57 @@ impl RoadState {
             road_color_bind_group,
             road_markings_color_bind_group,
             road_tool_color_bind_group,
-            // road_material,
+            road_meshes: HashMap::new(),
         }
     }
 
-    pub fn update_road_mesh(
+    /// Combines the road meshes that road renderer stores in memory, and writes this to the gpu.
+    fn write_road_mesh(&mut self, queue: &wgpu::Queue, device: &wgpu::Device) {
+        let mesh = combine_road_meshes(&self.road_meshes);
+        self.road_buffer.write(
+            queue,
+            device,
+            bytemuck::cast_slice(&mesh.vertices),
+            bytemuck::cast_slice(&mesh.indices),
+            mesh.indices.len() as u32,
+        );
+        self.road_markings_buffer.write(
+            queue,
+            device,
+            bytemuck::cast_slice(&mesh.lane_vertices),
+            bytemuck::cast_slice(&mesh.lane_indices),
+            mesh.lane_indices.len() as u32,
+        );
+    }
+
+    /// Adds a set of road meshes to what is stored in memory, and updates the gpu road meshes
+    /// buffer.
+    pub(super) fn add_road_meshes(
         &mut self,
         queue: &wgpu::Queue,
         device: &wgpu::Device,
-        mesh: Option<RoadMesh>,
+        meshes: HashMap<SegmentId, RoadMesh>,
     ) {
-        if let Some(mesh) = mesh {
-            self.road_buffer.write(
-                queue,
-                device,
-                bytemuck::cast_slice(&mesh.vertices),
-                bytemuck::cast_slice(&mesh.indices),
-                mesh.indices.len() as u32,
-            );
-            self.road_markings_buffer.write(
-                queue,
-                device,
-                bytemuck::cast_slice(&mesh.lane_vertices),
-                bytemuck::cast_slice(&mesh.lane_indices),
-                mesh.lane_indices.len() as u32,
-            );
-        }
+        self.road_meshes.extend(meshes);
+        self.write_road_mesh(queue, device);
     }
 
-    pub fn update_road_tool_mesh(
+    /// Removes a set of road meshes given by their ids from what is stored in memory, and updates
+    /// the gpu road meshes buffer.
+    pub(super) fn remove_road_meshes(
+        &mut self,
+        queue: &wgpu::Queue,
+        device: &wgpu::Device,
+        ids: Vec<SegmentId>,
+    ) {
+        ids.iter().for_each(|id| {
+            self.road_meshes.remove(id);
+        });
+        self.write_road_mesh(queue, device);
+    }
+
+    /// Updates the road tool buffer with the given mesh.
+    pub(super) fn update_road_tool_mesh(
         &mut self,
         queue: &wgpu::Queue,
         device: &wgpu::Device,
@@ -180,7 +205,46 @@ impl RoadState {
     }
 }
 
+/// Iterates over the given road_meshes and returns a vec of {`RoadVertex`} for writing to the gpu.
+fn combine_road_meshes(road_meshes: &HashMap<SegmentId, RoadMesh>) -> RoadMesh {
+    let mut indices_count = 0;
+    let mut road_mesh: RoadMesh = RoadMesh::default();
+
+    for (_, mesh) in road_meshes.iter() {
+        road_mesh.vertices.append(&mut mesh.vertices.clone());
+        road_mesh.indices.append(
+            &mut mesh
+                .indices
+                .clone()
+                .into_iter()
+                .map(|i| i + indices_count)
+                .collect(),
+        );
+        indices_count += mesh.vertices.len() as u32;
+    }
+
+    indices_count = 0;
+    for (_, mesh) in road_meshes.iter() {
+        road_mesh
+            .lane_vertices
+            .append(&mut mesh.lane_vertices.clone());
+        road_mesh.lane_indices.append(
+            &mut mesh
+                .lane_indices
+                .clone()
+                .into_iter()
+                .map(|i| i + indices_count)
+                .collect(),
+        );
+        indices_count += mesh.lane_vertices.len() as u32;
+    }
+
+    road_mesh
+}
+
+/// A trait used by the main renderer to render the roads.
 pub trait RenderRoad<'a> {
+    /// The function that implements rendering for roads.
     fn render_roads(&mut self, road_state: &'a RoadState, camera_bind_group: &'a wgpu::BindGroup);
 }
 

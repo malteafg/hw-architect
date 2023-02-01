@@ -9,6 +9,9 @@ use crate::vertex::Vertex;
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::{buffer, model, resources, texture};
+use std::collections::HashMap;
+
+use utils::id::SegmentId;
 
 use gfx_api::InstanceRaw;
 
@@ -71,7 +74,6 @@ impl Projection {
         Mat4::perspective_rh(self.fovy, self.aspect, self.znear, self.zfar)
     }
 }
-
 
 pub struct GfxState {
     surface: wgpu::Surface,
@@ -256,8 +258,13 @@ impl GfxState {
                 label: Some("texture_bind_group_layout"),
             });
 
-        let projection =
-            Projection::new(window_width, window_height, 45.0f32.to_radians(), 5.0, 2000.0);
+        let projection = Projection::new(
+            window_width,
+            window_height,
+            45.0f32.to_radians(),
+            5.0,
+            2000.0,
+        );
 
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
@@ -534,10 +541,7 @@ impl gfx_api::Gfx for GfxState {
         self.projection.resize(new_size.width, new_size.height);
     }
 
-    fn update(
-        &mut self,
-        dt: instant::Duration,
-    ) {
+    fn update(&mut self, dt: instant::Duration) {
         // Update the light
         let old_position: Vec3 = self.light_uniform.position.into();
         self.light_uniform.position = (Quat::from_axis_angle(
@@ -589,31 +593,33 @@ impl gfx_api::Gfx for GfxState {
     }
 }
 
-use gfx_api::RoadMesh;
 use gfx_api::Camera;
+use gfx_api::RoadMesh;
 
-impl gfx_api::GfxData for GfxState {
-    
-    fn set_road_mesh(&mut self, road_mesh: Option<RoadMesh>) {
-        self.road_renderer
-            .update_road_mesh(&self.queue, &self.device, road_mesh);
+impl gfx_api::data::GfxRoadData for GfxState {
+    fn add_road_meshes(&mut self, meshes: HashMap<SegmentId, RoadMesh>) {
+        self.road_renderer.add_road_meshes(&self.queue, &self.device, meshes);
+    }
+
+    fn remove_road_meshes(&mut self, ids: Vec<SegmentId>) {
+        self.road_renderer.remove_road_meshes(&self.queue, &self.device, ids);
     }
 
     fn set_road_tool_mesh(&mut self, road_mesh: Option<RoadMesh>) {
         self.road_renderer
             .update_road_tool_mesh(&self.queue, &self.device, road_mesh);
     }
+}
 
+impl gfx_api::data::GfxCameraData for GfxState {
     fn update_camera(&mut self, camera: &Camera) {
         let view_pos = camera.calc_pos().extend(1.0).into();
-        let view_proj = (OPENGL_TO_WGPU_MATRIX
-            * self.projection.calc_matrix()
-            * camera.compute_view_matrix())
-        .to_4x4();
+        let view_proj =
+            (OPENGL_TO_WGPU_MATRIX * self.projection.calc_matrix() * camera.compute_view_matrix())
+                .to_4x4();
         let camera_view = gfx_api::CameraView::new(view_pos, view_proj);
         self.queue
             .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[camera_view]));
-
     }
 
     fn compute_ray(&self, mouse_pos: Vec2, camera: &Camera) -> utils::Ray {
@@ -624,7 +630,8 @@ impl gfx_api::GfxData for GfxState {
             1.0,
         );
         let eye_vec = self.projection.calc_matrix().inverse() * screen_vec;
-        let full_vec = camera.compute_view_matrix().inverse() * Vec4::new(eye_vec.x, eye_vec.y, -1.0, 0.0);
+        let full_vec =
+            camera.compute_view_matrix().inverse() * Vec4::new(eye_vec.x, eye_vec.y, -1.0, 0.0);
         let processed_vec = Vec3::new(full_vec.x, full_vec.y, full_vec.z).normalize();
 
         utils::Ray::new(camera.calc_pos(), processed_vec)

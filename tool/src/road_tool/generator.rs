@@ -2,7 +2,7 @@ use gfx_api::{RoadMesh, RoadVertex};
 use glam::*;
 use simulation::curves;
 use simulation::road_network as network;
-use simulation::road_network::{CurveType, LNodeBuilder, RoadType, SegmentBuilder};
+use simulation::road_network::{CurveType, LNodeBuilder, LSegmentBuilder, RoadType};
 use utils::consts::{LANE_MARKINGS_WIDTH, LANE_WIDTH, ROAD_HEIGHT};
 use utils::VecUtils;
 
@@ -10,6 +10,32 @@ const VERTEX_DENSITY: f32 = 0.05;
 const DEFAULT_DIR: Vec3 = Vec3::new(1.0, 0.0, 0.0);
 const MIN_LENGTH: f32 = 10.0;
 const CUT_LENGTH: f32 = 5.0;
+
+#[derive(Debug, Clone)]
+pub struct SegmentBuilder {
+    pub road_type: RoadType,
+    pub guide_points: curves::GuidePoints,
+    pub mesh: RoadMesh,
+}
+
+impl SegmentBuilder {
+    pub fn new(road_type: RoadType, guide_points: curves::GuidePoints, mesh: RoadMesh) -> Self {
+        SegmentBuilder {
+            road_type,
+            guide_points,
+            mesh,
+        }
+    }
+
+    // fn build(self, from_node: NodeId, to_node: NodeId) -> LSegment {
+    //     LSegment {
+    //         road_type: self.road_type,
+    //         guide_points: self.guide_points,
+    //         from_node,
+    //         to_node,
+    //     }
+    // }
+}
 
 #[derive(Clone)]
 pub struct RoadGenerator {
@@ -23,10 +49,16 @@ pub struct RoadGenerator {
 }
 
 impl network::RoadGen for RoadGenerator {
-    fn extract(self) -> (Vec<LNodeBuilder>, Vec<SegmentBuilder>, RoadType, bool) {
+    /// Temprorary until better roadgen
+    fn extract(self) -> (Vec<LNodeBuilder>, Vec<LSegmentBuilder>, RoadType, bool) {
+        let l_segments = self
+            .segments
+            .clone()
+            .iter()
+            .map(|b| LSegmentBuilder::new(b.road_type, b.guide_points.clone())).collect();
         (
             self.nodes,
-            self.segments,
+            l_segments,
             self.start_road_type,
             self.reverse,
         )
@@ -271,6 +303,11 @@ impl RoadGeneratorTool {
         }
     }
 
+    /// Temprorary function, can panic
+    pub fn get_road_meshes(&self) -> Vec<RoadMesh> {
+        self.road.clone().unwrap().segments.clone().iter().map(|s| s.mesh.clone()).collect()
+    }
+
     pub fn update_pos(&mut self, ground_pos: Vec3) {
         if let Some(road) = self.road.as_mut() {
             road.reverse = road.init_reverse;
@@ -477,29 +514,29 @@ pub fn generate_circular_mesh(
     // }
 }
 
-fn generate_indices(num_cuts: u32) -> Vec<u32> {
-    let base_indices = [0, 5, 1, 5, 0, 4, 2, 4, 0, 4, 2, 6, 1, 7, 3, 7, 1, 5].to_vec();
-    let mut indices = vec![];
-    for c in 0..num_cuts - 1 {
-        let mut new_indices: Vec<u32> = base_indices.iter().map(|i| i + (4 * c)).collect();
-        indices.append(&mut new_indices);
-    }
-    indices
-}
+// fn generate_indices(num_cuts: u32) -> Vec<u32> {
+//     let base_indices = [0, 5, 1, 5, 0, 4, 2, 4, 0, 4, 2, 6, 1, 7, 3, 7, 1, 5].to_vec();
+//     let mut indices = vec![];
+//     for c in 0..num_cuts - 1 {
+//         let mut new_indices: Vec<u32> = base_indices.iter().map(|i| i + (4 * c)).collect();
+//         indices.append(&mut new_indices);
+//     }
+//     indices
+// }
 
-fn generate_road_cut(pos: Vec3, dir: Vec3, width: f32) -> Vec<Vec3> {
-    let dir = dir.normalize();
-    let left = Vec3::new(-dir.z, dir.y, dir.x);
-    let height = Vec3::new(0.0, 0.2, 0.0);
-    let half = width / 2.0;
-    [
-        pos + (left * half) + height,
-        pos + (left * -half) + height,
-        pos + (left * (half + 0.1)),
-        pos + (left * -(half + 0.1)),
-    ]
-    .to_vec()
-}
+// fn generate_road_cut(pos: Vec3, dir: Vec3, width: f32) -> Vec<Vec3> {
+//     let dir = dir.normalize();
+//     let left = Vec3::new(-dir.z, dir.y, dir.x);
+//     let height = Vec3::new(0.0, 0.2, 0.0);
+//     let half = width / 2.0;
+//     [
+//         pos + (left * half) + height,
+//         pos + (left * -half) + height,
+//         pos + (left * (half + 0.1)),
+//         pos + (left * -(half + 0.1)),
+//     ]
+//     .to_vec()
+// }
 
 fn generate_clean_cut(pos: Vec3, dir: Vec3, no_lanes: u8) -> Vec<RoadVertex> {
     let right_dir = dir.right_hand().normalize();

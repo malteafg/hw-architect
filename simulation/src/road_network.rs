@@ -1,5 +1,4 @@
 use crate::curves;
-use gfx_api::RoadMesh;
 use glam::*;
 use std::collections::HashMap;
 use utils::consts::LANE_WIDTH;
@@ -12,6 +11,10 @@ pub use snap::SnapConfig;
 use snap::SnapRange;
 mod lanes;
 use lanes::LaneMap;
+
+pub trait RoadGen {
+    fn extract(self) -> (Vec<LNodeBuilder>, Vec<LSegmentBuilder>, RoadType, bool);
+}
 
 #[derive(Debug, Default, Clone, Copy)]
 pub enum CurveType {
@@ -38,6 +41,21 @@ pub struct LNode {
 pub struct LNodeBuilder {
     pub pos: Vec3,
     pub dir: Vec3,
+}
+
+#[derive(Debug, Clone)]
+struct LSegment {
+    road_type: RoadType,
+    guide_points: curves::GuidePoints,
+    from_node: NodeId,
+    to_node: NodeId,
+}
+
+#[derive(Debug, Clone)]
+pub struct LSegmentBuilder {
+    pub road_type: RoadType,
+    pub guide_points: curves::GuidePoints,
+    // pub mesh: RoadMesh,
 }
 
 impl LNodeBuilder {
@@ -225,27 +243,11 @@ impl LNode {
     }
 }
 
-#[derive(Debug, Clone)]
-struct LSegment {
-    road_type: RoadType,
-    guide_points: curves::GuidePoints,
-    from_node: NodeId,
-    to_node: NodeId,
-}
-
-#[derive(Debug, Clone)]
-pub struct SegmentBuilder {
-    pub road_type: RoadType,
-    pub guide_points: curves::GuidePoints,
-    pub mesh: RoadMesh,
-}
-
-impl SegmentBuilder {
-    pub fn new(road_type: RoadType, guide_points: curves::GuidePoints, mesh: RoadMesh) -> Self {
-        SegmentBuilder {
+impl LSegmentBuilder {
+    pub fn new(road_type: RoadType, guide_points: curves::GuidePoints) -> Self {
+        LSegmentBuilder {
             road_type,
             guide_points,
-            mesh,
         }
     }
 
@@ -542,6 +544,3 @@ impl RoadGraph {
     }
 }
 
-pub trait RoadGen {
-    fn extract(self) -> (Vec<LNodeBuilder>, Vec<SegmentBuilder>, RoadType, bool);
-}
