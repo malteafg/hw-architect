@@ -14,6 +14,8 @@ utils = { path = "../utils" }
 simulation = { path = "../simulation" }
 gfx-api = { path = "../gfx-api" }
 
-glam = { version = "0.22", default-features = false, features = ["serde", "bytemuck"] }
-bytemuck = { version = "1.13", features = [ "derive" ] }
-anyhow = "1.0"
+bytemuck = { workspace = true }
+
+anyhow = { workspace = true }
+
+glam = { workspace = true }

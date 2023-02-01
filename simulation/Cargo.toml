@@ -12,6 +12,6 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 utils = { path = "../utils" }
 
-glam = { version = "0.22", default-features = false, features = ["serde", "bytemuck"] }
-bytemuck = { version = "1.13", features = [ "derive" ] }
-anyhow = "1.0"
+anyhow = { workspace = true }
+
+glam = { workspace = true }
