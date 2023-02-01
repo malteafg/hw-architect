@@ -596,7 +596,7 @@ impl gfx_api::Gfx for GfxState {
 use gfx_api::Camera;
 use gfx_api::RoadMesh;
 
-impl gfx_api::data::GfxRoadData for GfxState {
+impl gfx_api::GfxRoadData for GfxState {
     fn add_road_meshes(&mut self, meshes: HashMap<SegmentId, RoadMesh>) {
         self.road_renderer.add_road_meshes(&self.queue, &self.device, meshes);
     }
@@ -611,7 +611,7 @@ impl gfx_api::data::GfxRoadData for GfxState {
     }
 }
 
-impl gfx_api::data::GfxCameraData for GfxState {
+impl gfx_api::GfxCameraData for GfxState {
     fn update_camera(&mut self, camera: &Camera) {
         let view_pos = camera.calc_pos().extend(1.0).into();
         let view_proj =

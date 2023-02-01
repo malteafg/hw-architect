@@ -16,8 +16,14 @@ use gfx_api::Gfx;
 use tool::{camera_controller, road_tool};
 use utils::input;
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 struct State {
-    gfx: gfx_wgpu::GfxState,
+    /// The handle to the graphics card. A reference counter is used such that the road tool can
+    /// also have a reference to the gfx_handle. Functionality is still separated as road tool only
+    /// uses the GfxRoadData trait.
+    gfx_handle: Rc<RefCell<gfx_wgpu::GfxState>>,
     window_size: PhysicalSize<u32>,
     camera: gfx_api::Camera,
     camera_controller: camera_controller::CameraController,
@@ -40,20 +46,23 @@ impl State {
         );
         let camera_controller = camera_controller::CameraController::default();
 
+        let gfx_handle = Rc::new(RefCell::new(gfx));
+        let gfx_handle_tool = Rc::clone(&gfx_handle);
+
         Self {
-            gfx,
+            gfx_handle,
             window_size,
             camera,
             camera_controller,
             input_handler,
-            road_tool: road_tool::ToolState::default(),
+            road_tool: road_tool::ToolState::new(gfx_handle_tool),
             ground_pos: Vec3::new(0.0, 0.0, 0.0),
         }
     }
 
     fn key_input(&mut self, action: input::KeyAction) {
         self.camera_controller.process_keyboard(action);
-        self.road_tool.process_keyboard(&mut self.gfx, action);
+        self.road_tool.process_keyboard(action);
     }
 
     fn mouse_input(&mut self, event: input::MouseEvent) {
@@ -65,33 +74,33 @@ impl State {
             _ => {}
         };
 
-        self.road_tool.mouse_input(&mut self.gfx, event);
+        self.road_tool.mouse_input(event);
     }
 
     fn update(&mut self, dt: instant::Duration) {
         if self.camera_controller.update_camera(&mut self.camera, dt) {
             self.update_ground_pos();
         }
-        use gfx_api::data::*;
-        self.gfx.update_camera(&self.camera);
-        self.gfx.update(dt);
+        use gfx_api::GfxCameraData;
+        self.gfx_handle.borrow_mut().update_camera(&self.camera);
+        self.gfx_handle.borrow_mut().update(dt);
     }
 
     fn update_ground_pos(&mut self) {
         let mouse_pos = self.input_handler.get_mouse_pos();
-        use gfx_api::data::*;
-        let ray = self.gfx.compute_ray(
+        use gfx_api::GfxCameraData;
+        let ray = self.gfx_handle.borrow_mut().compute_ray(
             glam::Vec2::new(mouse_pos.x as f32, mouse_pos.y as f32),
             &self.camera,
         );
         let ground_pos = ray.pos + ray.dir * (-ray.pos.y / ray.dir.y);
         self.ground_pos = ground_pos;
         self.road_tool
-            .update_ground_pos(&mut self.gfx, self.ground_pos);
+            .update_ground_pos(self.ground_pos);
     }
 
     fn resize(&mut self, new_size: PhysicalSize<u32>) {
-        self.gfx.resize(new_size);
+        self.gfx_handle.borrow_mut().resize(new_size);
     }
 }
 
@@ -171,7 +180,8 @@ pub async fn run() {
                     let dt = now - last_render_time;
                     last_render_time = now;
                     state.update(dt);
-                    match state.gfx.render() {
+                    let render_error = state.gfx_handle.borrow_mut().render();
+                    match render_error {
                         Ok(_) => {}
                         // Reconfigure the surface if it's lost or outdated
                         Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
