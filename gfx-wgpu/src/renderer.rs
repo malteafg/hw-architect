@@ -10,6 +10,7 @@ use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::{buffer, model, resources, texture};
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use utils::id::SegmentId;
 
@@ -77,8 +78,8 @@ impl Projection {
 
 pub struct GfxState {
     surface: wgpu::Surface,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
+    device: Rc<wgpu::Device>,
+    queue: Rc<wgpu::Queue>,
     config: wgpu::SurfaceConfiguration,
     window_width: u32,
     window_height: u32,
@@ -199,6 +200,9 @@ impl GfxState {
             )
             .await
             .unwrap();
+
+        let device = Rc::new(device);
+        let queue = Rc::new(queue);
 
         let size = window.inner_size();
         let config = wgpu::SurfaceConfiguration {
@@ -359,13 +363,15 @@ impl GfxState {
         };
 
         let terrain_renderer = terrain_renderer::TerrainState::new(
-            &device,
+            Rc::clone(&device),
+            // Rc::clone(&queue),
             config.format,
             shaders.remove(crate::shaders::TERRAIN).unwrap(),
             &camera_bind_group_layout,
         );
         let road_renderer = road_renderer::RoadState::new(
-            &device,
+            Rc::clone(&device),
+            Rc::clone(&queue),
             config.format,
             shaders.remove(crate::shaders::ROAD).unwrap(),
             &camera_bind_group_layout,
@@ -596,18 +602,18 @@ impl gfx_api::Gfx for GfxState {
 use gfx_api::Camera;
 use gfx_api::RoadMesh;
 
+/// This implementation simply passes the information along to the road_renderer
 impl gfx_api::GfxRoadData for GfxState {
     fn add_road_meshes(&mut self, meshes: HashMap<SegmentId, RoadMesh>) {
-        self.road_renderer.add_road_meshes(&self.queue, &self.device, meshes);
+        self.road_renderer.add_road_meshes(meshes);
     }
 
     fn remove_road_meshes(&mut self, ids: Vec<SegmentId>) {
-        self.road_renderer.remove_road_meshes(&self.queue, &self.device, ids);
+        self.road_renderer.remove_road_meshes(ids);
     }
 
     fn set_road_tool_mesh(&mut self, road_mesh: Option<RoadMesh>) {
-        self.road_renderer
-            .update_road_tool_mesh(&self.queue, &self.device, road_mesh);
+        self.road_renderer.set_road_tool_mesh(road_mesh);
     }
 }
 

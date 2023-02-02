@@ -5,10 +5,13 @@ use crate::{
 use gfx_api::RoadMesh;
 use glam::*;
 use std::collections::HashMap;
+use std::rc::Rc;
 use utils::id::SegmentId;
 use wgpu::util::DeviceExt;
 
-pub struct RoadState {
+pub(super) struct RoadState {
+    device: Rc<wgpu::Device>,
+    queue: Rc<wgpu::Queue>,
     road_buffer: buffer::VIBuffer,
     road_markings_buffer: buffer::VIBuffer,
     road_tool_buffer: buffer::VIBuffer,
@@ -21,7 +24,8 @@ pub struct RoadState {
 
 impl RoadState {
     pub fn new(
-        device: &wgpu::Device,
+        device: Rc<wgpu::Device>,
+        queue: Rc<wgpu::Queue>,
         color_format: wgpu::TextureFormat,
         road_shader: wgpu::ShaderModule,
         camera_bind_group_layout: &wgpu::BindGroupLayout,
@@ -87,9 +91,9 @@ impl RoadState {
             label: Some("road_color_bind_group"),
         });
 
-        let road_buffer = VIBuffer::new("road_buffer", device);
-        let road_markings_buffer = VIBuffer::new("road_markings_buffer", device);
-        let road_tool_buffer = VIBuffer::new("road_tool_buffer", device);
+        let road_buffer = VIBuffer::new("road_buffer", &device);
+        let road_markings_buffer = VIBuffer::new("road_markings_buffer", &device);
+        let road_tool_buffer = VIBuffer::new("road_tool_buffer", &device);
         let road_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("road_pipeline_layout"),
@@ -102,7 +106,7 @@ impl RoadState {
             });
             use crate::vertex::Vertex;
             super::create_render_pipeline(
-                device,
+                &device,
                 &layout,
                 color_format,
                 Some(texture::Texture::DEPTH_FORMAT),
@@ -130,6 +134,8 @@ impl RoadState {
         // );
 
         Self {
+            device,
+            queue,
             road_buffer,
             road_markings_buffer,
             road_tool_buffer,
@@ -142,61 +148,48 @@ impl RoadState {
     }
 
     /// Combines the road meshes that road renderer stores in memory, and writes this to the gpu.
-    fn write_road_mesh(&mut self, queue: &wgpu::Queue, device: &wgpu::Device) {
+    fn write_road_mesh(&mut self) {
         let mesh = combine_road_meshes(&self.road_meshes);
         self.road_buffer.write(
-            queue,
-            device,
+            &self.queue,
+            &self.device,
             bytemuck::cast_slice(&mesh.vertices),
             bytemuck::cast_slice(&mesh.indices),
             mesh.indices.len() as u32,
         );
         self.road_markings_buffer.write(
-            queue,
-            device,
+            &self.queue,
+            &self.device,
             bytemuck::cast_slice(&mesh.lane_vertices),
             bytemuck::cast_slice(&mesh.lane_indices),
             mesh.lane_indices.len() as u32,
         );
     }
+}
 
+impl gfx_api::GfxRoadData for RoadState {
     /// Adds a set of road meshes to what is stored in memory, and updates the gpu road meshes
     /// buffer.
-    pub(super) fn add_road_meshes(
-        &mut self,
-        queue: &wgpu::Queue,
-        device: &wgpu::Device,
-        meshes: HashMap<SegmentId, RoadMesh>,
-    ) {
+    fn add_road_meshes(&mut self, meshes: HashMap<SegmentId, RoadMesh>) {
         self.road_meshes.extend(meshes);
-        self.write_road_mesh(queue, device);
+        self.write_road_mesh();
     }
 
     /// Removes a set of road meshes given by their ids from what is stored in memory, and updates
     /// the gpu road meshes buffer.
-    pub(super) fn remove_road_meshes(
-        &mut self,
-        queue: &wgpu::Queue,
-        device: &wgpu::Device,
-        ids: Vec<SegmentId>,
-    ) {
+    fn remove_road_meshes(&mut self, ids: Vec<SegmentId>) {
         ids.iter().for_each(|id| {
             self.road_meshes.remove(id);
         });
-        self.write_road_mesh(queue, device);
+        self.write_road_mesh();
     }
 
     /// Updates the road tool buffer with the given mesh.
-    pub(super) fn update_road_tool_mesh(
-        &mut self,
-        queue: &wgpu::Queue,
-        device: &wgpu::Device,
-        mesh: Option<RoadMesh>,
-    ) {
+    fn set_road_tool_mesh(&mut self, mesh: Option<RoadMesh>) {
         if let Some(mesh) = mesh {
             self.road_tool_buffer.write(
-                queue,
-                device,
+                &self.queue,
+                &self.device,
                 bytemuck::cast_slice(&mesh.vertices),
                 bytemuck::cast_slice(&mesh.indices),
                 mesh.indices.len() as u32,
@@ -243,7 +236,7 @@ fn combine_road_meshes(road_meshes: &HashMap<SegmentId, RoadMesh>) -> RoadMesh {
 }
 
 /// A trait used by the main renderer to render the roads.
-pub trait RenderRoad<'a> {
+pub(super) trait RenderRoad<'a> {
     /// The function that implements rendering for roads.
     fn render_roads(&mut self, road_state: &'a RoadState, camera_bind_group: &'a wgpu::BindGroup);
 }

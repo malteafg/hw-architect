@@ -1,19 +1,23 @@
 use rand::prelude::*;
+use std::rc::Rc;
 use wgpu::util::DeviceExt;
 
-pub struct TerrainState {
+pub(super) struct TerrainState {
+    // device: Rc<wgpu::Device>,
+    // queue: Rc<wgpu::Queue>,
     terrain_mesh: TerrainMesh,
     terrain_render_pipeline: wgpu::RenderPipeline,
 }
 
 impl TerrainState {
     pub fn new(
-        device: &wgpu::Device,
+        device: Rc<wgpu::Device>,
+        // queue: Rc<wgpu::Queue>,
         color_format: wgpu::TextureFormat,
         terrain_shader: wgpu::ShaderModule,
         camera_bind_group_layout: &wgpu::BindGroupLayout,
     ) -> Self {
-        let terrain_mesh = TerrainMesh::new(device);
+        let terrain_mesh = TerrainMesh::new(&device);
         let terrain_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("terrain_pipeline_layout"),
@@ -22,7 +26,7 @@ impl TerrainState {
             });
             use crate::vertex::Vertex;
             super::create_render_pipeline(
-                device,
+                &device,
                 &layout,
                 color_format,
                 Some(crate::texture::Texture::DEPTH_FORMAT),
@@ -33,13 +37,15 @@ impl TerrainState {
         };
 
         Self {
+            // device,
+            // queue,
             terrain_mesh,
             terrain_render_pipeline,
         }
     }
 }
 
-pub trait RenderTerrain<'a> {
+pub(super) trait RenderTerrain<'a> {
     fn render_terrain(
         &mut self,
         terrain_state: &'a TerrainState,
