@@ -13,7 +13,7 @@ mod configuration;
 mod input_handler;
 
 use gfx_api::Gfx;
-use tool::{camera_controller, WorldTool, Tool};
+use tool::{camera_controller, WorldTool};
 use utils::input;
 
 use std::cell::RefCell;

@@ -18,7 +18,7 @@ enum Mode {
     Bulldoze,
 }
 
-pub struct ToolState {
+pub struct RoadToolState {
     gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
     road_graph: network::RoadGraph,
 
@@ -33,7 +33,7 @@ pub struct ToolState {
     segment_id_count: u32,
 }
 
-impl crate::Tool for ToolState {
+impl crate::Tool for RoadToolState {
     fn process_keyboard(&mut self, key: input::KeyAction) {
         use input::Action::*;
         let (action, pressed) = key;
@@ -63,15 +63,61 @@ impl crate::Tool for ToolState {
         }
     }
 
-    fn mouse_input(&mut self, event: input::MouseEvent) {
-        use input::MouseEvent;
+    fn left_click(&mut self) {
+        use network::CurveType;
+        match self.mode {
+            Mode::SelectPos => match self.snapped_node.clone() {
+                Some(snapped_node) => {
+                    self.select_node(snapped_node);
+                }
+                None => {
+                    self.road_generator =
+                        RoadGeneratorTool::new(self.ground_pos, None, self.sel_road_type, false);
+                    self.gfx_handle.borrow_mut().set_road_tool_mesh(self.road_generator.get_mesh());
 
-        match event {
-            MouseEvent::Click(button) if button == input::Mouse::Left => self.left_click(),
-            MouseEvent::Click(button) if button == input::Mouse::Right => {
-                self.right_click();
+                    self.mode = Mode::SelectDir;
+                }
+            },
+            Mode::SelectDir => match self.sel_road_type.curve_type {
+                CurveType::Straight => self.build_road(),
+                CurveType::Curved => {
+                    self.road_generator.lock_dir(self.ground_pos);
+                    self.road_generator.update_pos(self.ground_pos);
+                    self.gfx_handle.borrow_mut().set_road_tool_mesh(self.road_generator.get_mesh());
+
+                    self.mode = Mode::Build;
+                }
+            },
+            Mode::Build => self.build_road(),
+            Mode::Bulldoze => {
+                let segment_id = self.road_graph.get_segment_inside(self.ground_pos);
+                if let Some(id) = segment_id {
+                    if self.road_graph.remove_segment(id) {
+                        self.gfx_handle.borrow_mut().remove_road_meshes(vec![id])
+                    }
+                }
             }
-            _ => {}
+        }
+    }
+
+    fn right_click(&mut self) {
+        use network::CurveType;
+        match self.mode {
+            Mode::SelectPos | Mode::Bulldoze => {
+                #[cfg(debug_assertions)]
+                {
+                    self.road_graph.debug_segment_from_pos(self.ground_pos);
+                    self.road_graph.debug_node_from_pos(self.ground_pos);
+                }
+            }
+            Mode::SelectDir => self.reset_snap(Mode::SelectPos),
+            Mode::Build => match (self.sel_road_type.curve_type, self.sel_node.clone()) {
+                (CurveType::Curved, None) => {
+                    self.road_generator.unlock_dir();
+                    self.reset_snap(Mode::SelectDir)
+                }
+                _ => self.reset_snap(Mode::SelectPos),
+            },
         }
     }
 
@@ -85,9 +131,9 @@ impl crate::Tool for ToolState {
 
 }
 
-impl ToolState {
-    pub fn new(gfx_handle: Rc<RefCell<dyn GfxRoadData>>) -> ToolState {
-        ToolState {
+impl RoadToolState {
+    pub fn new(gfx_handle: Rc<RefCell<dyn GfxRoadData>>) -> RoadToolState {
+        RoadToolState {
             gfx_handle,
             road_graph: network::RoadGraph::default(),
             sel_road_type: network::RoadType {
@@ -150,64 +196,6 @@ impl ToolState {
                     self.check_snapping();
                 }
             }
-        }
-    }
-
-    fn left_click(&mut self) {
-        use network::CurveType;
-        match self.mode {
-            Mode::SelectPos => match self.snapped_node.clone() {
-                Some(snapped_node) => {
-                    self.select_node(snapped_node);
-                }
-                None => {
-                    self.road_generator =
-                        RoadGeneratorTool::new(self.ground_pos, None, self.sel_road_type, false);
-                    self.gfx_handle.borrow_mut().set_road_tool_mesh(self.road_generator.get_mesh());
-
-                    self.mode = Mode::SelectDir;
-                }
-            },
-            Mode::SelectDir => match self.sel_road_type.curve_type {
-                CurveType::Straight => self.build_road(),
-                CurveType::Curved => {
-                    self.road_generator.lock_dir(self.ground_pos);
-                    self.road_generator.update_pos(self.ground_pos);
-                    self.gfx_handle.borrow_mut().set_road_tool_mesh(self.road_generator.get_mesh());
-
-                    self.mode = Mode::Build;
-                }
-            },
-            Mode::Build => self.build_road(),
-            Mode::Bulldoze => {
-                let segment_id = self.road_graph.get_segment_inside(self.ground_pos);
-                if let Some(id) = segment_id {
-                    if self.road_graph.remove_segment(id) {
-                        self.gfx_handle.borrow_mut().remove_road_meshes(vec![id])
-                    }
-                }
-            }
-        }
-    }
-
-    fn right_click(&mut self) {
-        use network::CurveType;
-        match self.mode {
-            Mode::SelectPos | Mode::Bulldoze => {
-                #[cfg(debug_assertions)]
-                {
-                    self.road_graph.debug_segment_from_pos(self.ground_pos);
-                    self.road_graph.debug_node_from_pos(self.ground_pos);
-                }
-            }
-            Mode::SelectDir => self.reset_snap(Mode::SelectPos),
-            Mode::Build => match (self.sel_road_type.curve_type, self.sel_node.clone()) {
-                (CurveType::Curved, None) => {
-                    self.road_generator.unlock_dir();
-                    self.reset_snap(Mode::SelectDir)
-                }
-                _ => self.reset_snap(Mode::SelectPos),
-            },
         }
     }
 
