@@ -249,6 +249,7 @@ impl ToolState {
             mesh_map.insert(segment_ids[i], road_meshes[i].clone());
         }
         self.gfx_handle.borrow_mut().add_road_meshes(mesh_map);
+        self.gfx_handle.borrow_mut().set_node_markers(self.road_graph.get_node_positions());
 
         // TODO have add_road return new_node in such a way that is not necessary to check snapped_node
         if self.snapped_node.is_some() {

@@ -9,6 +9,24 @@ use std::rc::Rc;
 use utils::id::SegmentId;
 use wgpu::util::DeviceExt;
 
+// temporary, remove once proper road markings
+use gfx_api::InstanceRaw;
+use utils::{Mat3Utils, Mat4Utils};
+struct Instance {
+    position: Vec3,
+    rotation: Quat,
+}
+
+impl Instance {
+    fn to_raw(&self) -> InstanceRaw {
+        let model = Mat4::from_translation(self.position) * Mat4::from_quat(self.rotation);
+        InstanceRaw {
+            model: model.to_4x4(),
+            normal: Mat3::from_quat(self.rotation).to_3x3(),
+        }
+    }
+}
+
 pub(super) struct RoadState {
     device: Rc<wgpu::Device>,
     queue: Rc<wgpu::Queue>,
@@ -18,6 +36,9 @@ pub(super) struct RoadState {
     road_render_pipeline: wgpu::RenderPipeline,
     road_meshes: HashMap<SegmentId, RoadMesh>,
     marked_meshes: Vec<SegmentId>,
+    sphere_render_pipeline: wgpu::RenderPipeline,
+    instance_buffer: buffer::DBuffer,
+    num_markers: u32,
 }
 
 /// The information needed on gpu to render a set of road meshes.
@@ -119,6 +140,10 @@ impl RoadState {
         color_format: wgpu::TextureFormat,
         road_shader: wgpu::ShaderModule,
         camera_bind_group_layout: &wgpu::BindGroupLayout,
+        // the following parameters should be removed after simpler rendering of road markers.
+        texture_bind_group_layout: &wgpu::BindGroupLayout,
+        light_bind_group_layout: &wgpu::BindGroupLayout,
+        basic_shader: wgpu::ShaderModule,
     ) -> Self {
         let road_color_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -165,6 +190,7 @@ impl RoadState {
         let tool_buffer = RoadBuffer::new(&device, "tool", tool_color, Rc::clone(&markings_color));
         let marked_buffer = RoadBuffer::new(&device, "marked", marked_color, markings_color);
 
+        use crate::vertex::Vertex;
         let road_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("road_pipeline_layout"),
@@ -175,7 +201,6 @@ impl RoadState {
                 ],
                 push_constant_ranges: &[],
             });
-            use crate::vertex::Vertex;
             super::create_render_pipeline(
                 &device,
                 &layout,
@@ -202,7 +227,31 @@ impl RoadState {
         //     diffuse_texture,
         //     normal_texture,
         //     &texture_bind_group_layout,
-        // );
+        // )
+
+        let instance_buffer =
+            buffer::DBuffer::new("instance_buffer", wgpu::BufferUsages::VERTEX, &device);
+
+        let sphere_render_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("sphere_pipeline_layout"),
+                bind_group_layouts: &[
+                    &texture_bind_group_layout,
+                    &camera_bind_group_layout,
+                    &light_bind_group_layout,
+                ],
+                push_constant_ranges: &[],
+            });
+            super::create_render_pipeline(
+                &device,
+                &layout,
+                color_format,
+                Some(texture::Texture::DEPTH_FORMAT),
+                &[super::model::ModelVertex::desc(), InstanceRaw::desc()],
+                basic_shader,
+                "sphere_renderer",
+            )
+        };
 
         Self {
             device,
@@ -213,6 +262,9 @@ impl RoadState {
             road_render_pipeline,
             road_meshes: HashMap::new(),
             marked_meshes: Vec::new(),
+            sphere_render_pipeline,
+            instance_buffer,
+            num_markers: 0,
         }
     }
 
@@ -250,6 +302,11 @@ impl gfx_api::GfxRoadData for RoadState {
         self.write_road_mesh();
     }
 
+    fn mark_road_segments(&mut self, segments: Vec<SegmentId>) {
+        self.marked_meshes = segments;
+        self.write_road_mesh();
+    }
+
     /// Updates the road tool buffer with the given mesh.
     fn set_road_tool_mesh(&mut self, mesh: Option<RoadMesh>) {
         if let Some(mesh) = mesh {
@@ -257,9 +314,23 @@ impl gfx_api::GfxRoadData for RoadState {
         }
     }
 
-    fn mark_road_segments(&mut self, segments: Vec<SegmentId>) {
-        self.marked_meshes = segments;
-        self.write_road_mesh();
+    fn set_node_markers(&mut self, markers: Vec<Vec3>) {
+        self.num_markers = markers.len() as u32;
+        let instance_data = markers
+            .into_iter()
+            .map(|pos| Instance {
+                position: pos,
+                rotation: glam::Quat::IDENTITY,
+            })
+            .collect::<Vec<_>>()
+            .iter()
+            .map(Instance::to_raw)
+            .collect::<Vec<_>>();
+        self.instance_buffer.write(
+            &self.queue,
+            &self.device,
+            &bytemuck::cast_slice(&instance_data),
+        );
     }
 }
 
@@ -312,18 +383,57 @@ fn combine_road_meshes(
 /// A trait used by the main renderer to render the roads.
 pub(super) trait RenderRoad<'a> {
     /// The function that implements rendering for roads.
-    fn render_roads(&mut self, road_state: &'a RoadState, camera_bind_group: &'a wgpu::BindGroup);
+    fn render_roads(
+        &mut self,
+        road_state: &'a RoadState,
+        camera_bind_group: &'a wgpu::BindGroup,
+        light_bind_group: &'a wgpu::BindGroup,
+        obj_model: &'a super::model::Model,
+    );
 }
 
 impl<'a, 'b> RenderRoad<'b> for wgpu::RenderPass<'a>
 where
     'b: 'a,
 {
-    fn render_roads(&mut self, road_state: &'b RoadState, camera_bind_group: &'b wgpu::BindGroup) {
+    fn render_roads(
+        &mut self,
+        road_state: &'b RoadState,
+        camera_bind_group: &'b wgpu::BindGroup,
+        // remove following parameters once road markers are properly implemented
+        light_bind_group: &'b wgpu::BindGroup,
+        obj_model: &'b super::model::Model,
+    ) {
         self.set_pipeline(&road_state.road_render_pipeline);
         self.set_bind_group(0, camera_bind_group, &[]);
         self.render(&road_state.road_buffer);
         self.render(&road_state.tool_buffer);
         self.render(&road_state.marked_buffer);
+
+        use super::model::DrawModel;
+        // let mesh = &self.obj_model.meshes[0];
+        // let material = &self.obj_model.materials[mesh.material];
+        // render_pass.draw_mesh_instanced(
+        //     mesh,
+        //     material,
+        //     0..self.instances.len() as u32,
+        //     &self.camera_bind_group,
+        //     &self.light_bind_group,
+        // );
+
+        match road_state.instance_buffer.get_buffer_slice() {
+            Some(buffer_slice) => {
+                self.set_vertex_buffer(1, buffer_slice);
+                self.set_pipeline(&road_state.sphere_render_pipeline);
+                self.draw_model_instanced(
+                    &obj_model,
+                    0..road_state.num_markers,
+                    &camera_bind_group,
+                    &light_bind_group,
+                );
+                //render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
+            }
+            None => {}
+        }
     }
 }

@@ -43,12 +43,16 @@ pub trait GfxRoadData {
     /// reasons.
     fn remove_road_meshes(&mut self, ids: Vec<SegmentId>);
 
+    /// Used to mark a road segment. Pass {`None`} to signal that no segment shall be marked.
+    fn mark_road_segments(&mut self, segments: Vec<SegmentId>);
+
     /// Sets the mesh for the road tool. None is intended to signal that no mesh should be
     /// rendered.
     fn set_road_tool_mesh(&mut self, road_mesh: Option<RoadMesh>);
 
-    /// Used to mark a road segment. Pass {`None`} to signal that no segment shall be marked.
-    fn mark_road_segments(&mut self, segments: Vec<SegmentId>);
+    /// Renders the positions for nodes given by markers. Pass an empty list to stop rendering node
+    /// markers.
+    fn set_node_markers(&mut self, markers: Vec<glam::Vec3>);
 }
 
 /// This trait defines how tool is allowed to interact with the data associated with the camera,

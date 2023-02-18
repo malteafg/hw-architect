@@ -47,6 +47,7 @@ pub struct LNodeBuilder {
 struct LSegment {
     road_type: RoadType,
     guide_points: curves::GuidePoints,
+    spine_points: curves::SpinePoints,
     from_node: NodeId,
     to_node: NodeId,
 }
@@ -55,7 +56,7 @@ struct LSegment {
 pub struct LSegmentBuilder {
     pub road_type: RoadType,
     pub guide_points: curves::GuidePoints,
-    // pub mesh: RoadMesh,
+    pub spine_points: curves::SpinePoints,
 }
 
 impl LNodeBuilder {
@@ -74,6 +75,10 @@ impl LNodeBuilder {
 }
 
 impl LNode {
+    pub fn get_pos(&self) -> Vec3 {
+        self.pos
+    }
+
     pub fn get_dir(&self) -> Vec3 {
         self.dir
     }
@@ -244,10 +249,15 @@ impl LNode {
 }
 
 impl LSegmentBuilder {
-    pub fn new(road_type: RoadType, guide_points: curves::GuidePoints) -> Self {
+    pub fn new(
+        road_type: RoadType,
+        guide_points: curves::GuidePoints,
+        spine_points: curves::SpinePoints,
+    ) -> Self {
         LSegmentBuilder {
             road_type,
             guide_points,
+            spine_points,
         }
     }
 
@@ -255,6 +265,7 @@ impl LSegmentBuilder {
         LSegment {
             road_type: self.road_type,
             guide_points: self.guide_points,
+            spine_points: self.spine_points,
             from_node,
             to_node,
         }
@@ -454,6 +465,10 @@ impl RoadGraph {
             .expect("Node does not exist in node map")
     }
 
+    pub fn get_node_positions(&self) -> Vec<Vec3> {
+        self.node_map.iter().map(|(_, n)| n.get_pos()).collect()
+    }
+
     fn _get_segment_mut(&mut self, segment: SegmentId) -> &mut LSegment {
         self.segment_map
             .get_mut(&segment)
@@ -543,4 +558,3 @@ impl RoadGraph {
         }
     }
 }
-
