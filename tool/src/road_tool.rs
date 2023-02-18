@@ -21,36 +21,20 @@ enum Mode {
 pub struct ToolState {
     gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
     road_graph: network::RoadGraph,
+
     sel_road_type: network::RoadType,
     sel_node: Option<network::SnapConfig>,
     snapped_node: Option<network::SnapConfig>,
     road_generator: generator::RoadGeneratorTool,
+
     ground_pos: Vec3,
     mode: Mode,
     node_id_count: u32,
     segment_id_count: u32,
 }
 
-impl ToolState {
-    pub fn new(gfx_handle: Rc<RefCell<dyn GfxRoadData>>) -> ToolState {
-        ToolState {
-            gfx_handle,
-            road_graph: network::RoadGraph::default(),
-            sel_road_type: network::RoadType {
-                no_lanes: 3,
-                curve_type: network::CurveType::Straight,
-            },
-            sel_node: None,
-            snapped_node: None,
-            road_generator: RoadGeneratorTool::default(),
-            ground_pos: Vec3::new(0.0, 0.0, 0.0),
-            mode: Mode::SelectPos,
-            node_id_count: 0,
-            segment_id_count: 0,
-        }
-    }
-
-    pub fn process_keyboard(&mut self, key: input::KeyAction) {
+impl crate::Tool for ToolState {
+    fn process_keyboard(&mut self, key: input::KeyAction) {
         use input::Action::*;
         let (action, pressed) = key;
         if pressed {
@@ -76,6 +60,47 @@ impl ToolState {
                 SixLane => self.switch_lane_no(6),
                 _ => {}
             },
+        }
+    }
+
+    fn mouse_input(&mut self, event: input::MouseEvent) {
+        use input::MouseEvent;
+
+        match event {
+            MouseEvent::Click(button) if button == input::Mouse::Left => self.left_click(),
+            MouseEvent::Click(button) if button == input::Mouse::Right => {
+                self.right_click();
+            }
+            _ => {}
+        }
+    }
+
+    fn update_ground_pos(&mut self, ground_pos: Vec3) {
+        self.ground_pos = ground_pos;
+        self.check_snapping();
+
+        self.mark_segment(self.road_graph.get_segment_inside(self.ground_pos));
+    }
+
+
+}
+
+impl ToolState {
+    pub fn new(gfx_handle: Rc<RefCell<dyn GfxRoadData>>) -> ToolState {
+        ToolState {
+            gfx_handle,
+            road_graph: network::RoadGraph::default(),
+            sel_road_type: network::RoadType {
+                no_lanes: 3,
+                curve_type: network::CurveType::Straight,
+            },
+            sel_node: None,
+            snapped_node: None,
+            road_generator: RoadGeneratorTool::default(),
+            ground_pos: Vec3::new(0.0, 0.0, 0.0),
+            mode: Mode::SelectPos,
+            node_id_count: 0,
+            segment_id_count: 0,
         }
     }
 
@@ -125,18 +150,6 @@ impl ToolState {
                     self.check_snapping();
                 }
             }
-        }
-    }
-
-    pub fn mouse_input(&mut self, event: input::MouseEvent) {
-        use input::MouseEvent;
-
-        match event {
-            MouseEvent::Click(button) if button == input::Mouse::Left => self.left_click(),
-            MouseEvent::Click(button) if button == input::Mouse::Right => {
-                self.right_click();
-            }
-            _ => {}
         }
     }
 
@@ -332,15 +345,6 @@ impl ToolState {
         } else {
             self.update_no_snap();
         }
-    }
-
-    /// This function should be called whenever there is an update to where the mouse points on the
-    /// ground. This includes mouse movement and camera movement.
-    pub fn update_ground_pos(&mut self, ground_pos: Vec3) {
-        self.ground_pos = ground_pos;
-        self.check_snapping();
-
-        self.mark_segment(self.road_graph.get_segment_inside(self.ground_pos));
     }
 
     fn mark_segment(&mut self, segment_id: Option<SegmentId>) {

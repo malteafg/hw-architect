@@ -13,7 +13,7 @@ mod configuration;
 mod input_handler;
 
 use gfx_api::Gfx;
-use tool::{camera_controller, road_tool};
+use tool::{camera_controller, WorldTool, Tool};
 use utils::input;
 
 use std::cell::RefCell;
@@ -28,7 +28,7 @@ struct State {
     camera: gfx_api::Camera,
     camera_controller: camera_controller::CameraController,
     input_handler: input_handler::InputHandler,
-    road_tool: road_tool::ToolState,
+    tool: WorldTool,
     ground_pos: Vec3,
 }
 
@@ -55,14 +55,14 @@ impl State {
             camera,
             camera_controller,
             input_handler,
-            road_tool: road_tool::ToolState::new(gfx_handle_tool),
+            tool: WorldTool::new(gfx_handle_tool),
             ground_pos: Vec3::new(0.0, 0.0, 0.0),
         }
     }
 
     fn key_input(&mut self, action: input::KeyAction) {
         self.camera_controller.process_keyboard(action);
-        self.road_tool.process_keyboard(action);
+        self.tool.process_keyboard(action);
     }
 
     fn mouse_input(&mut self, event: input::MouseEvent) {
@@ -74,7 +74,7 @@ impl State {
             _ => {}
         };
 
-        self.road_tool.mouse_input(event);
+        self.tool.mouse_input(event);
     }
 
     fn update(&mut self, dt: instant::Duration) {
@@ -95,8 +95,7 @@ impl State {
         );
         let ground_pos = ray.pos + ray.dir * (-ray.pos.y / ray.dir.y);
         self.ground_pos = ground_pos;
-        self.road_tool
-            .update_ground_pos(self.ground_pos);
+        self.tool.update_ground_pos(self.ground_pos);
     }
 
     fn resize(&mut self, new_size: PhysicalSize<u32>) {
