@@ -333,8 +333,11 @@ impl ToolState {
         }
     }
 
+    /// This function should be called whenever there is an update to where the mouse points on the
+    /// ground. This includes mouse movement and camera movement.
     pub fn update_ground_pos(&mut self, ground_pos: Vec3) {
         self.ground_pos = ground_pos;
         self.check_snapping();
     }
 }
+
