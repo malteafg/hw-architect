@@ -34,6 +34,7 @@ pub enum Action {
     FiveLane,
     SixLane,
     Exit,
+    Esc,
 }
 
 /// Position of mouse given in pixels from top left corner of window.

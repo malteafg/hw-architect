@@ -10,7 +10,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum Mode {
     SelectPos,
     SelectDir,
@@ -338,6 +338,18 @@ impl ToolState {
     pub fn update_ground_pos(&mut self, ground_pos: Vec3) {
         self.ground_pos = ground_pos;
         self.check_snapping();
+
+        self.mark_segment(self.road_graph.get_segment_inside(self.ground_pos));
+    }
+
+    fn mark_segment(&mut self, segment_id: Option<SegmentId>) {
+        if let Some(id) = segment_id {
+            if self.mode == Mode::Bulldoze {
+                self.gfx_handle.borrow_mut().mark_road_segments(vec![id]);
+                return
+            }
+        }
+        self.gfx_handle.borrow_mut().mark_road_segments(vec![]);
     }
 }
 

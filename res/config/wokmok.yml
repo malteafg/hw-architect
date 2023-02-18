@@ -29,6 +29,8 @@ five_lane:
   - "5"
 six_lane:
   - "6"
-exit:
+# exit:
+#   - esc
+esc:
   - esc
   

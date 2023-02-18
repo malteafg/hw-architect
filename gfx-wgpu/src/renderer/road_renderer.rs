@@ -14,8 +14,10 @@ pub(super) struct RoadState {
     queue: Rc<wgpu::Queue>,
     road_buffer: RoadBuffer,
     tool_buffer: RoadBuffer,
+    marked_buffer: RoadBuffer,
     road_render_pipeline: wgpu::RenderPipeline,
     road_meshes: HashMap<SegmentId, RoadMesh>,
+    marked_meshes: Vec<SegmentId>,
 }
 
 /// The information needed on gpu to render a set of road meshes.
@@ -42,6 +44,23 @@ impl<'a, 'b> RoadBuffer {
             asphalt_color,
             lane_color,
         }
+    }
+
+    fn write(&mut self, queue: &wgpu::Queue, device: &wgpu::Device, mesh: RoadMesh) {
+        self.mesh_buffer.write(
+            queue,
+            device,
+            bytemuck::cast_slice(&mesh.vertices),
+            bytemuck::cast_slice(&mesh.indices),
+            mesh.indices.len() as u32,
+        );
+        self.lane_buffer.write(
+            queue,
+            device,
+            bytemuck::cast_slice(&mesh.lane_vertices),
+            bytemuck::cast_slice(&mesh.lane_indices),
+            mesh.lane_indices.len() as u32,
+        );
     }
 }
 
@@ -134,14 +153,17 @@ impl RoadState {
             Vec4::new(0.1, 0.1, 0.6, 0.5),
             "asphalt",
         );
-
-        let road_buffer = RoadBuffer::new(
+        let marked_color = create_color_group(
             &device,
-            "road_buffer",
-            asphalt_color,
-            Rc::clone(&markings_color),
+            &road_color_bind_group_layout,
+            Vec4::new(1.0, 0.0, 0.1, 0.7),
+            "marked",
         );
-        let tool_buffer = RoadBuffer::new(&device, "tool_buffer", tool_color, markings_color);
+
+        let road_buffer =
+            RoadBuffer::new(&device, "road", asphalt_color, Rc::clone(&markings_color));
+        let tool_buffer = RoadBuffer::new(&device, "tool", tool_color, Rc::clone(&markings_color));
+        let marked_buffer = RoadBuffer::new(&device, "marked", marked_color, markings_color);
 
         let road_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -187,28 +209,27 @@ impl RoadState {
             queue,
             road_buffer,
             tool_buffer,
+            marked_buffer,
             road_render_pipeline,
             road_meshes: HashMap::new(),
+            marked_meshes: Vec::new(),
         }
     }
 
     /// Combines the road meshes that road renderer stores in memory, and writes this to the gpu.
     fn write_road_mesh(&mut self) {
-        let mesh = combine_road_meshes(&self.road_meshes);
-        self.road_buffer.mesh_buffer.write(
-            &self.queue,
-            &self.device,
-            bytemuck::cast_slice(&mesh.vertices),
-            bytemuck::cast_slice(&mesh.indices),
-            mesh.indices.len() as u32,
-        );
-        self.road_buffer.lane_buffer.write(
-            &self.queue,
-            &self.device,
-            bytemuck::cast_slice(&mesh.lane_vertices),
-            bytemuck::cast_slice(&mesh.lane_indices),
-            mesh.lane_indices.len() as u32,
-        );
+        let all = self.road_meshes.keys().fold(vec![], |mut acc, x| {
+            if !self.marked_meshes.contains(x) {
+                acc.push(*x);
+            }
+            acc
+        });
+        let road_mesh = combine_road_meshes(&self.road_meshes, &all);
+        self.road_buffer.write(&self.queue, &self.device, road_mesh);
+
+        let marked_mesh = combine_road_meshes(&self.road_meshes, &self.marked_meshes);
+        self.marked_buffer
+            .write(&self.queue, &self.device, marked_mesh);
     }
 }
 
@@ -232,30 +253,28 @@ impl gfx_api::GfxRoadData for RoadState {
     /// Updates the road tool buffer with the given mesh.
     fn set_road_tool_mesh(&mut self, mesh: Option<RoadMesh>) {
         if let Some(mesh) = mesh {
-            self.tool_buffer.mesh_buffer.write(
-                &self.queue,
-                &self.device,
-                bytemuck::cast_slice(&mesh.vertices),
-                bytemuck::cast_slice(&mesh.indices),
-                mesh.indices.len() as u32,
-            );
-            self.tool_buffer.lane_buffer.write(
-                &self.queue,
-                &self.device,
-                bytemuck::cast_slice(&mesh.lane_vertices),
-                bytemuck::cast_slice(&mesh.lane_indices),
-                mesh.lane_indices.len() as u32,
-            );
+            self.tool_buffer.write(&self.queue, &self.device, mesh);
         }
+    }
+
+    fn mark_road_segments(&mut self, segments: Vec<SegmentId>) {
+        self.marked_meshes = segments;
+        self.write_road_mesh();
     }
 }
 
 /// Iterates over the given road_meshes and returns a vec of {`RoadVertex`} for writing to the gpu.
-fn combine_road_meshes(road_meshes: &HashMap<SegmentId, RoadMesh>) -> RoadMesh {
+fn combine_road_meshes(
+    road_meshes: &HashMap<SegmentId, RoadMesh>,
+    selected_segments: &Vec<SegmentId>,
+) -> RoadMesh {
     let mut indices_count = 0;
     let mut road_mesh: RoadMesh = RoadMesh::default();
 
-    for (_, mesh) in road_meshes.iter() {
+    for (id, mesh) in road_meshes.iter() {
+        if !selected_segments.contains(id) {
+            continue;
+        }
         road_mesh.vertices.append(&mut mesh.vertices.clone());
         road_mesh.indices.append(
             &mut mesh
@@ -269,7 +288,10 @@ fn combine_road_meshes(road_meshes: &HashMap<SegmentId, RoadMesh>) -> RoadMesh {
     }
 
     indices_count = 0;
-    for (_, mesh) in road_meshes.iter() {
+    for (id, mesh) in road_meshes.iter() {
+        if !selected_segments.contains(id) {
+            continue;
+        }
         road_mesh
             .lane_vertices
             .append(&mut mesh.lane_vertices.clone());
@@ -302,5 +324,6 @@ where
         self.set_bind_group(0, camera_bind_group, &[]);
         self.render(&road_state.road_buffer);
         self.render(&road_state.tool_buffer);
+        self.render(&road_state.marked_buffer);
     }
 }

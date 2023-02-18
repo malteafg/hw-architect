@@ -615,6 +615,10 @@ impl gfx_api::GfxRoadData for GfxState {
     fn set_road_tool_mesh(&mut self, road_mesh: Option<RoadMesh>) {
         self.road_renderer.set_road_tool_mesh(road_mesh);
     }
+
+    fn mark_road_segments(&mut self, segments: Vec<SegmentId>) {
+        self.road_renderer.mark_road_segments(segments)
+    }
 }
 
 impl gfx_api::GfxCameraData for GfxState {
