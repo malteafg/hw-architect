@@ -277,8 +277,15 @@ type LeadingPair = (NodeId, SegmentId);
 pub struct RoadGraph {
     node_map: HashMap<NodeId, LNode>,
     segment_map: HashMap<SegmentId, LSegment>,
+    /// Defines for each node, the set of nodes that are reachable from this node, through exactly
+    /// one segment in the direction of the segment.
     forward_refs: HashMap<NodeId, Vec<LeadingPair>>,
+    /// Defines for each node, the set of nodes that are reachable from this node, through exactly
+    /// one segment in the opposite direction of the segment.
     backward_refs: HashMap<NodeId, Vec<LeadingPair>>,
+
+    node_id_count: u32,
+    segment_id_count: u32,
 }
 
 impl Default for RoadGraph {
@@ -293,11 +300,27 @@ impl Default for RoadGraph {
             segment_map,
             forward_refs,
             backward_refs,
+            node_id_count: 0,
+            segment_id_count: 0,
         }
     }
 }
 
 impl RoadGraph {
+    /// Should be private in the future.
+    pub fn generate_node_id(&mut self) -> NodeId {
+        let node_id = self.node_id_count;
+        self.node_id_count += 1;
+        NodeId(node_id)
+    }
+
+    /// Should be private in the future.
+    pub fn generate_segment_id(&mut self) -> SegmentId {
+        let segment_id = self.segment_id_count;
+        self.segment_id_count += 1;
+        SegmentId(segment_id)
+    }
+
     /// At this point the road generator tool has allowed the construction of this road.
     pub fn add_road(
         &mut self,
@@ -396,8 +419,6 @@ impl RoadGraph {
             .get(0)
             .cloned();
 
-        dbg!("NUM SEGMENTS: {}", self.segment_map.len());
-        dbg!("NUM NODES: {}", self.node_map.len());
         new_snap
     }
 

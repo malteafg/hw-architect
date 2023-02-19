@@ -27,8 +27,6 @@ pub struct ConstructTool {
 
     ground_pos: Vec3,
     mode: Mode,
-    node_id_count: u32,
-    segment_id_count: u32,
 }
 
 impl crate::Tool for ConstructTool {
@@ -137,21 +135,7 @@ impl ConstructTool {
             road_generator: RoadGeneratorTool::default(),
             ground_pos: Vec3::new(0.0, 0.0, 0.0),
             mode: Mode::SelectPos,
-            node_id_count: 0,
-            segment_id_count: 0,
         }
-    }
-
-    fn generate_node_id(&mut self) -> NodeId {
-        let node_id = self.node_id_count;
-        self.node_id_count += 1;
-        NodeId(node_id)
-    }
-
-    fn generate_segment_id(&mut self) -> SegmentId {
-        let segment_id = self.segment_id_count;
-        self.segment_id_count += 1;
-        SegmentId(segment_id)
     }
 
     fn switch_lane_no(&mut self, no_lanes: u8) {
@@ -223,7 +207,7 @@ impl ConstructTool {
         let segments = road_generator.clone().extract().1;
         let num_segment_ids = segments.len();
         let segment_ids: Vec<SegmentId> = (0..num_segment_ids)
-            .map(|_| self.generate_segment_id())
+            .map(|_| self.road_graph.borrow_mut().generate_segment_id())
             .collect();
 
         let mut num_node_ids = segments.len() - 1;
@@ -233,7 +217,9 @@ impl ConstructTool {
         if self.sel_node.is_none() {
             num_node_ids += 1;
         };
-        let node_ids = (0..num_node_ids).map(|_| self.generate_node_id()).collect();
+        let node_ids = (0..num_node_ids)
+            .map(|_| self.road_graph.borrow_mut().generate_node_id())
+            .collect();
 
         let new_node = self.road_graph.borrow_mut().add_road(
             road_generator,
