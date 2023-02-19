@@ -36,6 +36,7 @@ pub struct WorldTool {
     /// by {`curr_tool`}.
     road_graph: Rc<RefCell<RoadGraph>>,
     curr_tool: Box<dyn Tool>,
+    ground_pos: glam::Vec3,
 }
 
 impl WorldTool {
@@ -47,6 +48,7 @@ impl WorldTool {
             gfx_handle,
             road_graph,
             curr_tool: start_tool,
+            ground_pos: glam::Vec3::ZERO,
         }
     }
 
@@ -60,6 +62,7 @@ impl WorldTool {
                 self.curr_tool = Box::new(BulldozeTool::new(
                     Rc::clone(&self.gfx_handle),
                     Rc::clone(&self.road_graph),
+                    self.ground_pos,
                 ))
             }
             EnterConstruct => {
@@ -67,6 +70,7 @@ impl WorldTool {
                 self.curr_tool = Box::new(ConstructTool::new(
                     Rc::clone(&self.gfx_handle),
                     Rc::clone(&self.road_graph),
+                    self.ground_pos,
                 ))
             }
             Esc => {
@@ -92,6 +96,7 @@ impl WorldTool {
     }
 
     pub fn update_ground_pos(&mut self, ground_pos: glam::Vec3) {
+        self.ground_pos = ground_pos;
         self.curr_tool.update_ground_pos(ground_pos);
     }
 }

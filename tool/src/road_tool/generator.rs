@@ -32,15 +32,6 @@ impl SegmentBuilder {
             mesh,
         }
     }
-
-    // fn build(self, from_node: NodeId, to_node: NodeId) -> LSegment {
-    //     LSegment {
-    //         road_type: self.road_type,
-    //         guide_points: self.guide_points,
-    //         from_node,
-    //         to_node,
-    //     }
-    // }
 }
 
 #[derive(Clone)]
@@ -400,6 +391,10 @@ impl RoadGeneratorTool {
         self.road
             .as_ref()
             .map(|road| combine_road_meshes(road.segments.clone()))
+    }
+
+    pub fn is_reverse(&self) -> Option<bool> {
+        self.road.as_ref().map(|g| g.reverse)
     }
 }
 

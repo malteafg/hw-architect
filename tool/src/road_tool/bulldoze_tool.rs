@@ -3,13 +3,11 @@ use glam::*;
 use simulation::RoadGraph;
 use std::cell::RefCell;
 use std::rc::Rc;
-use utils::id::SegmentId;
 use utils::input;
 
 pub struct BulldozeTool {
     gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
     road_graph: Rc<RefCell<RoadGraph>>,
-
     ground_pos: Vec3,
 }
 
@@ -34,9 +32,7 @@ impl crate::Tool for BulldozeTool {
 
     fn update_ground_pos(&mut self, ground_pos: Vec3) {
         self.ground_pos = ground_pos;
-
-        let segment = self.road_graph.borrow().get_segment_inside(self.ground_pos);
-        self.mark_segment(segment);
+        self.check_segment();
     }
 
     /// Unmark any marked segment.
@@ -49,15 +45,19 @@ impl BulldozeTool {
     pub fn new(
         gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
         road_graph: Rc<RefCell<RoadGraph>>,
+        ground_pos: Vec3,
     ) -> Self {
-        Self {
+        let mut tool = Self {
             gfx_handle,
             road_graph,
-            ground_pos: Vec3::new(0.0, 0.0, 0.0),
-        }
+            ground_pos,
+        };
+        tool.check_segment();
+        tool
     }
 
-    fn mark_segment(&mut self, segment_id: Option<SegmentId>) {
+    fn check_segment(&mut self) {
+        let segment_id = self.road_graph.borrow().get_segment_inside(self.ground_pos);
         if let Some(id) = segment_id {
             self.gfx_handle.borrow_mut().mark_road_segments(vec![id]);
             return;

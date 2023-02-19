@@ -1,12 +1,13 @@
+use crate::Tool;
+
 use super::generator;
 use super::generator::RoadGeneratorTool;
 use gfx_api::GfxRoadData;
 use glam::*;
-use simulation::{CurveType, RoadGen, RoadGraph, RoadType, SnapConfig};
+use simulation::{CurveType, RoadGraph, RoadType, SnapConfig};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use utils::id::{NodeId, SegmentId};
 use utils::input;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -78,6 +79,7 @@ impl crate::Tool for ConstructTool {
             },
             Mode::Build => self.build_road(),
         }
+        self.show_snappable_nodes();
     }
 
     fn right_click(&mut self) {
@@ -102,6 +104,7 @@ impl crate::Tool for ConstructTool {
                 _ => self.reset_snap(Mode::SelectPos),
             },
         }
+        self.show_snappable_nodes();
     }
 
     fn update_ground_pos(&mut self, ground_pos: Vec3) {
@@ -122,7 +125,9 @@ impl ConstructTool {
     pub fn new(
         gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
         road_graph: Rc<RefCell<RoadGraph>>,
+        ground_pos: Vec3,
     ) -> Self {
+        let mut tool = 
         Self {
             gfx_handle,
             road_graph,
@@ -133,9 +138,12 @@ impl ConstructTool {
             sel_node: None,
             snapped_node: None,
             road_generator: RoadGeneratorTool::default(),
-            ground_pos: Vec3::new(0.0, 0.0, 0.0),
+            ground_pos,
             mode: Mode::SelectPos,
-        }
+        };
+        tool.show_snappable_nodes();
+        tool.update_ground_pos(ground_pos);
+        tool
     }
 
     fn switch_lane_no(&mut self, no_lanes: u8) {
@@ -149,6 +157,7 @@ impl ConstructTool {
         } else {
             self.reset_snap(Mode::SelectPos);
         }
+        self.show_snappable_nodes();
     }
 
     fn switch_curve_type(&mut self) {
@@ -173,6 +182,7 @@ impl ConstructTool {
                 }
             }
         }
+        self.show_snappable_nodes();
     }
 
     fn select_node(&mut self, snapped_node: SnapConfig) {
@@ -203,40 +213,17 @@ impl ConstructTool {
         let road_meshes = self.road_generator.get_road_meshes();
         let road_generator = self.road_generator.extract();
 
-        // Id gen and other stuff is just temporary
-        let segments = road_generator.clone().extract().1;
-        let num_segment_ids = segments.len();
-        let segment_ids: Vec<SegmentId> = (0..num_segment_ids)
-            .map(|_| self.road_graph.borrow_mut().generate_segment_id())
-            .collect();
-
-        let mut num_node_ids = segments.len() - 1;
-        if self.snapped_node.is_none() {
-            num_node_ids += 1;
-        };
-        if self.sel_node.is_none() {
-            num_node_ids += 1;
-        };
-        let node_ids = (0..num_node_ids)
-            .map(|_| self.road_graph.borrow_mut().generate_node_id())
-            .collect();
-
-        let new_node = self.road_graph.borrow_mut().add_road(
+        let (new_node, segment_ids) = self.road_graph.borrow_mut().add_road(
             road_generator,
             self.sel_node.clone(),
             self.snapped_node.clone(),
-            node_ids,
-            segment_ids.clone(),
         );
 
         let mut mesh_map = HashMap::new();
-        for i in 0..num_segment_ids {
+        for i in 0..segment_ids.len() {
             mesh_map.insert(segment_ids[i], road_meshes[i].clone());
         }
         self.gfx_handle.borrow_mut().add_road_meshes(mesh_map);
-        self.gfx_handle
-            .borrow_mut()
-            .set_node_markers(self.road_graph.borrow().get_node_positions());
 
         // TODO have add_road return new_node in such a way that is not necessary to check snapped_node
         if self.snapped_node.is_some() {
@@ -256,6 +243,7 @@ impl ConstructTool {
         self.snapped_node = None;
         self.mode = new_mode;
         self.check_snapping();
+        self.show_snappable_nodes();
     }
 
     fn update_no_snap(&mut self) {
@@ -317,7 +305,7 @@ impl ConstructTool {
         let node_snap_configs = self
             .road_graph
             .borrow()
-            .get_node_snap_configs(self.ground_pos, self.sel_road_type.no_lanes);
+            .get_snap_configs_closest_node(self.ground_pos, self.sel_road_type.no_lanes);
 
         let Some((_snap_id, snap_configs)) = node_snap_configs else {
             self.update_no_snap();
@@ -329,5 +317,22 @@ impl ConstructTool {
         } else {
             self.update_snap(snap_configs);
         }
+    }
+
+    /// Marks the nodes that can be snapped to on the gpu. If reverse parameter is set to {`None`},
+    /// then no direction is checked when matching nodes.
+    fn show_snappable_nodes(&mut self) {
+        let reverse = self.road_generator.is_reverse();
+        let possible_snaps = self
+            .road_graph
+            .borrow()
+            .get_possible_snap_nodes(reverse, self.sel_road_type.no_lanes)
+            .iter()
+            .map(|id| {
+                self.road_graph.borrow().get_node(*id).get_pos()
+            })
+            .collect();
+
+        self.gfx_handle.borrow_mut().set_node_markers(possible_snaps);
     }
 }

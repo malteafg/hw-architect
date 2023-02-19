@@ -131,14 +131,35 @@ impl LNode {
     fn remove_segment_from_lane_map(&mut self, segment_id: SegmentId) {
         self.incoming_lanes.remove_segment(segment_id);
         self.outgoing_lanes.remove_segment(segment_id);
-        let mut delete_list = vec![];
+        let mut left_delete_list = vec![];
+        let mut right_delete_list = vec![];
+
+        // This code assumes that we have checked that it is not a valid segment to delete.
         for i in 0..self.incoming_lanes.len() {
             if self.incoming_lanes[i] == None && self.outgoing_lanes[i] == None {
-                delete_list.push(i);
+                left_delete_list.push(i);
+            } else {
+                break;
             }
         }
-        delete_list.reverse();
-        for &i in delete_list.iter() {
+
+        for i in (0..self.incoming_lanes.len()).rev() {
+            if self.incoming_lanes[i] == None && self.outgoing_lanes[i] == None {
+                right_delete_list.push(i);
+            } else {
+                break;
+            }
+        }
+
+        self.pos += ((left_delete_list.len() - right_delete_list.len()) as f32 / 2.0)
+            * self.dir.right_hand() * LANE_WIDTH;
+
+        for &i in right_delete_list.iter() {
+            self.incoming_lanes.remove(i);
+            self.outgoing_lanes.remove(i);
+        }
+        left_delete_list.reverse();
+        for &i in left_delete_list.iter() {
             self.incoming_lanes.remove(i);
             self.outgoing_lanes.remove(i);
         }
@@ -153,8 +174,9 @@ impl LNode {
         opposite_same: bool,
     ) -> Vec<SnapConfig> {
         let lane_width_dir = self.dir.right_hand() * LANE_WIDTH;
+
+        // lane map contains some so look for snap ranges in between segments
         if lane_map.contains_some() {
-            // lane map contains some so look for snap ranges in between segments
             let mut snap_configs = vec![];
             let mut possible_snaps: Vec<SnapRange> = vec![];
             let diff = self.no_lanes() as i8 - no_lanes as i8;
@@ -182,10 +204,12 @@ impl LNode {
                     possible_snaps = vec![];
                 }
             }
-            snap_configs
-        } else if no_lanes >= self.no_lanes() {
-            // lane_map is all nones, therefore, if we are building larger segment with more than
-            // or equal no_lanes then all snap possibilities exist
+            return snap_configs;
+        };
+
+        // lane_map is all nones, therefore, if we are building larger segment with more than or
+        // equal no_lanes then all snap possibilities exist
+        if no_lanes >= self.no_lanes() {
             let mut snap_configs = vec![];
             let diff = no_lanes - self.no_lanes();
             for i in 0..(diff + 1) {
@@ -200,10 +224,12 @@ impl LNode {
                     ),
                 });
             }
-            snap_configs
-        } else if opposite_same && no_lanes < self.no_lanes() {
-            // if we are building a segment with fewer no_lanes then we can only do it if the
-            // opposite node is the same node, otherwise we create a many to many node
+            return snap_configs;
+        };
+
+        // if we are building a segment with fewer no_lanes then we can only do it if the opposite
+        // node is the same node, otherwise we create a many to many node
+        if opposite_same && no_lanes < self.no_lanes() {
             let mut snap_configs = vec![];
             let diff = self.no_lanes() - no_lanes;
             for i in 0..(diff + 1) {
@@ -215,14 +241,15 @@ impl LNode {
                     snap_range: SnapRange::create(i as i8, (i + no_lanes) as i8),
                 });
             }
-            snap_configs
-        } else {
-            // cannot snap as the opposite is not the same segment, and this sides no_lanes is
-            // too small
-            vec![]
-        }
+            return snap_configs;
+        };
+
+        // cannot snap as the opposite is not the same segment, and this sides no_lanes is too small
+        vec![]
     }
 
+    /// Returns the {`SnapConfig`}'s of this node, given the amount of lanes that can be snapped
+    /// to.
     fn get_snap_configs(&self, no_lanes: u8, node_id: NodeId) -> Vec<SnapConfig> {
         if self.outgoing_lanes.contains_none() {
             self.get_snap_configs_from_map(
@@ -308,7 +335,7 @@ impl Default for RoadGraph {
 
 impl RoadGraph {
     /// Should be private in the future.
-    pub fn generate_node_id(&mut self) -> NodeId {
+    fn generate_node_id(&mut self) -> NodeId {
         let node_id = self.node_id_count;
         self.node_id_count += 1;
         NodeId(node_id)
@@ -321,17 +348,33 @@ impl RoadGraph {
         SegmentId(segment_id)
     }
 
-    /// At this point the road generator tool has allowed the construction of this road.
+    /// At this point the road generator tool has allowed the construction of this road. The order
+    /// of {`NodeId`}'s order always follows the direction of the road. The order of
+    /// {`SegmentId`}'s follow whatever order was decided by the road generator.
     pub fn add_road(
         &mut self,
         road: impl RoadGen,
         selected_node: Option<SnapConfig>,
         snapped_node: Option<SnapConfig>,
-        node_ids: Vec<NodeId>,
-        segment_ids: Vec<SegmentId>,
-    ) -> Option<SnapConfig> {
+    ) -> (Option<SnapConfig>, Vec<SegmentId>) {
         let (node_list, segment_list, road_type, reverse) = road.extract();
         let mut new_snap_index = 0;
+
+        // Generate node ids
+        let mut num_node_ids = segment_list.len() - 1;
+        if snapped_node.is_none() {
+            num_node_ids += 1;
+        };
+        if selected_node.is_none() {
+            num_node_ids += 1;
+        };
+        let node_ids: Vec<NodeId> = (0..num_node_ids).map(|_| self.generate_node_id()).collect();
+
+        // Generate segment ids
+        let num_segment_ids = segment_list.len();
+        let segment_ids: Vec<SegmentId> = (0..num_segment_ids)
+            .map(|_| self.generate_segment_id())
+            .collect();
 
         // Create list of new and old nodes in correct order
         let mut nodes = vec![];
@@ -419,7 +462,7 @@ impl RoadGraph {
             .get(0)
             .cloned();
 
-        new_snap
+        (new_snap, segment_ids)
     }
 
     fn remove_node_if_not_exists(&mut self, node_id: NodeId) {
@@ -503,9 +546,32 @@ impl RoadGraph {
             .expect("Segment does not exist in segment map")
     }
 
-    pub fn get_node_snap_configs(
+    /// Returns a list of node id's that have an open slot for the selected road type to snap to.
+    /// If reverse parameter is set to {`None`}, then no direction is checked when matching nodes.
+    pub fn get_possible_snap_nodes(&self, reverse: Option<bool>, no_lanes: u8) -> Vec<NodeId> {
+        self.node_map
+            .iter()
+            .filter(|(id, n)| {
+                if !n.has_snappable_lane() {
+                    return false;
+                };
+                let Some(snap_config) = n.get_snap_configs(no_lanes, **id).pop() else {
+                    return false
+                };
+                if let Some(reverse) = reverse {
+                    return reverse != snap_config.reverse;
+                };
+                true
+            })
+            .map(|(id, _)| *id)
+            .collect()
+    }
+
+    /// If no node is within range of pos, then this function returns {`None`}. Otherwise it
+    /// returns the closest node to pos, and all its possible {`SnapConfig`}'s.
+    pub fn get_snap_configs_closest_node(
         &self,
-        pos: Vec3,
+        ground_pos: Vec3,
         no_lanes: u8,
     ) -> Option<(NodeId, Vec<SnapConfig>)> {
         // TODO match all nodes in range and combine the snap configs generated by all of them
@@ -514,7 +580,7 @@ impl RoadGraph {
             if !n.has_snappable_lane() {
                 continue;
             }
-            let dist = (n.pos - pos).length();
+            let dist = (n.pos - ground_pos).length();
             if let Some((_, old_dist)) = closest_node {
                 if old_dist < dist {
                     continue;
@@ -528,9 +594,9 @@ impl RoadGraph {
             let n = self.get_node(*id);
             let mut snap_configs = n.get_snap_configs(no_lanes, *id);
             snap_configs.sort_by(|a, b| {
-                (a.pos - pos)
+                (a.pos - ground_pos)
                     .length()
-                    .partial_cmp(&(b.pos - pos).length())
+                    .partial_cmp(&(b.pos - ground_pos).length())
                     .unwrap()
             });
             (*id, snap_configs)

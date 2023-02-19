@@ -2,7 +2,7 @@ mod road_renderer;
 pub mod terrain_renderer;
 
 use glam::*;
-use utils::{Mat3Utils, Mat4Utils};
+use utils::Mat4Utils;
 use wgpu::util::DeviceExt;
 
 use crate::vertex::Vertex;
@@ -13,8 +13,6 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use utils::id::SegmentId;
-
-use gfx_api::InstanceRaw;
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: Mat4 = Mat4::from_cols(
@@ -477,40 +475,40 @@ impl gfx_api::Gfx for GfxState {
         );
     }
 
-    fn add_instance(&mut self, position: Vec3) {
-        // let rotation = if position == Vec3::ZERO {
-        //     Quat::from_axis_angle(Vec3::Z, 0.0)
-        // } else {
-        //     Quat::from_axis_angle(position.normalize(), std::f32::consts::PI / 4.)
-        // };
-        // self.instances.push(Instance { position, rotation });
-        // let instance_data = self
-        //     .instances
-        //     .iter()
-        //     .map(Instance::to_raw)
-        //     .collect::<Vec<_>>();
-        // self.instance_buffer.write(
-        //     &self.queue,
-        //     &self.device,
-        //     &bytemuck::cast_slice(&instance_data),
-        // );
-    }
+    // fn add_instance(&mut self, position: Vec3) {
+    //     let rotation = if position == Vec3::ZERO {
+    //         Quat::from_axis_angle(Vec3::Z, 0.0)
+    //     } else {
+    //         Quat::from_axis_angle(position.normalize(), std::f32::consts::PI / 4.)
+    //     };
+    //     self.instances.push(Instance { position, rotation });
+    //     let instance_data = self
+    //         .instances
+    //         .iter()
+    //         .map(Instance::to_raw)
+    //         .collect::<Vec<_>>();
+    //     self.instance_buffer.write(
+    //         &self.queue,
+    //         &self.device,
+    //         &bytemuck::cast_slice(&instance_data),
+    //     );
+    // }
 
-    fn remove_instance(&mut self) {
-        // if self.instances.len() != 0 {
-        //     self.instances.remove(0);
-        //     let instance_data = self
-        //         .instances
-        //         .iter()
-        //         .map(Instance::to_raw)
-        //         .collect::<Vec<_>>();
-        //     self.instance_buffer.write(
-        //         &self.queue,
-        //         &self.device,
-        //         &bytemuck::cast_slice(&instance_data),
-        //     );
-        // }
-    }
+    // fn remove_instance(&mut self) {
+    //     if self.instances.len() != 0 {
+    //         self.instances.remove(0);
+    //         let instance_data = self
+    //             .instances
+    //             .iter()
+    //             .map(Instance::to_raw)
+    //             .collect::<Vec<_>>();
+    //         self.instance_buffer.write(
+    //             &self.queue,
+    //             &self.device,
+    //             &bytemuck::cast_slice(&instance_data),
+    //         );
+    //     }
+    // }
 }
 
 use gfx_api::Camera;

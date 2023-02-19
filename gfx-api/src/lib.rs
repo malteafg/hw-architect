@@ -22,10 +22,6 @@ pub trait Gfx {
 
     fn update(&mut self, dt: instant::Duration);
 
-    fn add_instance(&mut self, position: glam::Vec3);
-
-    fn remove_instance(&mut self);
-
     // some function that loads gfx data from a file on startup. This should be coded in such a way
     // that Gfx can be used without being dependent on GfxData
     // fn load_gfx();
