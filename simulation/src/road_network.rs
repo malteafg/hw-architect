@@ -298,8 +298,7 @@ impl Default for RoadGraph {
 }
 
 impl RoadGraph {
-    /// At this point the road generator tool has allowed the construction of this road. The return
-    /// of a segment id is temporary.
+    /// At this point the road generator tool has allowed the construction of this road.
     pub fn add_road(
         &mut self,
         road: impl RoadGen,
@@ -397,6 +396,8 @@ impl RoadGraph {
             .get(0)
             .cloned();
 
+        dbg!("NUM SEGMENTS: {}", self.segment_map.len());
+        dbg!("NUM NODES: {}", self.node_map.len());
         new_snap
     }
 

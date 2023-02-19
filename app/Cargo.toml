@@ -14,6 +14,7 @@ gfx-wgpu = { path = "../gfx-wgpu"  }
 gfx-api = { path = "../gfx-api" }
 tool = { path = "../tool"}
 utils = { path = "../utils"}
+simulation = { path = "../simulation"}
 
 winit = { workspace = true }
 wgpu = { workspace = true }

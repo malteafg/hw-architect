@@ -1,3 +1,6 @@
 pub mod curves;
-pub mod road_network;
+mod road_network;
 
+pub use road_network::{
+    CurveType, LNodeBuilder, LSegmentBuilder, RoadGen, RoadGraph, RoadType, SnapConfig,
+};

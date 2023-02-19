@@ -1,12 +1,13 @@
 use gfx_api::GfxRoadData;
-use utils::input;
-
+use simulation::RoadGraph;
 use std::cell::RefCell;
 use std::rc::Rc;
+use utils::input;
+
+use crate::road_tool::{BulldozeTool, ConstructTool};
 
 pub mod camera_controller;
 mod road_tool;
-
 
 trait Tool {
     /// The tool shall process the given {`KeyAction`}. This happens when a key click should be
@@ -22,26 +23,58 @@ trait Tool {
     /// This function should be called whenever there is an update to where the mouse points on the
     /// ground. This includes mouse movement and camera movement.
     fn update_ground_pos(&mut self, ground_pos: glam::Vec3);
+
+    /// This function is used to reset whatever a tool has given to the gpu, such that the next
+    /// tool can manipulate the graphics from scratch, as it desires.
+    fn gfx_clean(&mut self);
 }
 
+/// The main tool that controlss how other tools are invoked.
 pub struct WorldTool {
     gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
-    road_tool: road_tool::RoadToolState,
-    // curr_tool: Option<dyn Tool>,
+    /// Uses {`Rc`}+{`RefCell`} as only one tool modifies the road_graph at one point as specified
+    /// by {`curr_tool`}.
+    road_graph: Rc<RefCell<RoadGraph>>,
+    curr_tool: Box<dyn Tool>,
 }
 
 impl WorldTool {
-    pub fn new(gfx_handle: Rc<RefCell<dyn GfxRoadData>>) -> Self {
-        let gfx_handle_road = Rc::clone(&gfx_handle);
+    pub fn new(gfx_handle: Rc<RefCell<dyn GfxRoadData>>, road_graph: RoadGraph) -> Self {
+        let road_graph = Rc::new(RefCell::new(road_graph));
+        let start_tool = Box::new(DummyTool);
+
         WorldTool {
             gfx_handle,
-            road_tool: road_tool::RoadToolState::new(gfx_handle_road),
+            road_graph,
+            curr_tool: start_tool,
         }
     }
 
     pub fn process_keyboard(&mut self, key: input::KeyAction) {
-        // switch tools using leader keybindings
-        self.road_tool.process_keyboard(key);
+        // TODO add leader keybindings, but maybe they should be in InputHandler.
+        use input::Action::*;
+        let (action, _) = key;
+        match action {
+            EnterBulldoze => {
+                self.curr_tool.gfx_clean();
+                self.curr_tool = Box::new(BulldozeTool::new(
+                    Rc::clone(&self.gfx_handle),
+                    Rc::clone(&self.road_graph),
+                ))
+            }
+            EnterConstruct => {
+                self.curr_tool.gfx_clean();
+                self.curr_tool = Box::new(ConstructTool::new(
+                    Rc::clone(&self.gfx_handle),
+                    Rc::clone(&self.road_graph),
+                ))
+            }
+            Esc => {
+                self.curr_tool.gfx_clean();
+                self.curr_tool = Box::new(DummyTool)
+            }
+            _ => self.curr_tool.process_keyboard(key),
+        }
     }
 
     pub fn mouse_input(&mut self, event: input::MouseEvent) {
@@ -52,15 +85,24 @@ impl WorldTool {
         };
 
         match button {
-            Mouse::Left => self.road_tool.left_click(),
-            Mouse::Right => self.road_tool.right_click(),
+            Mouse::Left => self.curr_tool.left_click(),
+            Mouse::Right => self.curr_tool.right_click(),
             _ => {}
         }
     }
 
     pub fn update_ground_pos(&mut self, ground_pos: glam::Vec3) {
-        self.road_tool.update_ground_pos(ground_pos);
+        self.curr_tool.update_ground_pos(ground_pos);
     }
+}
 
-    // add gfx_clean method?
+/// Used as the default tool, when no tool is used.
+struct DummyTool;
+
+impl Tool for DummyTool {
+    fn process_keyboard(&mut self, _key: input::KeyAction) {}
+    fn left_click(&mut self) {}
+    fn right_click(&mut self) {}
+    fn update_ground_pos(&mut self, _ground_pos: glam::Vec3) {}
+    fn gfx_clean(&mut self) {}
 }

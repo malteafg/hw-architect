@@ -1,8 +1,7 @@
 use gfx_api::{RoadMesh, RoadVertex};
 use glam::*;
 use simulation::curves;
-use simulation::road_network as network;
-use simulation::road_network::{CurveType, LNodeBuilder, LSegmentBuilder, RoadType};
+use simulation::{CurveType, LNodeBuilder, LSegmentBuilder, RoadGen, RoadType, SnapConfig};
 use utils::consts::{LANE_MARKINGS_WIDTH, LANE_WIDTH, ROAD_HEIGHT};
 use utils::VecUtils;
 
@@ -55,7 +54,7 @@ pub struct RoadGenerator {
     init_reverse: bool,
 }
 
-impl network::RoadGen for RoadGenerator {
+impl RoadGen for RoadGenerator {
     /// Temprorary until better roadgen
     fn extract(self) -> (Vec<LNodeBuilder>, Vec<LSegmentBuilder>, RoadType, bool) {
         let l_segments = self
@@ -153,8 +152,12 @@ impl RoadGenerator {
                         g_points.clone(),
                     );
                     self.nodes.push(LNodeBuilder::new(end_pos, end_dir));
-                    self.segments
-                        .push(SegmentBuilder::new(self.start_road_type, g_points, spine_points, mesh));
+                    self.segments.push(SegmentBuilder::new(
+                        self.start_road_type,
+                        g_points,
+                        spine_points,
+                        mesh,
+                    ));
                 });
             }
         }
@@ -335,11 +338,7 @@ impl RoadGeneratorTool {
         }
     }
 
-    pub fn try_snap(
-        &mut self,
-        snap_config: network::SnapConfig,
-        reverse_locked: bool,
-    ) -> Option<()> {
+    pub fn try_snap(&mut self, snap_config: SnapConfig, reverse_locked: bool) -> Option<()> {
         if let Some(road) = self.road.as_mut() {
             if let Some(dir) = road.init_dir {
                 if reverse_locked {
@@ -369,7 +368,7 @@ impl RoadGeneratorTool {
         }
     }
 
-    pub fn update_curve_type(&mut self, curve: network::CurveType) {
+    pub fn update_curve_type(&mut self, curve: CurveType) {
         if let Some(road) = self.road.as_mut() {
             road.start_road_type.curve_type = curve;
         }
@@ -455,14 +454,21 @@ pub fn empty_mesh() -> RoadMesh {
     }
 }
 
-pub fn generate_straight_mesh(start_pos: Vec3, end_pos: Vec3, selected_road: RoadType) -> (RoadMesh, curves::SpinePoints) {
+pub fn generate_straight_mesh(
+    start_pos: Vec3,
+    end_pos: Vec3,
+    selected_road: RoadType,
+) -> (RoadMesh, curves::SpinePoints) {
     let no_lanes = selected_road.no_lanes;
     let dir = end_pos - start_pos;
 
     let (spine_points, spine_dirs) =
         curves::calc_uniform_spine_points(vec![start_pos, end_pos], vec![dir, dir], CUT_LENGTH);
 
-    (generate_road_mesh_with_lanes(spine_points.clone(), spine_dirs, no_lanes), spine_points)
+    (
+        generate_road_mesh_with_lanes(spine_points.clone(), spine_dirs, no_lanes),
+        spine_points,
+    )
 
     // let width = LANE_WIDTH * no_lanes as f32;
     // let mut vertices = vec![];
@@ -506,7 +512,10 @@ pub fn generate_circular_mesh(
         num_of_cuts,
     );
 
-    (generate_road_mesh_with_lanes(spine_points.clone(), spine_dirs, no_lanes), spine_points)
+    (
+        generate_road_mesh_with_lanes(spine_points.clone(), spine_dirs, no_lanes),
+        spine_points,
+    )
 
     // let width = LANE_WIDTH * no_lanes as f32;
     // let mut vertices = vec![];

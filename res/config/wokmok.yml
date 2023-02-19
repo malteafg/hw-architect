@@ -14,9 +14,11 @@ camera_rotate_right:
 camera_return:
   - space
 cycle_road_type:
-  - d
-toggle_bulldoze:
+  - m
+enter_bulldoze:
   - j
+enter_construct:
+  - d
 one_lane:
   - "1"
 two_lane:
