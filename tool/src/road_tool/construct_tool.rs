@@ -189,14 +189,14 @@ impl ConstructTool {
         let node_dir = self
             .road_graph
             .borrow()
-            .get_node(snapped_node.node_id)
+            .get_node(snapped_node.get_id())
             .get_dir();
 
         self.road_generator = generator::RoadGeneratorTool::new(
-            snapped_node.pos,
+            snapped_node.get_pos(),
             Some(node_dir),
             self.sel_road_type,
-            snapped_node.reverse,
+            snapped_node.is_reverse(),
         );
         self.road_generator.update_pos(self.ground_pos);
         self.gfx_handle
@@ -272,10 +272,10 @@ impl ConstructTool {
             Mode::SelectPos => {
                 let snap_config = &snap_configs[0];
                 let road_generator = RoadGeneratorTool::new(
-                    snap_config.pos,
-                    Some(snap_config.dir),
+                    snap_config.get_pos(),
+                    Some(snap_config.get_dir()),
                     self.sel_road_type,
-                    snap_config.reverse,
+                    snap_config.is_reverse(),
                 );
                 self.snapped_node = Some(snap_config.clone());
                 self.gfx_handle

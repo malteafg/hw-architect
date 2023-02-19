@@ -333,20 +333,30 @@ impl RoadGeneratorTool {
         if let Some(road) = self.road.as_mut() {
             if let Some(dir) = road.init_dir {
                 if reverse_locked {
-                    if snap_config.reverse == road.reverse {
+                    if snap_config.is_reverse() == road.reverse {
                         // snapping opposing roads
                         None
                     } else {
-                        road.try_double_snap(road.init_pos, dir, snap_config.pos, snap_config.dir)
+                        road.try_double_snap(
+                            road.init_pos,
+                            dir,
+                            snap_config.get_pos(),
+                            snap_config.get_dir(),
+                        )
                     }
                 } else {
-                    road.reverse = !snap_config.reverse;
+                    road.reverse = !snap_config.is_reverse();
                     let dir = if road.reverse { -dir } else { dir };
-                    road.try_double_snap(road.init_pos, dir, snap_config.pos, snap_config.dir)
+                    road.try_double_snap(
+                        road.init_pos,
+                        dir,
+                        snap_config.get_pos(),
+                        snap_config.get_dir(),
+                    )
                 }
             } else {
-                road.reverse = !snap_config.reverse;
-                road.try_curve_snap(snap_config.pos, snap_config.dir, road.init_pos)
+                road.reverse = !snap_config.is_reverse();
+                road.try_curve_snap(snap_config.get_pos(), snap_config.get_dir(), road.init_pos)
             }
         } else {
             None

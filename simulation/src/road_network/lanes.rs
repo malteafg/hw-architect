@@ -6,7 +6,7 @@ use utils::id::SegmentId;
 /// incoming and outgoing to and from itself. Thus an {`LNode`} has two {`LaneMap`}s. None is used
 /// to signal that there is no segment present at this lane
 #[derive(Debug, Clone, PartialEq)]
-pub(super) struct LaneMap(VecDeque<Option<SegmentId>>);
+pub struct LaneMap(VecDeque<Option<SegmentId>>);
 
 impl core::ops::Deref for LaneMap {
     type Target = VecDeque<Option<SegmentId>>;
@@ -27,7 +27,7 @@ impl LaneMap {
         LaneMap(lane_map)
     }
 
-    pub(super) fn create(no_lanes: u8, id: Option<SegmentId>) -> Self {
+    pub fn create(no_lanes: u8, id: Option<SegmentId>) -> Self {
         let mut vec = VecDeque::new();
         for _ in 0..no_lanes {
             vec.push_back(id)
@@ -35,7 +35,7 @@ impl LaneMap {
         LaneMap::from_vec(vec)
     }
 
-    pub(super) fn contains_none(&self) -> bool {
+    pub fn contains_none(&self) -> bool {
         let mut contains_none = false;
         for seg in self.iter() {
             if seg.is_none() {
@@ -45,7 +45,7 @@ impl LaneMap {
         contains_none
     }
 
-    pub(super) fn contains_some(&self) -> bool {
+    pub fn contains_some(&self) -> bool {
         let mut contains_some = false;
         for seg in self.iter() {
             if seg.is_some() {
@@ -81,7 +81,7 @@ impl LaneMap {
     //     false
     // }
 
-    pub(super) fn is_same(&self) -> bool {
+    pub fn is_same(&self) -> bool {
         let temp = self[0];
         for seg in self.iter() {
             if *seg != temp {
@@ -103,14 +103,14 @@ impl LaneMap {
         SnapRange::from_vec(snap_range)
     }
 
-    pub(super) fn is_middle_segment(&self, segment_id: SegmentId) -> bool {
+    pub fn is_middle_segment(&self, segment_id: SegmentId) -> bool {
         let segment_range = self.get_range_of_segment(segment_id);
         let bottom_range = SnapRange::create(0, segment_range[0]);
         let top_range = SnapRange::create(segment_range[0] + 1, self.len() as i8);
         self.contains_some_in_range(bottom_range) && self.contains_some_in_range(top_range)
     }
 
-    pub(super) fn is_continuous(&self) -> bool {
+    pub fn is_continuous(&self) -> bool {
         let mut some_seen = false;
         let mut none_seen = false;
         let mut some = None;
@@ -127,7 +127,7 @@ impl LaneMap {
         true
     }
 
-    pub(super) fn remove_segment(&mut self, segment_id: SegmentId) {
+    pub fn remove_segment(&mut self, segment_id: SegmentId) {
         for seg in self.iter_mut() {
             if let Some(id) = seg {
                 if *id == segment_id {
@@ -137,7 +137,7 @@ impl LaneMap {
         }
     }
 
-    pub(super) fn update(&mut self, snap_range: &SnapRange, segment_id: SegmentId) {
+    pub fn update(&mut self, snap_range: &SnapRange, segment_id: SegmentId) {
         for i in snap_range.iter() {
             if self[*i as usize].replace(segment_id).is_some() {
                 panic!("Some segment was overriden in an update of a nodes lane map")
@@ -145,7 +145,7 @@ impl LaneMap {
         }
     }
 
-    pub(super) fn expand(&mut self, snap_range: &SnapRange, segment_id: Option<SegmentId>) {
+    pub fn expand(&mut self, snap_range: &SnapRange, segment_id: Option<SegmentId>) {
         let len = self.len() as i8;
         for i in snap_range.iter() {
             if *i < 0 {
