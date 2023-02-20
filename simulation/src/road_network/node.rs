@@ -3,9 +3,96 @@ use utils::consts::LANE_WIDTH;
 use utils::id::{NodeId, SegmentId};
 use utils::VecUtils;
 
-use super::snap::{SnapConfig, SnapRange};
-
 use super::lane::LaneMap;
+use super::snap::{SnapConfig, SnapRange};
+use super::NodeType;
+
+#[derive(Clone, Debug)]
+struct AttachedSegment {
+    segment_id: SegmentId,
+    node_type: NodeType,
+    snap_range: SnapRange,
+}
+
+/// Defines if the main segment is incoming or outgoing in an asymmetric node.
+#[derive(Clone, Copy, Debug)]
+enum Side {
+    In,
+    Out,
+}
+
+#[derive(Clone, Debug)]
+enum Mode {
+    Sym {
+        incoming: SegmentId,
+        outgoing: SegmentId,
+    },
+    Asym {
+        /// This is the main segment of an asymmetric node, the largest segment in terms of no of
+        /// lanes.
+        segment_id: SegmentId,
+        side: Side,
+        segments: Vec<AttachedSegment>,
+        /// This is the lane map of lanes opposite the main segment.
+        lane_map: LaneMap,
+    },
+}
+
+// #[derive(Clone, Debug)]
+// pub struct LNode {
+//     pos: Vec3,
+//     dir: Vec3,
+//     /// This type corresponds with the incoming and outgoing segment in a symmetric node, and the
+//     /// main segment of an asymmetric node.
+//     node_type: NodeType,
+//     mode: Mode,
+// }
+
+// #[derive(Clone, Copy, Debug)]
+// pub struct LNodeBuilder {
+//     pos: Vec3,
+//     dir: Vec3,
+// }
+
+// impl LNodeBuilder {
+//     pub fn new(pos: Vec3, dir: Vec3) -> Self {
+//         LNodeBuilder { pos, dir }
+//     }
+
+//     /// # Panics
+//     ///
+//     /// The function panics if `lane_map` is `(None, None)` because you cannot construct a node
+//     /// that is not connected to any segment.
+//     pub fn build(
+//         self,
+//         node_type: NodeType,
+//         lane_map: (Option<SegmentId>, Option<SegmentId>),
+//     ) -> LNode {
+//         let mode = match lane_map {
+//             (Some(in_id), Some(out_id)) => Mode::Sym {
+//                 incoming: in_id,
+//                 outgoing: out_id,
+//             },
+//             (Some(in_id), None) => Mode::Asym {
+//                 segment_id: in_id,
+//                 side: Side::In,
+//                 segments: vec![],
+//             },
+//             (None, Some(out_id)) => Mode::Asym {
+//                 segment_id: out_id,
+//                 side: Side::Out,
+//                 segments: vec![],
+//             },
+//             (None, None) => panic!(),
+//         };
+//         LNode {
+//             pos: self.pos,
+//             dir: self.dir,
+//             node_type,
+//             mode,
+//         }
+//     }
+// }
 
 /// Represents a logical road node. The data is the data necessary to do logical work with a road
 /// node.
@@ -190,10 +277,7 @@ impl LNode {
                     node_id,
                     self.pos + (i as f32 - diff as f32 / 2.0) * lane_width_dir,
                     self.dir,
-                    SnapRange::create(
-                        i as i8 - diff as i8,
-                        (i + no_lanes) as i8 - diff as i8,
-                    ),
+                    SnapRange::create(i as i8 - diff as i8, (i + no_lanes) as i8 - diff as i8),
                     reverse,
                 ));
             }
