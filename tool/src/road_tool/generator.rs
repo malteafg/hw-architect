@@ -1,9 +1,10 @@
 use gfx_api::{RoadMesh, RoadVertex};
 use glam::*;
 use simulation::curves;
-use simulation::{CurveType, LNodeBuilder, LSegmentBuilder, RoadGen, SelectedRoad, SnapConfig};
+use simulation::{CurveType, LNodeBuilder, LRoadGenerator, LSegmentBuilder, SnapConfig};
 use utils::consts::{LANE_MARKINGS_WIDTH, LANE_WIDTH, ROAD_HEIGHT};
 use utils::VecUtils;
+use super::SelectedRoad;
 
 const VERTEX_DENSITY: f32 = 0.05;
 const DEFAULT_DIR: Vec3 = Vec3::new(1.0, 0.0, 0.0);
@@ -43,25 +44,6 @@ pub struct RoadGenerator {
     start_road_type: SelectedRoad,
     reverse: bool,
     init_reverse: bool,
-}
-
-impl RoadGen for RoadGenerator {
-    /// Temprorary until better roadgen
-    fn extract(self) -> (Vec<LNodeBuilder>, Vec<LSegmentBuilder>, SelectedRoad, bool) {
-        let l_segments = self
-            .segments
-            .clone()
-            .iter()
-            .map(|b| {
-                LSegmentBuilder::new(
-                    b.selected_road.segment_type,
-                    b.guide_points.clone(),
-                    b.spine_points.clone(),
-                )
-            })
-            .collect();
-        (self.nodes, l_segments, self.start_road_type, self.reverse)
-    }
 }
 
 impl RoadGenerator {
@@ -104,6 +86,28 @@ impl RoadGenerator {
             reverse,
             init_reverse: reverse,
         }
+    }
+
+    pub fn into_lroad_generator(self) -> LRoadGenerator {
+        let segment_builders = self
+            .segments
+            .clone()
+            .iter()
+            .map(|b| {
+                LSegmentBuilder::new(
+                    b.selected_road.segment_type,
+                    b.guide_points.clone(),
+                    b.spine_points.clone(),
+                )
+            })
+            .collect();
+        LRoadGenerator::new(
+            self.nodes,
+            segment_builders,
+            self.start_road_type.node_type,
+            self.start_road_type.segment_type,
+            self.reverse,
+        )
     }
 
     fn update_dir_locked(&mut self, ground_pos: Vec3, dir: Vec3) {

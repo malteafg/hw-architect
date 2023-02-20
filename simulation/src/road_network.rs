@@ -5,13 +5,8 @@ mod road_type;
 mod segment;
 mod snap;
 
-pub use graph::RoadGraph;
+pub use graph::{LRoadGenerator, RoadGraph};
 pub use node::LNodeBuilder;
-pub use road_type::{CurveType, LaneWidth, NodeType, SegmentType, SelectedRoad};
+pub use road_type::{CurveType, LaneWidth, NodeType, SegmentType};
 pub use segment::LSegmentBuilder;
 pub use snap::SnapConfig;
-
-/// Probably temporary
-pub trait RoadGen {
-    fn extract(self) -> (Vec<LNodeBuilder>, Vec<LSegmentBuilder>, SelectedRoad, bool);
-}

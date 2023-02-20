@@ -6,11 +6,58 @@ use crate::curves;
 use utils::consts::LANE_WIDTH;
 use utils::id::{NodeId, SegmentId};
 
-use super::node::LNode;
-use super::segment::LSegment;
+use super::node::{LNode, LNodeBuilder};
+use super::road_type::{NodeType, SegmentType};
+use super::segment::{LSegment, LSegmentBuilder};
 use super::snap::SnapConfig;
 
 type LeadingPair = (NodeId, SegmentId);
+
+/// This struct defines exactly the data that a road graph needs in order to add new segments to
+/// it.
+pub struct LRoadGenerator {
+    node_builders: Vec<LNodeBuilder>,
+    segment_builders: Vec<LSegmentBuilder>,
+    node_type: NodeType,
+    segment_type: SegmentType,
+    reverse: bool,
+}
+
+impl LRoadGenerator {
+    pub fn new(
+        node_builders: Vec<LNodeBuilder>,
+        segment_builders: Vec<LSegmentBuilder>,
+        node_type: NodeType,
+        segment_type: SegmentType,
+        reverse: bool,
+    ) -> Self {
+        Self {
+            node_builders,
+            segment_builders,
+            node_type,
+            segment_type,
+            reverse,
+        }
+    }
+
+    fn extract(
+        self,
+    ) -> (
+        Vec<LNodeBuilder>,
+        Vec<LSegmentBuilder>,
+        NodeType,
+        SegmentType,
+        bool,
+    ) {
+        (
+            self.node_builders,
+            self.segment_builders,
+            self.node_type,
+            self.segment_type,
+            self.reverse,
+        )
+    }
+}
 
 pub struct RoadGraph {
     node_map: HashMap<NodeId, LNode>,
@@ -99,16 +146,16 @@ impl RoadGraph {
     /// {`SegmentId`}'s follow whatever order was decided by the road generator.
     pub fn add_road(
         &mut self,
-        road: impl super::RoadGen,
+        road: LRoadGenerator,
         selected_node: Option<SnapConfig>,
         snapped_node: Option<SnapConfig>,
     ) -> (Option<SnapConfig>, Vec<SegmentId>) {
-        let (node_list, segment_list, selected_road, reverse) = road.extract();
-        let node_type = selected_road.node_type;
+        let (node_builders, segment_builders, node_type, _segment_type, reverse) = road.extract();
+        let node_type = node_type;
         let mut new_snap_index = 0;
 
         // Generate node ids
-        let mut num_node_ids = segment_list.len() - 1;
+        let mut num_node_ids = segment_builders.len() - 1;
         if snapped_node.is_none() {
             num_node_ids += 1;
         };
@@ -118,7 +165,7 @@ impl RoadGraph {
         let node_ids: Vec<NodeId> = (0..num_node_ids).map(|_| self.generate_node_id()).collect();
 
         // Generate segment ids
-        let num_segment_ids = segment_list.len();
+        let num_segment_ids = segment_builders.len();
         let segment_ids: Vec<SegmentId> = (0..num_segment_ids)
             .map(|_| self.generate_segment_id())
             .collect();
@@ -127,13 +174,13 @@ impl RoadGraph {
         let mut nodes = vec![];
         if reverse {
             nodes.push(snapped_node);
-            for _ in 0..node_list.len() - 2 {
+            for _ in 0..node_builders.len() - 2 {
                 nodes.push(None);
             }
             nodes.push(selected_node);
         } else {
             nodes.push(selected_node);
-            for _ in 0..node_list.len() - 2 {
+            for _ in 0..node_builders.len() - 2 {
                 nodes.push(None);
             }
             nodes.push(snapped_node);
@@ -162,7 +209,7 @@ impl RoadGraph {
                     self.backward_refs.insert(node_id, Vec::new());
                     self.node_map.insert(
                         node_id,
-                        node_list[i].build(
+                        node_builders[i].build(
                             node_type.no_lanes,
                             (
                                 // TODO hacky solution generalize to VecUtils trait?
@@ -178,7 +225,7 @@ impl RoadGraph {
         });
 
         let segment_width = node_type.lane_width * node_type.no_lanes as f32;
-        segment_list
+        segment_builders
             .into_iter()
             .enumerate()
             .for_each(|(i, segment_builder)| {

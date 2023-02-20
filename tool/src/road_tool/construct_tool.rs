@@ -2,9 +2,11 @@ use crate::Tool;
 
 use super::generator;
 use super::generator::RoadGeneratorTool;
+use super::SelectedRoad;
+
 use gfx_api::GfxRoadData;
 use glam::*;
-use simulation::{CurveType, RoadGraph, SelectedRoad, SnapConfig};
+use simulation::{CurveType, RoadGraph, SnapConfig};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -214,7 +216,7 @@ impl ConstructTool {
         let road_generator = self.road_generator.extract();
 
         let (new_node, segment_ids) = self.road_graph.borrow_mut().add_road(
-            road_generator,
+            road_generator.into_lroad_generator(),
             self.sel_node.clone(),
             self.snapped_node.clone(),
         );
