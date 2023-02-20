@@ -29,7 +29,7 @@ trait Tool {
     fn gfx_clean(&mut self);
 }
 
-/// The main tool that controlss how other tools are invoked.
+/// The main tool that controls how other tools are invoked.
 pub struct WorldTool {
     gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
     /// Uses {`Rc`}+{`RefCell`} as only one tool modifies the road_graph at one point as specified

@@ -4,10 +4,11 @@ use super::generator;
 use super::generator::RoadGeneratorTool;
 use gfx_api::GfxRoadData;
 use glam::*;
-use simulation::{CurveType, RoadGraph, RoadType, SnapConfig};
+use simulation::{CurveType, RoadGraph, SelectedRoad, SnapConfig};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use utils::consts::LANE_WIDTH;
 use utils::input;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -21,7 +22,7 @@ pub struct ConstructTool {
     gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
     road_graph: Rc<RefCell<RoadGraph>>,
 
-    sel_road_type: RoadType,
+    sel_road_type: SelectedRoad,
     sel_node: Option<SnapConfig>,
     snapped_node: Option<SnapConfig>,
     road_generator: RoadGeneratorTool,
@@ -65,7 +66,7 @@ impl crate::Tool for ConstructTool {
                     self.mode = Mode::SelectDir;
                 }
             },
-            Mode::SelectDir => match self.sel_road_type.curve_type {
+            Mode::SelectDir => match self.sel_road_type.segment_type.curve_type {
                 CurveType::Straight => self.build_road(),
                 CurveType::Curved => {
                     self.road_generator.lock_dir(self.ground_pos);
@@ -96,7 +97,10 @@ impl crate::Tool for ConstructTool {
                 }
             }
             Mode::SelectDir => self.reset_snap(Mode::SelectPos),
-            Mode::Build => match (self.sel_road_type.curve_type, self.sel_node.clone()) {
+            Mode::Build => match (
+                self.sel_road_type.segment_type.curve_type,
+                self.sel_node.clone(),
+            ) {
                 (CurveType::Curved, None) => {
                     self.road_generator.unlock_dir();
                     self.reset_snap(Mode::SelectDir)
@@ -127,14 +131,10 @@ impl ConstructTool {
         road_graph: Rc<RefCell<RoadGraph>>,
         ground_pos: Vec3,
     ) -> Self {
-        let mut tool = 
-        Self {
+        let mut tool = Self {
             gfx_handle,
             road_graph,
-            sel_road_type: RoadType {
-                no_lanes: 3,
-                curve_type: CurveType::Straight,
-            },
+            sel_road_type: SelectedRoad::new(LANE_WIDTH, 3, CurveType::Straight),
             sel_node: None,
             snapped_node: None,
             road_generator: RoadGeneratorTool::default(),
@@ -147,10 +147,10 @@ impl ConstructTool {
     }
 
     fn switch_lane_no(&mut self, no_lanes: u8) {
-        if self.sel_road_type.no_lanes == no_lanes {
+        if self.sel_road_type.node_type.no_lanes == no_lanes {
             return;
         };
-        self.sel_road_type.no_lanes = no_lanes;
+        self.sel_road_type.node_type.no_lanes = no_lanes;
         self.road_generator.update_no_lanes(no_lanes);
         if self.sel_node.is_none() {
             self.check_snapping();
@@ -162,16 +162,16 @@ impl ConstructTool {
 
     fn switch_curve_type(&mut self) {
         use CurveType::*;
-        match self.sel_road_type.curve_type {
+        match self.sel_road_type.segment_type.curve_type {
             Straight => {
-                self.sel_road_type.curve_type = Curved;
+                self.sel_road_type.segment_type.curve_type = Curved;
                 self.road_generator.update_curve_type(Curved);
                 if let Mode::Build = self.mode {
                     self.check_snapping();
                 }
             }
             Curved => {
-                self.sel_road_type.curve_type = Straight;
+                self.sel_road_type.segment_type.curve_type = Straight;
                 self.road_generator.update_curve_type(Straight);
                 if let Mode::Build = self.mode {
                     if self.sel_node.is_none() {
@@ -305,7 +305,7 @@ impl ConstructTool {
         let node_snap_configs = self
             .road_graph
             .borrow()
-            .get_snap_configs_closest_node(self.ground_pos, self.sel_road_type.no_lanes);
+            .get_snap_configs_closest_node(self.ground_pos, self.sel_road_type.node_type.no_lanes);
 
         let Some((_snap_id, snap_configs)) = node_snap_configs else {
             self.update_no_snap();
@@ -326,13 +326,13 @@ impl ConstructTool {
         let possible_snaps = self
             .road_graph
             .borrow()
-            .get_possible_snap_nodes(reverse, self.sel_road_type.no_lanes)
+            .get_possible_snap_nodes(reverse, self.sel_road_type.node_type.no_lanes)
             .iter()
-            .map(|id| {
-                self.road_graph.borrow().get_node(*id).get_pos()
-            })
+            .map(|id| self.road_graph.borrow().get_node(*id).get_pos())
             .collect();
 
-        self.gfx_handle.borrow_mut().set_node_markers(possible_snaps);
+        self.gfx_handle
+            .borrow_mut()
+            .set_node_markers(possible_snaps);
     }
 }

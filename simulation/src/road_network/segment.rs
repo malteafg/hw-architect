@@ -1,10 +1,15 @@
-use super::RoadType;
+use super::SegmentType;
 use crate::curves::{GuidePoints, SpinePoints};
 use utils::id::NodeId;
 
 #[derive(Debug, Clone)]
 pub struct LSegment {
-    road_type: RoadType,
+    /// This field is used for checking if a position is inside this road segment.
+    ///
+    /// TODO: use smarter format than f32, such that width changes according to transition segments
+    /// once those are implemented.
+    width: f32,
+    segment_type: SegmentType,
     guide_points: GuidePoints,
     spine_points: SpinePoints,
     from_node: NodeId,
@@ -12,8 +17,12 @@ pub struct LSegment {
 }
 
 impl LSegment {
-    pub fn get_road_type(&self) -> RoadType {
-        self.road_type
+    pub fn get_width(&self) -> f32 {
+        self.width
+    }
+
+    pub fn get_type(&self) -> SegmentType {
+        self.segment_type
     }
 
     pub fn get_guide_points(&self) -> &GuidePoints {
@@ -35,23 +44,28 @@ impl LSegment {
 
 #[derive(Debug, Clone)]
 pub struct LSegmentBuilder {
-    pub road_type: RoadType,
+    pub segment_type: SegmentType,
     pub guide_points: GuidePoints,
     pub spine_points: SpinePoints,
 }
 
 impl LSegmentBuilder {
-    pub fn new(road_type: RoadType, guide_points: GuidePoints, spine_points: SpinePoints) -> Self {
+    pub fn new(
+        segment_type: SegmentType,
+        guide_points: GuidePoints,
+        spine_points: SpinePoints,
+    ) -> Self {
         LSegmentBuilder {
-            road_type,
+            segment_type,
             guide_points,
             spine_points,
         }
     }
 
-    pub fn build(self, from_node: NodeId, to_node: NodeId) -> LSegment {
+    pub fn build(self, width: f32, from_node: NodeId, to_node: NodeId) -> LSegment {
         LSegment {
-            road_type: self.road_type,
+            width,
+            segment_type: self.segment_type,
             guide_points: self.guide_points,
             spine_points: self.spine_points,
             from_node,

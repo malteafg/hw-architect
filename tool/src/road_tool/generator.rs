@@ -1,7 +1,7 @@
 use gfx_api::{RoadMesh, RoadVertex};
 use glam::*;
 use simulation::curves;
-use simulation::{CurveType, LNodeBuilder, LSegmentBuilder, RoadGen, RoadType, SnapConfig};
+use simulation::{CurveType, LNodeBuilder, LSegmentBuilder, RoadGen, SelectedRoad, SnapConfig};
 use utils::consts::{LANE_MARKINGS_WIDTH, LANE_WIDTH, ROAD_HEIGHT};
 use utils::VecUtils;
 
@@ -12,7 +12,7 @@ const CUT_LENGTH: f32 = 5.0;
 
 #[derive(Debug, Clone)]
 pub struct SegmentBuilder {
-    pub road_type: RoadType,
+    pub selected_road: SelectedRoad,
     pub guide_points: curves::GuidePoints,
     pub spine_points: curves::SpinePoints,
     pub mesh: RoadMesh,
@@ -20,13 +20,13 @@ pub struct SegmentBuilder {
 
 impl SegmentBuilder {
     pub fn new(
-        road_type: RoadType,
+        selected_road: SelectedRoad,
         guide_points: curves::GuidePoints,
         spine_points: curves::GuidePoints,
         mesh: RoadMesh,
     ) -> Self {
         SegmentBuilder {
-            road_type,
+            selected_road,
             guide_points,
             spine_points,
             mesh,
@@ -40,20 +40,24 @@ pub struct RoadGenerator {
     segments: Vec<SegmentBuilder>,
     init_pos: Vec3,
     init_dir: Option<Vec3>,
-    start_road_type: RoadType,
+    start_road_type: SelectedRoad,
     reverse: bool,
     init_reverse: bool,
 }
 
 impl RoadGen for RoadGenerator {
     /// Temprorary until better roadgen
-    fn extract(self) -> (Vec<LNodeBuilder>, Vec<LSegmentBuilder>, RoadType, bool) {
+    fn extract(self) -> (Vec<LNodeBuilder>, Vec<LSegmentBuilder>, SelectedRoad, bool) {
         let l_segments = self
             .segments
             .clone()
             .iter()
             .map(|b| {
-                LSegmentBuilder::new(b.road_type, b.guide_points.clone(), b.spine_points.clone())
+                LSegmentBuilder::new(
+                    b.selected_road.segment_type,
+                    b.guide_points.clone(),
+                    b.spine_points.clone(),
+                )
             })
             .collect();
         (self.nodes, l_segments, self.start_road_type, self.reverse)
@@ -61,7 +65,12 @@ impl RoadGen for RoadGenerator {
 }
 
 impl RoadGenerator {
-    fn new(sel_pos: Vec3, sel_dir: Option<Vec3>, sel_road_type: RoadType, reverse: bool) -> Self {
+    fn new(
+        sel_pos: Vec3,
+        sel_dir: Option<Vec3>,
+        sel_road_type: SelectedRoad,
+        reverse: bool,
+    ) -> Self {
         let start_dir = match sel_dir {
             Some(dir) => dir.try_normalize().unwrap_or(DEFAULT_DIR),
             None => DEFAULT_DIR,
@@ -100,7 +109,7 @@ impl RoadGenerator {
     fn update_dir_locked(&mut self, ground_pos: Vec3, dir: Vec3) {
         let pos = self.init_pos;
         let proj_dir = if self.reverse { -dir } else { dir };
-        match self.start_road_type.curve_type {
+        match self.start_road_type.segment_type.curve_type {
             CurveType::Straight => {
                 let proj_dir = if self.reverse { -dir } else { dir };
                 let proj_pos = if (ground_pos - pos).dot(proj_dir) / proj_dir.length() > MIN_LENGTH
@@ -189,7 +198,7 @@ impl RoadGenerator {
             start_dir,
             end_pos,
             end_dir,
-            self.start_road_type.no_lanes,
+            self.start_road_type.node_type.no_lanes,
         )
         .ok()?;
 
@@ -207,10 +216,11 @@ impl RoadGenerator {
             self.nodes.push(LNodeBuilder::new(end_pos, end_dir));
             // TODO update curvetype to be correct
             self.segments.push(SegmentBuilder::new(
-                RoadType {
-                    no_lanes: self.start_road_type.no_lanes,
-                    curve_type: CurveType::Curved,
-                },
+                SelectedRoad::new(
+                    LANE_WIDTH,
+                    self.start_road_type.node_type.no_lanes,
+                    CurveType::Curved,
+                ),
                 g_points,
                 spine_points,
                 mesh,
@@ -248,10 +258,11 @@ impl RoadGenerator {
             self.nodes.push(LNodeBuilder::new(end_pos, end_dir));
             // TODO update curvetype to be correct
             self.segments.push(SegmentBuilder::new(
-                RoadType {
-                    no_lanes: self.start_road_type.no_lanes,
-                    curve_type: CurveType::Curved,
-                },
+                SelectedRoad::new(
+                    LANE_WIDTH,
+                    self.start_road_type.node_type.no_lanes,
+                    CurveType::Curved,
+                ),
                 g_points,
                 spine_points,
                 mesh,
@@ -298,7 +309,7 @@ impl RoadGeneratorTool {
     pub fn new(
         sel_pos: Vec3,
         sel_dir: Option<Vec3>,
-        sel_road_type: RoadType,
+        sel_road_type: SelectedRoad,
         reverse: bool,
     ) -> Self {
         RoadGeneratorTool {
@@ -365,13 +376,13 @@ impl RoadGeneratorTool {
 
     pub fn update_no_lanes(&mut self, no_lanes: u8) {
         if let Some(road) = self.road.as_mut() {
-            road.start_road_type.no_lanes = no_lanes;
+            road.start_road_type.node_type.no_lanes = no_lanes;
         }
     }
 
     pub fn update_curve_type(&mut self, curve: CurveType) {
         if let Some(road) = self.road.as_mut() {
-            road.start_road_type.curve_type = curve;
+            road.start_road_type.segment_type.curve_type = curve;
         }
     }
 
@@ -462,9 +473,9 @@ pub fn empty_mesh() -> RoadMesh {
 pub fn generate_straight_mesh(
     start_pos: Vec3,
     end_pos: Vec3,
-    selected_road: RoadType,
+    selected_road: SelectedRoad,
 ) -> (RoadMesh, curves::SpinePoints) {
-    let no_lanes = selected_road.no_lanes;
+    let no_lanes = selected_road.node_type.no_lanes;
     let dir = end_pos - start_pos;
 
     let (spine_points, spine_dirs) =
@@ -505,10 +516,10 @@ pub fn generate_straight_mesh(
 pub fn generate_circular_mesh(
     start_pos: Vec3,
     end_pos: Vec3,
-    selected_road: RoadType,
+    selected_road: SelectedRoad,
     g_points: Vec<Vec3>,
 ) -> (RoadMesh, curves::SpinePoints) {
-    let no_lanes = selected_road.no_lanes;
+    let no_lanes = selected_road.node_type.no_lanes;
     let num_of_cuts = (VERTEX_DENSITY * (1000.0 + (end_pos - start_pos).length())) as u32;
     let (spine_points, spine_dirs) = curves::spine_points_and_dir(
         &g_points,

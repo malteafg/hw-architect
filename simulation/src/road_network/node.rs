@@ -5,7 +5,7 @@ use utils::VecUtils;
 
 use super::snap::{SnapConfig, SnapRange};
 
-use super::lanes::LaneMap;
+use super::lane::LaneMap;
 
 /// Represents a logical road node. The data is the data necessary to do logical work with a road
 /// node.

@@ -75,11 +75,7 @@ impl RoadGraph {
 
     pub fn get_segment_inside(&self, ground_pos: Vec3) -> Option<SegmentId> {
         for (id, s) in self.segment_map.iter() {
-            if curves::is_inside(
-                &s.get_guide_points(),
-                ground_pos,
-                s.get_road_type().no_lanes as f32 * LANE_WIDTH,
-            ) {
+            if curves::is_inside(&s.get_guide_points(), ground_pos, s.get_width()) {
                 return Some(*id);
             }
         }
@@ -107,7 +103,8 @@ impl RoadGraph {
         selected_node: Option<SnapConfig>,
         snapped_node: Option<SnapConfig>,
     ) -> (Option<SnapConfig>, Vec<SegmentId>) {
-        let (node_list, segment_list, road_type, reverse) = road.extract();
+        let (node_list, segment_list, selected_road, reverse) = road.extract();
+        let node_type = selected_road.node_type;
         let mut new_snap_index = 0;
 
         // Generate node ids
@@ -166,7 +163,7 @@ impl RoadGraph {
                     self.node_map.insert(
                         node_id,
                         node_list[i].build(
-                            road_type.no_lanes,
+                            node_type.no_lanes,
                             (
                                 // TODO hacky solution generalize to VecUtils trait?
                                 segment_ids.get(((i as i32 - 1) % 100) as usize).copied(),
@@ -180,11 +177,13 @@ impl RoadGraph {
             new_node_ids.push(node_id);
         });
 
+        let segment_width = node_type.lane_width * node_type.no_lanes as f32;
         segment_list
             .into_iter()
             .enumerate()
             .for_each(|(i, segment_builder)| {
-                let segment = segment_builder.build(new_node_ids[i], new_node_ids[i + 1]);
+                let segment =
+                    segment_builder.build(segment_width, new_node_ids[i], new_node_ids[i + 1]);
                 let id = segment_ids[i];
                 self.segment_map.insert(id, segment);
             });
@@ -208,13 +207,15 @@ impl RoadGraph {
         let new_snap_id = new_node_ids[new_snap_index];
         let new_snap = self
             .get_node(new_snap_id)
-            .get_snap_configs(road_type.no_lanes, new_snap_id)
+            .get_snap_configs(node_type.no_lanes, new_snap_id)
             .get(0)
             .cloned();
 
         #[cfg(debug_assertions)]
-        assert_eq!(self.node_map.len(), self.forward_refs.len());
-        assert_eq!(self.node_map.len(), self.backward_refs.len());
+        {
+            assert_eq!(self.node_map.len(), self.forward_refs.len());
+            assert_eq!(self.node_map.len(), self.backward_refs.len());
+        }
 
         (new_snap, segment_ids)
     }
@@ -270,8 +271,10 @@ impl RoadGraph {
         self.remove_node_if_not_exists(segment.get_to_node());
 
         #[cfg(debug_assertions)]
-        assert_eq!(self.node_map.len(), self.forward_refs.len());
-        assert_eq!(self.node_map.len(), self.backward_refs.len());
+        {
+            assert_eq!(self.node_map.len(), self.forward_refs.len());
+            assert_eq!(self.node_map.len(), self.backward_refs.len());
+        }
 
         true
     }
