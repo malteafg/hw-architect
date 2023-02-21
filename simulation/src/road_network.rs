@@ -7,6 +7,6 @@ mod segment;
 mod snap;
 
 pub use graph::RoadGraph;
-pub use road_builder::{LNodeBuilder, LSegmentBuilder, LRoadGenerator};
-pub use road_type::{CurveType, LaneWidth, NodeType, SegmentType};
+pub use road_builder::{LNodeBuilder, LRoadGenerator, LSegmentBuilder};
+pub use road_type::{CurveType, LaneWidth, NodeType, SegmentType, Side};
 pub use snap::SnapConfig;

@@ -64,6 +64,7 @@ impl LNodeBuilder {
 //         node_type: NodeType,
 //         lane_map: (Option<SegmentId>, Option<SegmentId>),
 //     ) -> LNode {
+//     // add enum type to make sure that lane map can never be None, None
 //         let mode = match lane_map {
 //             (Some(in_id), Some(out_id)) => Mode::Sym {
 //                 incoming: in_id,
@@ -81,12 +82,12 @@ impl LNodeBuilder {
 //             },
 //             (None, None) => panic!(),
 //         };
-//         LNode {
-//             pos: self.pos,
-//             dir: self.dir,
+//         LNode::new(
+//             self.pos,
+//             self.dir,
 //             node_type,
 //             mode,
-//         }
+//         )
 //     }
 // }
 
