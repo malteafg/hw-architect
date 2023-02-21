@@ -17,6 +17,24 @@ pub struct LSegment {
 }
 
 impl LSegment {
+    pub fn new(
+        width: f32,
+        segment_type: SegmentType,
+        guide_points: GuidePoints,
+        spine_points: SpinePoints,
+        from_node: NodeId,
+        to_node: NodeId,
+    ) -> Self {
+        LSegment {
+            width,
+            segment_type,
+            guide_points,
+            spine_points,
+            from_node,
+            to_node,
+        }
+    }
+
     pub fn get_width(&self) -> f32 {
         self.width
     }
@@ -39,37 +57,5 @@ impl LSegment {
 
     pub fn get_to_node(&self) -> NodeId {
         self.to_node
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct LSegmentBuilder {
-    pub segment_type: SegmentType,
-    pub guide_points: GuidePoints,
-    pub spine_points: SpinePoints,
-}
-
-impl LSegmentBuilder {
-    pub fn new(
-        segment_type: SegmentType,
-        guide_points: GuidePoints,
-        spine_points: SpinePoints,
-    ) -> Self {
-        LSegmentBuilder {
-            segment_type,
-            guide_points,
-            spine_points,
-        }
-    }
-
-    pub fn build(self, width: f32, from_node: NodeId, to_node: NodeId) -> LSegment {
-        LSegment {
-            width,
-            segment_type: self.segment_type,
-            guide_points: self.guide_points,
-            spine_points: self.spine_points,
-            from_node,
-            to_node,
-        }
     }
 }

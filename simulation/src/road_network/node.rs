@@ -107,28 +107,16 @@ pub struct LNode {
     outgoing_lanes: LaneMap,
 }
 
-#[derive(Clone, Copy)]
-pub struct LNodeBuilder {
-    pos: Vec3,
-    dir: Vec3,
-}
-
-impl LNodeBuilder {
-    pub fn new(pos: Vec3, dir: Vec3) -> Self {
-        LNodeBuilder { pos, dir }
-    }
-
-    pub fn build(self, no_lanes: u8, lane_map: (Option<SegmentId>, Option<SegmentId>)) -> LNode {
-        LNode {
-            pos: self.pos,
-            dir: self.dir,
-            incoming_lanes: LaneMap::create(no_lanes, lane_map.0),
-            outgoing_lanes: LaneMap::create(no_lanes, lane_map.1),
+impl LNode {
+    pub fn new(pos: Vec3, dir: Vec3, incoming_lanes: LaneMap, outgoing_lanes: LaneMap) -> Self {
+        Self {
+            pos,
+            dir,
+            incoming_lanes,
+            outgoing_lanes,
         }
     }
-}
 
-impl LNode {
     pub fn get_pos(&self) -> Vec3 {
         self.pos
     }
