@@ -336,17 +336,17 @@ impl LNode {
 
                     // Computes the correct snap range for the old main segment.
                     let no_negatives = snap_config.get_snap_range().get_no_negatives();
-                    let mut snap_range = snap_config.get_snap_range().clone();
-                    snap_range.trim(no_negatives);
-                    snap_range.shift(no_negatives as i8);
+                    let mut new_snap_range = SnapRange::new(self.no_lanes());
+                    new_snap_range.shift(no_negatives as i8);
 
                     self.attached_segments.add_segment(AttachedSegment::new(
                         *main_segment,
                         self.node_type,
-                        snap_range,
+                        new_snap_range,
                     ));
                     self.attached_segments.update_no_lanes(snap_no_lanes);
 
+                    self.pos = snap_config.get_pos();
                     self.node_type = snap_config.get_node_type();
                     self.mode = Asym {
                         main_segment: segment_id,
@@ -393,6 +393,7 @@ impl LNode {
     /// should be removed from the graph that it is part of.
     pub fn remove_segment(&mut self, segment_id: SegmentId) -> bool {
         // ADD LOGGING: if can_remove_segment return false the report error.
+        let lane_width_dir = self.dir.right_hand() * LANE_WIDTH;
         match &self.mode {
             Sym { incoming, outgoing } => {
                 if *incoming == segment_id {
@@ -412,27 +413,43 @@ impl LNode {
                 main_segment,
                 main_side,
             } => {
+                // There are attached segments, so just remove the one in question.
                 if *main_segment != segment_id {
                     self.attached_segments.remove_segment(segment_id);
                     return false;
                 }
+                // Node is dead so we just return true.
                 if self.attached_segments.is_empty() {
                     return true;
                 }
+                // We are deleting the main segment and there is only one attached segment, so we
+                // must switch the side of this node.
                 if self.attached_segments.len() == 1 {
-                    self.node_type = self.attached_segments[0].node_type;
-                    let segment_id = self.attached_segments[0].segment_id;
-                    let no_lanes = self.attached_segments[0].no_lanes();
-                    self.attached_segments = LaneMap::empty(no_lanes);
+                    let new_main = &self.attached_segments[0];
+                    let segment_id = new_main.segment_id;
+                    let new_no_lanes = new_main.no_lanes();
+
+                    // Compute new node pos.
+                    let left_space = new_main.snap_range.smallest();
+                    let right_space = self.no_lanes() as i8 - (new_main.snap_range.largest() + 1);
+                    self.pos += ((left_space - right_space) as f32 / 2.0) * lane_width_dir;
+
+                    self.node_type = new_main.node_type;
+                    self.attached_segments = LaneMap::empty(new_no_lanes);
                     self.mode = Asym {
                         main_segment: segment_id,
                         main_side: main_side.switch(),
                     };
                     return false;
                 }
-                let empty_space = self.attached_segments.smallest();
-                self.attached_segments.shift(-(empty_space as i8));
+                // We remove the main segment, so we must switch to be an open node.
+                let left_space = self.attached_segments.smallest();
+                let right_space = self.no_lanes() - (self.attached_segments.largest() + 1);
+                self.pos += ((left_space as i8 - right_space as i8) as f32 / 2.0) * lane_width_dir;
+
                 let new_no_lanes = self.attached_segments.largest() + 1;
+
+                self.attached_segments.shift(-(left_space as i8));
                 self.attached_segments.update_no_lanes(new_no_lanes);
                 self.node_type = NodeType {
                     no_lanes: new_no_lanes,
@@ -443,8 +460,30 @@ impl LNode {
                 };
                 false
             }
-            Open { .. } => {
+            Open { open_side } => {
+                // TODO move node pos
                 self.attached_segments.remove_segment(segment_id);
+
+                // We must move to be an Asym node, as there is only one segment in the node now.
+                if self.attached_segments.len() == 1 {
+                    let new_main = &self.attached_segments[0];
+                    let segment_id = new_main.segment_id;
+                    let new_no_lanes = new_main.no_lanes();
+
+                    // Compute new node pos.
+                    let left_space = new_main.snap_range.smallest();
+                    let right_space = self.no_lanes() as i8 - (new_main.snap_range.largest() + 1);
+                    self.pos += ((left_space - right_space) as f32 / 2.0) * lane_width_dir;
+
+                    self.node_type = new_main.node_type;
+                    self.attached_segments = LaneMap::empty(new_no_lanes);
+                    self.mode = Asym {
+                        main_segment: segment_id,
+                        main_side: open_side.switch(),
+                    };
+
+                    return false;
+                }
 
                 let empty_space = self.attached_segments.smallest();
                 self.attached_segments.shift(-(empty_space as i8));

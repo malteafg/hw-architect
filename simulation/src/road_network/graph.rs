@@ -242,6 +242,15 @@ impl RoadGraph {
 
         // remove any reference to this segment
         self.segment_map.remove(&segment_id);
+        self.forward_refs
+            .get_mut(&segment.get_from_node())
+            .expect("node does not exist in forward map")
+            .retain(|(_, id)| *id != segment_id);
+        self.backward_refs
+            .get_mut(&segment.get_to_node())
+            .expect("node does not exist in backward map")
+            .retain(|(_, id)| *id != segment_id);
+
         if self
             .get_node_mut(segment.get_from_node())
             .remove_segment(segment_id)
@@ -254,14 +263,6 @@ impl RoadGraph {
         {
             self.remove_node(segment.get_to_node())
         }
-        self.forward_refs
-            .get_mut(&segment.get_from_node())
-            .expect("node does not exist in forward map")
-            .retain(|(_, id)| *id != segment_id);
-        self.backward_refs
-            .get_mut(&segment.get_to_node())
-            .expect("node does not exist in backward map")
-            .retain(|(_, id)| *id != segment_id);
 
         #[cfg(debug_assertions)]
         {

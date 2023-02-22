@@ -75,12 +75,6 @@ impl SnapRange {
     pub fn shift(&mut self, amount: i8) {
         self.iter_mut().for_each(|i| *i = *i + amount)
     }
-
-    pub fn trim(&mut self, amount: u8) {
-        for _ in 0..amount {
-            self.pop();
-        }
-    }
 }
 
 // #################################################################################################
