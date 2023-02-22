@@ -63,7 +63,7 @@ pub enum Side {
 }
 
 impl Side {
-    pub fn switch(self) -> Self {
+    pub fn switch(&self) -> Self {
         match self {
             Side::In => Side::Out,
             Side::Out => Side::In,

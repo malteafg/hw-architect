@@ -41,30 +41,10 @@ impl core::ops::DerefMut for SnapRange {
 }
 
 impl SnapRange {
-    // pub fn empty() -> Self {
-    //     SnapRange(vec![])
-    // }
-
-    // pub fn from_vec(snap_range: Vec<i8>) -> Self {
-    //     SnapRange(snap_range)
-    // }
-
-    pub fn create(start: i8, end: i8) -> Self {
+    /// Returns a new snap range with `size` where indexes start at 0.
+    pub fn new(size: u8) -> Self {
         let mut snap_range = vec![];
-        for i in 0..end - start {
-            snap_range.push(i as i8 + start)
-        }
-        SnapRange(snap_range)
-    }
-
-    /// Removes indexes in the snap range that are smaller than 0 and larger than `end`.
-    pub fn reduce_size(&self, end: u8) -> Self {
-        let mut snap_range = vec![];
-        for i in self.iter() {
-            if *i >= 0 && *i < end as i8 {
-                snap_range.push(*i)
-            }
-        }
+        (0..size).for_each(|i| snap_range.push(i as i8));
         SnapRange(snap_range)
     }
 
@@ -77,7 +57,7 @@ impl SnapRange {
     }
 
     pub fn get_no_negatives(&self) -> u8 {
-        let result = 0;
+        let mut result = 0;
         for i in self.iter() {
             if *i < 0 {
                 result += 1;
@@ -88,12 +68,16 @@ impl SnapRange {
         result
     }
 
+    pub fn contains(&self, snap: i8) -> bool {
+        snap > self.smallest() && snap < self.largest()
+    }
+
     pub fn shift(&mut self, amount: i8) {
         self.iter_mut().for_each(|i| *i = *i + amount)
     }
 
     pub fn trim(&mut self, amount: u8) {
-        for i in 0..amount {
+        for _ in 0..amount {
             self.pop();
         }
     }
@@ -147,6 +131,10 @@ impl SnapConfig {
 
     pub(super) fn get_snap_range(&self) -> &SnapRange {
         &self.snap_range
+    }
+
+    pub fn get_side(&self) -> Side {
+        self.side
     }
 
     // pub fn is_reverse(&self) -> bool {
