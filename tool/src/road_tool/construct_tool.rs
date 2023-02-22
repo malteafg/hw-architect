@@ -307,7 +307,7 @@ impl ConstructTool {
         let node_snap_configs = self
             .road_graph
             .borrow()
-            .get_snap_configs_closest_node(self.ground_pos, self.sel_road_type.node_type.no_lanes);
+            .get_snap_configs_closest_node(self.ground_pos, self.sel_road_type.node_type);
 
         let Some((_snap_id, snap_configs)) = node_snap_configs else {
             self.update_no_snap();
@@ -328,7 +328,7 @@ impl ConstructTool {
         let possible_snaps = self
             .road_graph
             .borrow()
-            .get_possible_snap_nodes(reverse, self.sel_road_type.node_type.no_lanes)
+            .get_possible_snap_nodes(reverse, self.sel_road_type.node_type)
             .iter()
             .map(|id| self.road_graph.borrow().get_node(*id).get_pos())
             .collect();

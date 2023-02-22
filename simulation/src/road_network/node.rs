@@ -246,6 +246,7 @@ pub struct LNode {
     /// main segment of an asymmetric node.
     node_type: NodeType,
     mode: Mode,
+    /// INVARIANT: should always be empty when in Sym mode.
     attached_segments: LaneMap,
 }
 

@@ -141,7 +141,7 @@ impl SnapConfig {
         self.side
     }
 
-    // pub fn is_reverse(&self) -> bool {
-    //     self.reverse
-    // }
+    pub fn is_reverse(&self) -> bool {
+        self.side == Side::In
+    }
 }
