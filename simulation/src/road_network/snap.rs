@@ -133,6 +133,10 @@ impl SnapConfig {
         &self.snap_range
     }
 
+    pub(super) fn consume_snap_range(self) -> SnapRange {
+        self.snap_range
+    }
+
     pub fn get_side(&self) -> Side {
         self.side
     }

@@ -144,7 +144,7 @@ impl RoadGraph {
 
         let mut node_id_counter = 0;
         let mut new_node_ids = vec![];
-        nodes.iter().enumerate().for_each(|(i, node)| {
+        nodes.into_iter().enumerate().for_each(|(i, node)| {
             let node_id = match node {
                 Some(snap_config) => {
                     // update existing node lane_map
@@ -152,9 +152,10 @@ impl RoadGraph {
                         Side::Out => segment_ids[0],
                         Side::In => segment_ids[segment_ids.len() - 1],
                     };
+                    let new_id = snap_config.get_id();
                     self.get_node_mut(snap_config.get_id())
                         .add_segment(segment_id, snap_config);
-                    snap_config.get_id()
+                    new_id
                 }
                 None => {
                     // generate new node
