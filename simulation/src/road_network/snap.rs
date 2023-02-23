@@ -69,7 +69,7 @@ impl SnapRange {
     }
 
     pub fn contains(&self, snap: i8) -> bool {
-        snap > self.smallest() && snap < self.largest()
+        snap >= self.smallest() && snap <= self.largest()
     }
 
     pub fn shift(&mut self, amount: i8) {

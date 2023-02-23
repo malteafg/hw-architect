@@ -187,14 +187,25 @@ impl LaneMap {
     /// Adds a segment to the correct position such that the segments are in order from left to
     /// right.
     fn add_segment(&mut self, new_segment: AttachedSegment) {
-        let mut position = 0;
-        for (i, s) in self.iter().enumerate() {
-            if new_segment.snap_range.largest() < s.snap_range.smallest() {
-                position = i;
-                break;
+        let new_largest = new_segment.snap_range.largest();
+        let new_smallest = new_segment.snap_range.smallest();
+
+        if self.is_empty() {
+            self.push_back(new_segment);
+        } else if new_largest < self.smallest() as i8 {
+            self.push_front(new_segment);
+        } else if new_smallest > self.largest() as i8 {
+            self.push_back(new_segment);
+        } else {
+            for i in 0..self.len() - 1 {
+                if new_largest < self[i].snap_range.smallest()
+                    && new_smallest > self[i + 1].snap_range.largest()
+                {
+                    self.insert(i + 1, new_segment);
+                    break;
+                }
             }
         }
-        self.insert(position, new_segment);
     }
 
     /// Removes the given segment from the lane map.
@@ -461,7 +472,6 @@ impl LNode {
                 false
             }
             Open { open_side } => {
-                // TODO move node pos
                 self.attached_segments.remove_segment(segment_id);
 
                 // We must move to be an Asym node, as there is only one segment in the node now.
@@ -487,8 +497,17 @@ impl LNode {
 
                 let empty_space = self.attached_segments.smallest();
                 self.attached_segments.shift(-(empty_space as i8));
+
                 let new_no_lanes = self.attached_segments.largest() + 1;
                 self.attached_segments.update_no_lanes(new_no_lanes);
+
+                let pos_shift_change = if empty_space == 0 {
+                    -((self.node_type.no_lanes - new_no_lanes) as i8)
+                } else {
+                    empty_space as i8
+                };
+                self.pos += (pos_shift_change as f32 / 2.0) * lane_width_dir;
+
                 self.node_type = NodeType {
                     no_lanes: new_no_lanes,
                     ..self.node_type
