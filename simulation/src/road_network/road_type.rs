@@ -5,7 +5,7 @@
 /// Defines the type of curves that are possible for roads.
 ///
 /// TODO: add euler spirals.
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum CurveType {
     #[default]
     Straight,
@@ -39,7 +39,7 @@ impl LaneWidth {
 
 /// Defines the types of nodes that are possible. Two nodes are compatible if they have the same
 /// lane width.
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct NodeType {
     pub lane_width: f32,
     pub no_lanes: u8,
@@ -48,7 +48,25 @@ pub struct NodeType {
 /// Defines the types of segments that can be constructed.
 ///
 /// TODO: expand to include transition segments.
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct SegmentType {
     pub curve_type: CurveType,
+}
+
+/// Defines the two sides of a node.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Side {
+    /// The incoming side of the node.
+    In,
+    /// The outgoing side of the node.
+    Out,
+}
+
+impl Side {
+    pub fn switch(&self) -> Self {
+        match self {
+            Side::In => Side::Out,
+            Side::Out => Side::In,
+        }
+    }
 }
