@@ -64,7 +64,6 @@ pub enum Mode {
     /// An asymmetric node is where a main segment exists on only one side.
     Asym {
         /// This is the main segment of an asymmetric node, the largest segment in terms of no of
-
         main_segment: SegmentId,
         main_side: Side,
     },
@@ -146,7 +145,7 @@ impl LNode {
 
     /// Returns if there is any possibility of snapping a road to this node.
     pub fn can_add_some_segment(&self) -> bool {
-        match &self.mode {
+        match self.mode {
             // You can't snap, no positions are open.
             Sym { .. } => false,
             // You can snap if there are open positions on opposite side of main segment.
@@ -162,10 +161,10 @@ impl LNode {
         #[cfg(debug_assertions)]
         assert!(self.contains_segment(segment_id));
 
-        match &self.mode {
+        match self.mode {
             Sym { .. } => true,
             Asym { main_segment, .. } => {
-                if segment_id == *main_segment {
+                if segment_id == main_segment {
                     self.attached_segments.is_continuous()
                 } else {
                     true
@@ -183,7 +182,7 @@ impl LNode {
             .fits_snap_range(snap_config.get_snap_range()));
 
         let snap_no_lanes = snap_config.get_snap_range().len() as u8;
-        match &self.mode {
+        match self.mode {
             Sym { .. } => {
                 #[cfg(debug_assertions)]
                 panic!("You cannot add segments to a symmetric node");
@@ -204,7 +203,7 @@ impl LNode {
                     new_snap_range.shift(no_negatives as i8);
 
                     self.attached_segments.add_segment(AttachedSegment::new(
-                        *main_segment,
+                        main_segment,
                         self.node_type,
                         new_snap_range,
                     ));
@@ -221,10 +220,10 @@ impl LNode {
                     #[cfg(debug_assertions)]
                     assert!(self.attached_segments.len() == 0);
 
-                    let (incoming, outgoing) = if *main_side == Side::In {
-                        (*main_segment, segment_id)
+                    let (incoming, outgoing) = if main_side == Side::In {
+                        (main_segment, segment_id)
                     } else {
-                        (segment_id, *main_segment)
+                        (segment_id, main_segment)
                     };
                     self.attached_segments = LaneMap::empty(self.no_lanes());
                     self.mode = Sym { incoming, outgoing }
@@ -245,7 +244,7 @@ impl LNode {
                 self.attached_segments.update_no_lanes(snap_no_lanes);
                 self.mode = Asym {
                     main_segment: segment_id,
-                    main_side: *open_side,
+                    main_side: open_side,
                 }
             }
         }
@@ -259,16 +258,16 @@ impl LNode {
         assert!(self.can_remove_segment(segment_id));
 
         let lane_width_dir = self.dir.right_hand() * LANE_WIDTH;
-        match &self.mode {
+        match self.mode {
             Sym { incoming, outgoing } => {
-                if *incoming == segment_id {
+                if incoming == segment_id {
                     self.mode = Asym {
-                        main_segment: *outgoing,
+                        main_segment: outgoing,
                         main_side: Side::Out,
                     }
                 } else {
                     self.mode = Asym {
-                        main_segment: *incoming,
+                        main_segment: incoming,
                         main_side: Side::In,
                     }
                 }
@@ -279,7 +278,7 @@ impl LNode {
                 main_side,
             } => {
                 // There are attached segments, so just remove the one in question.
-                if *main_segment != segment_id {
+                if main_segment != segment_id {
                     self.attached_segments.remove_segment(segment_id);
                     return false;
                 }
@@ -321,7 +320,7 @@ impl LNode {
                     ..self.node_type
                 };
                 self.mode = Open {
-                    open_side: *main_side,
+                    open_side: main_side,
                 };
                 false
             }
@@ -405,7 +404,7 @@ impl LNode {
         let lane_width_dir = self.dir.right_hand() * LANE_WIDTH;
         let snap_no_lanes = node_type.no_lanes;
 
-        let (snap_ranges_with_pos, side) = match &self.mode {
+        let (snap_ranges_with_pos, side) = match self.mode {
             Sym { .. } => return vec![],
             Asym { main_side, .. } => {
                 let mut snap_ranges_with_pos = Self::gen_snap_range_and_pos(
@@ -429,7 +428,7 @@ impl LNode {
                     self.pos,
                     lane_width_dir,
                 );
-                (snap_ranges_with_pos, *open_side)
+                (snap_ranges_with_pos, open_side)
             }
         };
         let mut configs = vec![];
