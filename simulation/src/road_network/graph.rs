@@ -163,17 +163,20 @@ impl RoadGraph {
                     node_id_counter += 1;
                     self.forward_refs.insert(node_id, Vec::new());
                     self.backward_refs.insert(node_id, Vec::new());
-                    self.node_map.insert(
-                        node_id,
-                        node_builders[i].build(
-                            node_type,
-                            (
-                                // TODO hacky solution generalize to VecUtils trait?
-                                segment_ids.get(((i as i32 - 1) % 100) as usize).copied(),
-                                segment_ids.get(i).copied(),
-                            ),
-                        ),
-                    );
+
+                    // TODO hacky solution generalize to VecUtils trait?
+                    let incoming = segment_ids.get(((i as i32 - 1) % 100) as usize).copied();
+                    let outgoing = segment_ids.get(i).copied();
+
+                    use super::LaneMapConfig::*;
+                    let lane_map_config = match (incoming, outgoing) {
+                        (Some(incoming), Some(outgoing)) => Sym { incoming, outgoing },
+                        (Some(incoming), None) => In { incoming },
+                        (None, Some(outgoing)) => Out { outgoing },
+                        (None, None) => panic!("Cannot construct a new node with no segments"),
+                    };
+                    self.node_map
+                        .insert(node_id, node_builders[i].build(node_type, lane_map_config));
                     node_id
                 }
             };
