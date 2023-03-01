@@ -10,6 +10,10 @@ pub mod camera_controller;
 mod road_tool;
 
 trait Tool {
+    // type InitParameters;
+
+    // fn new(params: InitParameters, selection: Selection) -> Self;
+
     /// The tool shall process the given {`KeyAction`}. This happens when a key click should be
     /// used by the tool in question.
     fn process_keyboard(&mut self, key: input::KeyAction);
@@ -27,6 +31,8 @@ trait Tool {
     /// This function is used to reset whatever a tool has given to the gpu, such that the next
     /// tool can manipulate the graphics from scratch, as it desires.
     fn gfx_clean(&mut self);
+
+    // fn destroy(self) -> Selection;
 }
 
 /// The main tool that controls how other tools are invoked.
