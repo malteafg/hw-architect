@@ -17,7 +17,7 @@ pub enum CurveType {
 ///
 /// TODO: implement such that the user can add new discrete values. Could be implemented using an
 /// Id system, similar to that of nodes and segments.
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum LaneWidth {
     Narrow,
     #[default]
@@ -39,10 +39,19 @@ impl LaneWidth {
 
 /// Defines the types of nodes that are possible. Two nodes are compatible if they have the same
 /// lane width.
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NodeType {
-    pub lane_width: f32,
+    pub lane_width: LaneWidth,
     pub no_lanes: u8,
+}
+
+impl Default for NodeType {
+    fn default() -> Self {
+        Self {
+            lane_width: LaneWidth::default(),
+            no_lanes: 3,
+        }
+    }
 }
 
 /// Defines the types of segments that can be constructed.
@@ -51,6 +60,12 @@ pub struct NodeType {
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct SegmentType {
     pub curve_type: CurveType,
+}
+
+impl SegmentType {
+    pub fn new(curve_type: CurveType) -> Self {
+        Self { curve_type }
+    }
 }
 
 /// Defines the two sides of a node.

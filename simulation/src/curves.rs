@@ -1,5 +1,4 @@
 use glam::*;
-use utils::consts::LANE_WIDTH;
 use utils::VecUtils;
 
 const PRETTY_CLOSE: f32 = 0.97;
@@ -269,8 +268,9 @@ fn s_curve_segment_length(v1: Vec3, r1: Vec3, v2: Vec3, r2: Vec3) -> f32 {
 }
 
 fn min_road_length(d1: Vec3, d2: Vec3, no_lanes: u8) -> f32 {
+    // TODO SHOULD DEPEND ON LANEWIDTH instead of 3.5
     MIN_SEGMENT_LENGTH
-        .max(LANE_WIDTH * no_lanes as f32 * 3.0 * d1.cross(d2).length() / d1.length() / d2.length())
+        .max(3.5 * no_lanes as f32 * 3.0 * d1.cross(d2).length() / d1.length() / d2.length())
 }
 
 fn is_curve_too_small(d1: Vec3, d2: Vec3, no_lanes: u8) -> bool {

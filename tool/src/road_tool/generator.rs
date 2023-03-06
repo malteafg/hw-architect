@@ -2,8 +2,10 @@ use super::SelectedRoad;
 use gfx_api::{RoadMesh, RoadVertex};
 use glam::*;
 use simulation::curves;
-use simulation::{CurveType, LNodeBuilder, LRoadGenerator, LSegmentBuilder, SnapConfig};
-use utils::consts::{LANE_MARKINGS_WIDTH, LANE_WIDTH, ROAD_HEIGHT};
+use simulation::{
+    CurveType, LNodeBuilder, LRoadGenerator, LSegmentBuilder, NodeType, SegmentType, SnapConfig,
+};
+use utils::consts::{LANE_MARKINGS_WIDTH, ROAD_HEIGHT};
 use utils::VecUtils;
 
 const VERTEX_DENSITY: f32 = 0.05;
@@ -221,9 +223,8 @@ impl RoadGenerator {
             // TODO update curvetype to be correct
             self.segments.push(SegmentBuilder::new(
                 SelectedRoad::new(
-                    LANE_WIDTH,
-                    self.start_road_type.node_type.no_lanes,
-                    CurveType::Curved,
+                    self.start_road_type.node_type,
+                    SegmentType::new(CurveType::Curved),
                 ),
                 g_points,
                 spine_points,
@@ -263,9 +264,8 @@ impl RoadGenerator {
             // TODO update curvetype to be correct
             self.segments.push(SegmentBuilder::new(
                 SelectedRoad::new(
-                    LANE_WIDTH,
-                    self.start_road_type.node_type.no_lanes,
-                    CurveType::Curved,
+                    self.start_road_type.node_type,
+                    SegmentType::new(CurveType::Curved),
                 ),
                 g_points,
                 spine_points,
@@ -479,14 +479,13 @@ pub fn generate_straight_mesh(
     end_pos: Vec3,
     selected_road: SelectedRoad,
 ) -> (RoadMesh, curves::SpinePoints) {
-    let no_lanes = selected_road.node_type.no_lanes;
     let dir = end_pos - start_pos;
 
     let (spine_points, spine_dirs) =
         curves::calc_uniform_spine_points(vec![start_pos, end_pos], vec![dir, dir], CUT_LENGTH);
 
     (
-        generate_road_mesh_with_lanes(spine_points.clone(), spine_dirs, no_lanes),
+        generate_road_mesh_with_lanes(spine_points.clone(), spine_dirs, selected_road.node_type),
         spine_points,
     )
 
@@ -523,7 +522,6 @@ pub fn generate_circular_mesh(
     selected_road: SelectedRoad,
     g_points: Vec<Vec3>,
 ) -> (RoadMesh, curves::SpinePoints) {
-    let no_lanes = selected_road.node_type.no_lanes;
     let num_of_cuts = (VERTEX_DENSITY * (1000.0 + (end_pos - start_pos).length())) as u32;
     let (spine_points, spine_dirs) = curves::spine_points_and_dir(
         &g_points,
@@ -533,7 +531,7 @@ pub fn generate_circular_mesh(
     );
 
     (
-        generate_road_mesh_with_lanes(spine_points.clone(), spine_dirs, no_lanes),
+        generate_road_mesh_with_lanes(spine_points.clone(), spine_dirs, selected_road.node_type),
         spine_points,
     )
 
@@ -583,11 +581,11 @@ pub fn generate_circular_mesh(
 //     .to_vec()
 // }
 
-fn generate_clean_cut(pos: Vec3, dir: Vec3, no_lanes: u8) -> Vec<RoadVertex> {
+fn generate_clean_cut(pos: Vec3, dir: Vec3, node_type: NodeType) -> Vec<RoadVertex> {
     let right_dir = dir.right_hand().normalize();
     let mut vertices = vec![];
     let height = Vec3::new(0.0, ROAD_HEIGHT, 0.0);
-    let road_width = LANE_WIDTH * no_lanes as f32;
+    let road_width = node_type.lane_width.get() * node_type.no_lanes as f32;
 
     let mut pos = pos - right_dir * (LANE_MARKINGS_WIDTH * 1.5 + road_width / 2.0);
     vertices.push(RoadVertex::from_vec3(pos));
@@ -610,11 +608,13 @@ fn generate_clean_cut(pos: Vec3, dir: Vec3, no_lanes: u8) -> Vec<RoadVertex> {
     vertices
 }
 
-fn generate_markings_cut(pos: Vec3, dir: Vec3, no_lanes: u8) -> Vec<RoadVertex> {
+fn generate_markings_cut(pos: Vec3, dir: Vec3, node_type: NodeType) -> Vec<RoadVertex> {
     let right_dir = dir.right_hand().normalize();
     let mut vertices = vec![];
     let height = Vec3::new(0.0, ROAD_HEIGHT, 0.0);
-    let road_width = LANE_WIDTH * no_lanes as f32;
+    let lane_width = node_type.lane_width.get();
+    let no_lanes = node_type.no_lanes;
+    let road_width = lane_width * no_lanes as f32;
 
     let mut pos = pos - right_dir * (LANE_MARKINGS_WIDTH * 1.5 + road_width / 2.0);
     vertices.push(RoadVertex::from_vec3(pos));
@@ -627,14 +627,14 @@ fn generate_markings_cut(pos: Vec3, dir: Vec3, no_lanes: u8) -> Vec<RoadVertex> 
 
     // Lanes in between outer lanes
     for _ in 0..no_lanes - 1 {
-        pos += right_dir * (LANE_WIDTH - LANE_MARKINGS_WIDTH);
+        pos += right_dir * (lane_width - LANE_MARKINGS_WIDTH);
         vertices.push(RoadVertex::from_vec3(pos));
 
         pos += right_dir * LANE_MARKINGS_WIDTH;
         vertices.push(RoadVertex::from_vec3(pos));
     }
 
-    pos += right_dir * (LANE_WIDTH - LANE_MARKINGS_WIDTH);
+    pos += right_dir * (lane_width - LANE_MARKINGS_WIDTH);
     vertices.push(RoadVertex::from_vec3(pos));
 
     pos += right_dir * LANE_MARKINGS_WIDTH;
@@ -649,8 +649,10 @@ fn generate_markings_cut(pos: Vec3, dir: Vec3, no_lanes: u8) -> Vec<RoadVertex> 
 fn generate_road_mesh_with_lanes(
     spine_pos: curves::SpinePoints,
     spine_dir: curves::SpinePoints,
-    no_lanes: u8,
+    node_type: NodeType,
 ) -> RoadMesh {
+    let no_lanes = node_type.no_lanes;
+
     let mut vertices = vec![];
     let mut indices = vec![];
     let mut lane_vertices = vec![];
@@ -659,7 +661,7 @@ fn generate_road_mesh_with_lanes(
 
     let first_pos = spine_pos[0];
     let first_dir = spine_dir[0];
-    let first_cut = generate_clean_cut(first_pos, first_dir, no_lanes);
+    let first_cut = generate_clean_cut(first_pos, first_dir, node_type);
     vertices.append(&mut first_cut.clone());
     lane_vertices.append(&mut first_cut[1..5].to_vec());
 
@@ -667,7 +669,7 @@ fn generate_road_mesh_with_lanes(
         let pos = spine_pos[i];
         let dir = spine_dir[i];
         if i % 3 == 0 {
-            let cut = generate_clean_cut(pos, dir, no_lanes);
+            let cut = generate_clean_cut(pos, dir, node_type);
 
             let previ = (vertices.len() - 4 - m_verts as usize) as u32;
             let curri = vertices.len() as u32;
@@ -717,7 +719,7 @@ fn generate_road_mesh_with_lanes(
                 curri + 3,
             ]);
         } else if i % 3 == 1 {
-            let cut = generate_markings_cut(pos, dir, no_lanes);
+            let cut = generate_markings_cut(pos, dir, node_type);
 
             let previ = (vertices.len() - 6) as u32;
             let curri = vertices.len() as u32;
@@ -768,7 +770,7 @@ fn generate_road_mesh_with_lanes(
             ]);
         } else {
             // generates lanes
-            let cut = generate_markings_cut(pos, dir, no_lanes);
+            let cut = generate_markings_cut(pos, dir, node_type);
 
             let previ = (vertices.len() - 4 - m_verts as usize) as u32;
             let curri = vertices.len() as u32;

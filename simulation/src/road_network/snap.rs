@@ -42,7 +42,7 @@ impl core::ops::DerefMut for SnapRange {
 
 impl SnapRange {
     /// Returns a new snap range with `size` where indexes start at 0.
-    pub fn new(size: u8) -> Self {
+    pub(super) fn new(size: u8) -> Self {
         let mut snap_range = vec![];
         (0..size).for_each(|i| snap_range.push(i as i8));
         SnapRange(snap_range)

@@ -1,5 +1,4 @@
 use glam::*;
-use utils::consts::LANE_WIDTH;
 use utils::id::{NodeId, SegmentId};
 use utils::VecUtils;
 
@@ -124,6 +123,10 @@ impl LNode {
     /// segment.
     pub fn no_lanes(&self) -> u8 {
         self.node_type.no_lanes
+    }
+
+    pub fn get_lane_width(&self) -> f32 {
+        self.node_type.lane_width.get()
     }
 
     /// Returns true if the given segment_id is part of this node.
@@ -295,7 +298,7 @@ impl LNode {
 
         let self_no_lanes = self.no_lanes();
 
-        let lane_width_dir = self.dir.right_hand() * LANE_WIDTH;
+        let lane_width_dir = self.dir.right_hand() * self.get_lane_width();
         match &mut self.mode {
             Basic { main_segment, .. } => {
                 #[cfg(debug_assertions)]
@@ -305,16 +308,14 @@ impl LNode {
             }
             Sym { incoming, outgoing } => {
                 if *incoming == segment_id {
-                    self.mode = Asym {
+                    self.mode = Basic {
                         main_segment: *outgoing,
                         main_side: Side::Out,
-                        attached_segments: LaneMap::empty(self_no_lanes),
                     }
                 } else {
-                    self.mode = Asym {
+                    self.mode = Basic {
                         main_segment: *incoming,
                         main_side: Side::In,
-                        attached_segments: LaneMap::empty(self_no_lanes),
                     }
                 }
                 false
@@ -458,7 +459,7 @@ impl LNode {
     /// Constructs and returns the {`SnapConfig`}'s of this node, given the type of road that is
     /// trying to snap and the id of this node.
     pub fn construct_snap_configs(&self, node_type: NodeType, node_id: NodeId) -> Vec<SnapConfig> {
-        let lane_width_dir = self.dir.right_hand() * LANE_WIDTH;
+        let lane_width_dir = self.dir.right_hand() * self.get_lane_width();
         let snap_no_lanes = node_type.no_lanes;
 
         let (snap_ranges_with_pos, side): (Vec<(SnapRange, Vec3)>, Side) = match &self.mode {
@@ -523,7 +524,6 @@ impl LNodeBuilder {
     }
 
     pub fn build(self, node_type: NodeType, lane_map: LaneMapConfig) -> LNode {
-        // add enum type to make sure that lane map can never be None, None
         let mode = match lane_map {
             LaneMapConfig::Sym { incoming, outgoing } => Mode::Sym { incoming, outgoing },
             LaneMapConfig::In { incoming } => Mode::Basic {

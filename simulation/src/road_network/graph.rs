@@ -3,7 +3,6 @@ use std::collections::HashMap;
 
 use crate::curves;
 
-use utils::consts::LANE_WIDTH;
 use utils::id::{NodeId, SegmentId};
 
 use super::node::LNode;
@@ -183,7 +182,7 @@ impl RoadGraph {
             new_node_ids.push(node_id);
         });
 
-        let segment_width = node_type.lane_width * node_type.no_lanes as f32;
+        let segment_width = node_type.lane_width.get() * node_type.no_lanes as f32;
         segment_builders
             .into_iter()
             .enumerate()
@@ -320,7 +319,7 @@ impl RoadGraph {
                     continue;
                 }
             }
-            if dist < (n.no_lanes() + node_type.no_lanes) as f32 * LANE_WIDTH {
+            if dist < (n.no_lanes() + node_type.no_lanes) as f32 * node_type.lane_width.get() {
                 closest_node = Some((id, dist));
             }
         }
@@ -347,7 +346,7 @@ impl RoadGraph {
                     continue;
                 }
             }
-            if dist < n.no_lanes() as f32 * LANE_WIDTH {
+            if dist < n.no_lanes() as f32 * n.get_lane_width() {
                 closest_node = Some((id, dist));
             }
         }
