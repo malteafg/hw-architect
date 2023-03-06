@@ -15,10 +15,10 @@ const CUT_LENGTH: f32 = 5.0;
 
 #[derive(Debug, Clone)]
 pub struct SegmentBuilder {
-    pub selected_road: SelectedRoad,
-    pub guide_points: curves::GuidePoints,
-    pub spine_points: curves::SpinePoints,
-    pub mesh: RoadMesh,
+    selected_road: SelectedRoad,
+    guide_points: curves::GuidePoints,
+    spine_points: curves::SpinePoints,
+    mesh: RoadMesh,
 }
 
 impl SegmentBuilder {

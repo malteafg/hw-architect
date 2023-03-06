@@ -15,6 +15,8 @@ camera_return:
   - space
 cycle_road_type:
   - r
+toggle_snapping:
+  - f
 enter_bulldoze:
   - v
 enter_construct:

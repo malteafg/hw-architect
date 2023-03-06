@@ -36,7 +36,7 @@ impl WorldTool {
         let start_tool = Box::new(DummyTool);
         let state = Rc::new(RefCell::new(super::ToolState::default()));
 
-        WorldTool {
+        let mut result = WorldTool {
             gfx_handle,
             road_graph,
             state,
@@ -44,7 +44,9 @@ impl WorldTool {
             curr_tool_handle: start_tool,
             curr_tool: Tools::Dummy,
             saved_tool: None,
-        }
+        };
+        result.enter_construct_mode();
+        result
     }
 
     fn enter_bulldoze_mode(&mut self) {

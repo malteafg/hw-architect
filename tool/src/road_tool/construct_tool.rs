@@ -41,6 +41,7 @@ impl crate::Tool for ConstructTool {
         }
         match action {
             CycleRoadType => self.switch_curve_type(),
+            ToggleSnapping => self.toggle_snapping(),
             OneLane => self.switch_lane_no(1),
             TwoLane => self.switch_lane_no(2),
             ThreeLane => self.switch_lane_no(3),
@@ -210,6 +211,25 @@ impl ConstructTool {
         self.show_snappable_nodes();
     }
 
+    fn toggle_snapping(&mut self) {
+        let curr = self.state_handle.borrow().road_state.snapping;
+        self.state_handle.borrow_mut().road_state.snapping = !curr;
+        if !curr {
+            self.check_snapping();
+            self.show_snappable_nodes();
+            return;
+        }
+        if self.snapped_node.is_some() {
+            if self.sel_node.is_none() {
+                self.road_generator.unlock_dir();
+                self.mode = Mode::SelectDir;
+            }
+            self.snapped_node = None;
+            self.update_no_snap();
+        }
+        self.gfx_handle.borrow_mut().set_node_markers(vec![]);
+    }
+
     fn select_node(&mut self, snapped_node: SnapConfig) {
         let node_dir = self
             .road_graph
@@ -267,8 +287,10 @@ impl ConstructTool {
         self.sel_node = None;
         self.snapped_node = None;
         self.mode = new_mode;
-        self.check_snapping();
-        self.show_snappable_nodes();
+        if self.state_handle.borrow().road_state.snapping {
+            self.check_snapping();
+            self.show_snappable_nodes();
+        }
     }
 
     fn update_no_snap(&mut self) {
@@ -327,10 +349,13 @@ impl ConstructTool {
     }
 
     fn check_snapping(&mut self) {
-        let node_snap_configs = self
-            .road_graph
-            .borrow()
-            .get_snap_configs_closest_node(self.ground_pos, self.get_sel_road_type().node_type);
+        let node_snap_configs = if self.state_handle.borrow().road_state.snapping {
+            self.road_graph
+                .borrow()
+                .get_snap_configs_closest_node(self.ground_pos, self.get_sel_road_type().node_type)
+        } else {
+            None
+        };
 
         let Some((_snap_id, snap_configs)) = node_snap_configs else {
             self.update_no_snap();
@@ -344,10 +369,16 @@ impl ConstructTool {
         }
     }
 
-    /// Marks the nodes that can be snapped to on the gpu. If reverse parameter is set to {`None`},
-    /// then no direction is checked when matching nodes.
+    /// Marks the nodes that can be snapped to on the gpu.
     fn show_snappable_nodes(&mut self) {
-        let reverse = self.road_generator.is_reverse();
+        if !self.state_handle.borrow().road_state.snapping {
+            return;
+        }
+        let reverse = if self.sel_node.is_some() {
+            self.road_generator.is_reverse()
+        } else {
+            None
+        };
         let possible_snaps = self
             .road_graph
             .borrow()

@@ -7,8 +7,8 @@
 /// TODO: add euler spirals.
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum CurveType {
-    #[default]
     Straight,
+    #[default]
     Curved,
 }
 
