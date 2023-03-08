@@ -585,7 +585,7 @@ fn generate_clean_cut(pos: Vec3, dir: Vec3, node_type: NodeType) -> Vec<RoadVert
     let right_dir = dir.right_hand().normalize();
     let mut vertices = vec![];
     let height = Vec3::new(0.0, ROAD_HEIGHT, 0.0);
-    let road_width = node_type.lane_width.get() * node_type.no_lanes as f32;
+    let road_width = node_type.lane_width.getf32() * node_type.no_lanes as f32;
 
     let mut pos = pos - right_dir * (LANE_MARKINGS_WIDTH * 1.5 + road_width / 2.0);
     vertices.push(RoadVertex::from_vec3(pos));
@@ -612,7 +612,7 @@ fn generate_markings_cut(pos: Vec3, dir: Vec3, node_type: NodeType) -> Vec<RoadV
     let right_dir = dir.right_hand().normalize();
     let mut vertices = vec![];
     let height = Vec3::new(0.0, ROAD_HEIGHT, 0.0);
-    let lane_width = node_type.lane_width.get();
+    let lane_width = node_type.lane_width.getf32();
     let no_lanes = node_type.no_lanes;
     let road_width = lane_width * no_lanes as f32;
 

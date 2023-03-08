@@ -1,9 +1,11 @@
 use utils::input;
 
 pub mod camera_controller;
+mod cycle_selection;
 mod road_tool;
 mod world_tool;
 
+use cycle_selection::CycleSelection;
 pub use world_tool::WorldTool;
 
 trait Tool {

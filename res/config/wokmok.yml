@@ -17,6 +17,8 @@ cycle_road_type:
   - m
 toggle_snapping:
   - t
+cycle_lane_width:
+  - g
 enter_bulldoze:
   - j
 enter_construct:

@@ -1,3 +1,4 @@
+use crate::cycle_selection;
 use crate::Tool;
 
 use super::generator;
@@ -35,30 +36,27 @@ pub struct ConstructTool {
 impl crate::Tool for ConstructTool {
     fn process_keyboard(&mut self, key: input::KeyAction) {
         use input::Action::*;
-        let (action, pressed) = key;
-        if pressed {
-            return;
-        }
-        match action {
-            CycleRoadType => self.switch_curve_type(),
-            ToggleSnapping => self.toggle_snapping(),
-            OneLane => self.switch_lane_no(1),
-            TwoLane => self.switch_lane_no(2),
-            ThreeLane => self.switch_lane_no(3),
-            FourLane => self.switch_lane_no(4),
-            FiveLane => self.switch_lane_no(5),
-            SixLane => self.switch_lane_no(6),
+        use input::KeyState::*;
+        match key {
+            (CycleRoadType, Press) => self.cycle_curve_type(),
+            (ToggleSnapping, Press) => self.toggle_snapping(),
+            (CycleLaneWidth, Scroll(scroll_state)) => self.cycle_lane_width(scroll_state),
+            (OneLane, Press) => self.set_lane_no(1),
+            (TwoLane, Press) => self.set_lane_no(2),
+            (ThreeLane, Press) => self.set_lane_no(3),
+            (FourLane, Press) => self.set_lane_no(4),
+            (FiveLane, Press) => self.set_lane_no(5),
+            (SixLane, Press) => self.set_lane_no(6),
             _ => {}
         }
     }
 
     fn left_click(&mut self) {
         match self.mode {
-            Mode::SelectPos => match self.snapped_node.clone() {
-                Some(snapped_node) => {
+            Mode::SelectPos => {
+                if let Some(snapped_node) = self.snapped_node.clone() {
                     self.select_node(snapped_node);
-                }
-                None => {
+                } else {
                     self.road_generator = RoadGeneratorTool::new(
                         self.ground_pos,
                         None,
@@ -68,10 +66,9 @@ impl crate::Tool for ConstructTool {
                     self.gfx_handle
                         .borrow_mut()
                         .set_road_tool_mesh(self.road_generator.get_mesh());
-
                     self.mode = Mode::SelectDir;
                 }
-            },
+            }
             Mode::SelectDir => match self.get_sel_road_type().segment_type.curve_type {
                 CurveType::Straight => self.build_road(),
                 CurveType::Curved => {
@@ -102,16 +99,16 @@ impl crate::Tool for ConstructTool {
                         .debug_node_from_pos(self.ground_pos);
                 }
             }
-            Mode::SelectDir => self.reset_snap(Mode::SelectPos),
+            Mode::SelectDir => self.reset(Mode::SelectPos),
             Mode::Build => match (
                 self.get_sel_road_type().segment_type.curve_type,
                 self.sel_node.clone(),
             ) {
                 (CurveType::Curved, None) => {
                     self.road_generator.unlock_dir();
-                    self.reset_snap(Mode::SelectDir)
+                    self.reset(Mode::SelectDir)
                 }
-                _ => self.reset_snap(Mode::SelectPos),
+                _ => self.reset(Mode::SelectPos),
             },
         }
         self.show_snappable_nodes();
@@ -157,7 +154,11 @@ impl ConstructTool {
         self.state_handle.borrow().road_state.selected_road
     }
 
-    fn switch_lane_no(&mut self, no_lanes: u8) {
+    // #############################################################################################
+    // Tool State Changes
+    // #############################################################################################
+    /// Switches the selected number of lanes.
+    fn set_lane_no(&mut self, no_lanes: u8) {
         if self.get_sel_road_type().node_type.no_lanes == no_lanes {
             return;
         };
@@ -171,12 +172,13 @@ impl ConstructTool {
         if self.sel_node.is_none() {
             self.check_snapping();
         } else {
-            self.reset_snap(Mode::SelectPos);
+            self.reset(Mode::SelectPos);
         }
         self.show_snappable_nodes();
     }
 
-    fn switch_curve_type(&mut self) {
+    /// Switches the curve type in use.
+    fn cycle_curve_type(&mut self) {
         use CurveType::*;
         match self.get_sel_road_type().segment_type.curve_type {
             Straight => {
@@ -209,27 +211,47 @@ impl ConstructTool {
             }
         }
         self.show_snappable_nodes();
+        dbg!(self.get_sel_road_type().segment_type.curve_type);
     }
 
+    /// Toggles snapping.
     fn toggle_snapping(&mut self) {
         let curr = self.state_handle.borrow().road_state.snapping;
         self.state_handle.borrow_mut().road_state.snapping = !curr;
+        // Turn snapping on again
         if !curr {
             self.check_snapping();
             self.show_snappable_nodes();
             return;
         }
+        // Turn snapping off
         if self.snapped_node.is_some() {
-            if self.sel_node.is_none() {
-                self.road_generator.unlock_dir();
-                self.mode = Mode::SelectDir;
-            }
             self.snapped_node = None;
-            self.update_no_snap();
+            self.check_snapping();
         }
         self.gfx_handle.borrow_mut().set_node_markers(vec![]);
+        dbg!(self.state_handle.borrow().road_state.snapping);
     }
 
+    fn cycle_lane_width(&mut self, scroll_state: utils::input::ScrollState) {
+        cycle_selection::scroll_mut(
+            &mut self
+                .state_handle
+                .borrow_mut()
+                .road_state
+                .selected_road
+                .node_type
+                .lane_width,
+            scroll_state,
+        );
+        self.reset(Mode::SelectPos);
+        dbg!(self.get_sel_road_type().node_type.lane_width);
+    }
+
+    // #############################################################################################
+    // General tool implementations
+    // #############################################################################################
+    /// Invoked when a snapped node becomes selected.
     fn select_node(&mut self, snapped_node: SnapConfig) {
         let node_dir = self
             .road_graph
@@ -272,27 +294,31 @@ impl ConstructTool {
 
         // TODO have add_road return new_node in such a way that is not necessary to check snapped_node
         if self.snapped_node.is_some() {
-            self.reset_snap(Mode::SelectPos);
+            self.reset(Mode::SelectPos);
         } else if let Some(new_node) = new_node {
             self.select_node(new_node);
         } else {
-            self.reset_snap(Mode::SelectPos);
+            self.reset(Mode::SelectPos);
         }
     }
 
-    fn reset_snap(&mut self, new_mode: Mode) {
+    /// Resets to the given mode, maintaining necessary information and unsnapping and deselecting
+    /// nodes.
+    fn reset(&mut self, new_mode: Mode) {
         if let Mode::SelectPos = new_mode {
             self.road_generator = RoadGeneratorTool::default();
         };
         self.sel_node = None;
         self.snapped_node = None;
         self.mode = new_mode;
-        if self.state_handle.borrow().road_state.snapping {
-            self.check_snapping();
-            self.show_snappable_nodes();
-        }
+        self.check_snapping();
+        self.show_snappable_nodes();
     }
 
+    // #############################################################################################
+    // Snapping
+    // #############################################################################################
+    /// Updates the construct tool when there is no node that we should snap to.
     fn update_no_snap(&mut self) {
         self.snapped_node = None;
         let empty_mesh = Some(generator::empty_mesh());
@@ -314,6 +340,7 @@ impl ConstructTool {
         };
     }
 
+    /// Updates the construct tool with the snap configs from the snapped node.
     fn update_snap(&mut self, snap_configs: Vec<SnapConfig>) {
         match self.mode {
             Mode::SelectPos => {
@@ -348,6 +375,7 @@ impl ConstructTool {
         };
     }
 
+    /// Checks if there is a node that in should snap to, and in that case it snaps to that node.
     fn check_snapping(&mut self) {
         let node_snap_configs = if self.state_handle.borrow().road_state.snapping {
             self.road_graph

@@ -150,7 +150,8 @@ pub async fn run() {
     let mut last_render_time = instant::Instant::now();
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
-        use input::{Action, InputEvent};
+        use input::Action;
+        use input_handler::InputEvent;
         match state.input_handler.process_input(&event, window.id()) {
             InputEvent::KeyAction(a) => match a {
                 (Action::Exit, _) => *control_flow = ControlFlow::Exit,

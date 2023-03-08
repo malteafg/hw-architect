@@ -182,7 +182,7 @@ impl RoadGraph {
             new_node_ids.push(node_id);
         });
 
-        let segment_width = node_type.lane_width.get() * node_type.no_lanes as f32;
+        let segment_width = node_type.lane_width.getf32() * node_type.no_lanes as f32;
         segment_builders
             .into_iter()
             .enumerate()
@@ -319,7 +319,7 @@ impl RoadGraph {
                     continue;
                 }
             }
-            if dist < (n.no_lanes() + node_type.no_lanes) as f32 * node_type.lane_width.get() {
+            if dist < (n.no_lanes() + node_type.no_lanes) as f32 * node_type.lane_width.getf32() {
                 closest_node = Some((id, dist));
             }
         }

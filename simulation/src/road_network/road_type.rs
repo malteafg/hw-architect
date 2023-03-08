@@ -27,7 +27,7 @@ pub enum LaneWidth {
 
 impl LaneWidth {
     /// Returns the width of this lane as an f32.
-    pub fn get(&self) -> f32 {
+    pub fn getf32(&self) -> f32 {
         use LaneWidth::*;
         match self {
             Narrow => 2.8,

@@ -12,10 +12,10 @@ pub struct ModifierState {
 /// Defines an Action that has happened. The bool tells if the key is currently
 /// pressed. If key is pressed event is sent in each input update, followed by
 /// one event signalling that key is now unpressed.
-pub type KeyAction = (Action, bool);
+pub type KeyAction = (Action, KeyState);
 
 /// Enum containing all possible actions that a user can do with a keyboard.
-#[derive(EnumString, Display, PartialEq, Debug, Clone, Copy)]
+#[derive(EnumString, Display, PartialEq, Eq, Debug, Clone, Copy)]
 #[strum(serialize_all = "snake_case")]
 pub enum Action {
     CameraLeft,
@@ -27,6 +27,7 @@ pub enum Action {
     CameraReturn,
     CycleRoadType,
     ToggleSnapping,
+    CycleLaneWidth,
     EnterBulldoze,
     EnterConstruct,
     OneLane,
@@ -37,6 +38,30 @@ pub enum Action {
     SixLane,
     Exit,
     Esc,
+}
+
+/// Defines the modes that a scroll can be in. For now this is up or down, corresponding to exactly
+/// one roll of the mouse wheel either up or down.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+pub enum ScrollState {
+    Up,
+    Down,
+}
+
+/// Defines the state of the key that an event is regarding.
+/// TODO maybe have two different release events? One is sent if no scrolling has been sent.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+pub enum KeyState {
+    /// The key has just been pressed.
+    Press,
+    /// The key is being held down and is the most recent key to have been pressed of those keys
+    /// that are pressed.
+    Repeat,
+    /// The key has just been released.
+    Release,
+    /// The mouse wheel have been scrolled whilst this key has been held down and this is the
+    /// most recent key to have been pressed down of those keys that are pressed.
+    Scroll(ScrollState),
 }
 
 /// Position of mouse given in pixels from top left corner of window.
@@ -64,22 +89,9 @@ pub enum Mouse {
 
 #[derive(Clone, Copy)]
 pub enum MouseEvent {
-    Click(Mouse),
+    Press(Mouse),
     Release(Mouse),
     Moved(MouseDelta),
     Dragged(Mouse, MouseDelta),
     Scrolled(f32),
-}
-
-pub enum InputEvent {
-    /// Signals a key event. The winit event should not be further processed.
-    KeyAction(KeyAction),
-    /// Signals a mouse event. The winit event should not be further processed.
-    MouseEvent(MouseEvent),
-    /// Signals that the input system has used a given winit event and it should
-    /// therefore, not be further processed.
-    Absorb,
-    /// Signals that the input system has not used a given winit event and
-    /// therefore, the winit event should be further processed
-    Proceed,
 }

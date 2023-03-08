@@ -1,14 +1,17 @@
 //! Handles the configuration files for highway architect.
 
-use crate::input_handler;
-use anyhow::anyhow;
-use directories::ProjectDirs;
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
 use std::str::FromStr;
+
+use crate::input_handler;
 use utils::input;
 use utils::loader;
+
+use anyhow::anyhow;
+use directories::ProjectDirs;
+use serde::{Deserialize, Serialize};
+use winit::event::VirtualKeyCode;
 use yaml_rust::{Yaml, YamlLoader};
 
 /// Returns the user config stored at:
@@ -122,7 +125,7 @@ pub async fn load_key_map(key_map: String) -> anyhow::Result<input_handler::KeyM
     let key_map = key_config
         .iter()
         .map(|(action, keys)| {
-            let key_code = input_handler::parse_key_code(&keys[0]).unwrap();
+            let key_code = parse_key_code(&keys[0]).unwrap();
             let mod_state = keys
                 .iter()
                 .fold(
@@ -148,6 +151,50 @@ pub async fn load_key_map(key_map: String) -> anyhow::Result<input_handler::KeyM
         })
         .collect();
     Ok(key_map)
+}
+
+/// Translates the keycode as it is written in the keymap config to a winit
+/// [`VirtualKeyCode`]
+fn parse_key_code(key: &String) -> anyhow::Result<VirtualKeyCode> {
+    match key.to_lowercase().as_str() {
+        "a" => Ok(VirtualKeyCode::A),
+        "b" => Ok(VirtualKeyCode::B),
+        "c" => Ok(VirtualKeyCode::C),
+        "d" => Ok(VirtualKeyCode::D),
+        "e" => Ok(VirtualKeyCode::E),
+        "f" => Ok(VirtualKeyCode::F),
+        "g" => Ok(VirtualKeyCode::G),
+        "h" => Ok(VirtualKeyCode::H),
+        "j" => Ok(VirtualKeyCode::J),
+        "k" => Ok(VirtualKeyCode::K),
+        "l" => Ok(VirtualKeyCode::L),
+        "m" => Ok(VirtualKeyCode::M),
+        "n" => Ok(VirtualKeyCode::N),
+        "o" => Ok(VirtualKeyCode::O),
+        "p" => Ok(VirtualKeyCode::P),
+        "q" => Ok(VirtualKeyCode::Q),
+        "r" => Ok(VirtualKeyCode::R),
+        "s" => Ok(VirtualKeyCode::S),
+        "t" => Ok(VirtualKeyCode::T),
+        "u" => Ok(VirtualKeyCode::U),
+        "v" => Ok(VirtualKeyCode::V),
+        "w" => Ok(VirtualKeyCode::W),
+        "x" => Ok(VirtualKeyCode::X),
+        "y" => Ok(VirtualKeyCode::Y),
+        "z" => Ok(VirtualKeyCode::Z),
+        "1" => Ok(VirtualKeyCode::Key1),
+        "2" => Ok(VirtualKeyCode::Key2),
+        "3" => Ok(VirtualKeyCode::Key3),
+        "4" => Ok(VirtualKeyCode::Key4),
+        "5" => Ok(VirtualKeyCode::Key5),
+        "6" => Ok(VirtualKeyCode::Key6),
+        "7" => Ok(VirtualKeyCode::Key7),
+        "8" => Ok(VirtualKeyCode::Key8),
+        "9" => Ok(VirtualKeyCode::Key9),
+        "esc" => Ok(VirtualKeyCode::Escape),
+        "space" => Ok(VirtualKeyCode::Space),
+        _ => Err(anyhow::anyhow!(format!("could not parse key: {}", key))),
+    }
 }
 
 #[cfg(test)]

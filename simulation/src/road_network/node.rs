@@ -126,7 +126,7 @@ impl LNode {
     }
 
     pub fn get_lane_width(&self) -> f32 {
-        self.node_type.lane_width.get()
+        self.node_type.lane_width.getf32()
     }
 
     /// Returns true if the given segment_id is part of this node.
@@ -459,6 +459,11 @@ impl LNode {
     /// Constructs and returns the {`SnapConfig`}'s of this node, given the type of road that is
     /// trying to snap and the id of this node.
     pub fn construct_snap_configs(&self, node_type: NodeType, node_id: NodeId) -> Vec<SnapConfig> {
+        // TODO in the future we should generate a transition segment probably
+        if self.node_type.lane_width != node_type.lane_width {
+            return vec![];
+        }
+
         let lane_width_dir = self.dir.right_hand() * self.get_lane_width();
         let snap_no_lanes = node_type.no_lanes;
 

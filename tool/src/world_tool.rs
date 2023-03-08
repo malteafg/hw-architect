@@ -81,14 +81,10 @@ impl WorldTool {
     pub fn process_keyboard(&mut self, key: input::KeyAction) {
         // TODO add leader keybindings, but maybe they should be in InputHandler.
         use input::Action::*;
+        use input::KeyState::*;
         use Tools::*;
-        let (action, key_state) = key;
-        if key_state == false {
-            self.curr_tool_handle.process_keyboard(key);
-            return;
-        }
-        match action {
-            EnterBulldoze => match &mut self.curr_tool {
+        match key {
+            (EnterBulldoze, Press) => match &mut self.curr_tool {
                 Dummy => self.enter_bulldoze_mode(),
                 Construct => {
                     self.saved_tool = Some(Construct);
@@ -96,11 +92,11 @@ impl WorldTool {
                 }
                 _ => {}
             },
-            EnterConstruct => match &mut self.curr_tool {
+            (EnterConstruct, Press) => match &mut self.curr_tool {
                 Dummy | Bulldoze => self.enter_construct_mode(),
                 _ => {}
             },
-            Esc => match &mut self.curr_tool {
+            (Esc, Press) => match &mut self.curr_tool {
                 Bulldoze => match &self.saved_tool {
                     Some(_) => self.enter_construct_mode(),
                     None => self.enter_dummy_mode(),
@@ -115,7 +111,7 @@ impl WorldTool {
     pub fn mouse_input(&mut self, event: input::MouseEvent) {
         use input::{Mouse, MouseEvent};
 
-        let MouseEvent::Click(button) = event else {
+        let MouseEvent::Press(button) = event else {
             return
         };
 

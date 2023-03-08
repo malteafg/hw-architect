@@ -12,12 +12,7 @@ pub struct BulldozeTool {
 }
 
 impl crate::Tool for BulldozeTool {
-    fn process_keyboard(&mut self, key: input::KeyAction) {
-        let (_action, pressed) = key;
-        if pressed {
-            return;
-        }
-    }
+    fn process_keyboard(&mut self, _key: input::KeyAction) {}
 
     fn left_click(&mut self) {
         let segment_id = self.road_graph.borrow().get_segment_inside(self.ground_pos);

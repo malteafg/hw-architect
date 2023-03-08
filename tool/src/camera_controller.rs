@@ -103,34 +103,37 @@ impl CameraController {
         self.progress = 0.0;
     }
 
-    pub fn process_keyboard(&mut self, key: input::KeyAction) -> bool {
+    pub fn process_keyboard(&mut self, key: input::KeyAction) {
         use input::Action::*;
-        match key {
-            (CameraUp, pressed) => {
-                self.input[0] = pressed;
-                true
+        use input::KeyState::*;
+        let (action, state) = key;
+        let new_state = if state == Press {
+            true
+        } else if state == Release {
+            false
+        } else {
+            return;
+        };
+        match action {
+            CameraUp => {
+                self.input[0] = new_state;
             }
-            (CameraDown, pressed) => {
-                self.input[1] = pressed;
-                true
+            CameraDown => {
+                self.input[1] = new_state;
             }
-            (CameraLeft, pressed) => {
-                self.input[2] = pressed;
-                true
+            CameraLeft => {
+                self.input[2] = new_state;
             }
-            (CameraRight, pressed) => {
-                self.input[3] = pressed;
-                true
+            CameraRight => {
+                self.input[3] = new_state;
             }
-            (CameraRotateLeft, pressed) => {
-                self.input[4] = pressed;
-                true
+            CameraRotateLeft => {
+                self.input[4] = new_state;
             }
-            (CameraRotateRight, pressed) => {
-                self.input[5] = pressed;
-                true
+            CameraRotateRight => {
+                self.input[5] = new_state;
             }
-            (CameraReturn, pressed) if pressed => {
+            CameraReturn if state == Press => {
                 self.move_camera(
                     Vec3::new(0.0, 0.0, 0.0),
                     PI / 4.0,
@@ -139,9 +142,8 @@ impl CameraController {
                     1.0,
                     CameraController::polynomial_move,
                 );
-                true
             }
-            _ => false,
+            _ => {}
         }
 
         // if pressed && key_matched {
