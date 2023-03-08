@@ -2,7 +2,7 @@ use std::io::{BufReader, Cursor};
 
 use wgpu::util::DeviceExt;
 
-use crate::{model, texture};
+use crate::{model, simple_model, texture};
 use utils::loader;
 
 pub async fn load_texture(
@@ -176,4 +176,60 @@ pub async fn load_model(
         .collect::<Vec<_>>();
 
     Ok(model::Model { meshes, materials })
+}
+
+/// Will not load on web.
+pub async fn load_simple_model(
+    file_name: &str,
+    device: &wgpu::Device,
+) -> anyhow::Result<simple_model::SimpleModel> {
+    // let path = format!("models/{file_name}/");
+    // let obj_text = loader::load_string(&format!("{path}{file_name}.obj")).await?;
+    // let obj_cursor = Cursor::new(obj_text);
+    // let mut obj_reader = BufReader::new(obj_cursor);
+
+    // let (models, obj_materials) =
+    //     tobj::load_obj_buf_async(&mut obj_reader, &tobj::GPU_LOAD_OPTIONS, |p| async move {
+    //         let file = p.replace(".mtl", "");
+    //         let path = format!("models/{file}/{p}");
+    //         let mat_text = loader::load_string(&path).await.unwrap();
+    //         tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mat_text)))
+    //     })
+    //     .await?;
+
+    let path = format!("res/models/{file_name}/");
+    let test = tobj::load_obj(format!("{path}{file_name}.obj"), &tobj::GPU_LOAD_OPTIONS);
+
+    let (models, _materials) = test.expect("Failed to load OBJ file");
+    assert!(models.len() == 1);
+
+    let obj_vertices = &models[0].mesh.positions;
+    let obj_indices = &models[0].mesh.indices;
+    let vertices: Vec<_> = (0..obj_vertices.len() / 3)
+        .map(|i| simple_model::SimpleModelVertex {
+            position: [
+                obj_vertices[i * 3],
+                obj_vertices[i * 3 + 1],
+                obj_vertices[i * 3 + 2],
+            ],
+        })
+        .collect();
+
+    dbg!(vertices.clone());
+    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some(&format!("{:?} Vertex Buffer", file_name)),
+        contents: bytemuck::cast_slice(&vertices),
+        usage: wgpu::BufferUsages::VERTEX,
+    });
+    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some(&format!("{:?} Index Buffer", file_name)),
+        contents: bytemuck::cast_slice(&obj_indices),
+        usage: wgpu::BufferUsages::INDEX,
+    });
+    Result::Ok(simple_model::SimpleModel {
+        name: file_name.to_string(),
+        vertex_buffer,
+        index_buffer,
+        num_elements: obj_indices.len() as u32,
+    })
 }

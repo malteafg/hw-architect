@@ -286,6 +286,10 @@ impl GfxState {
                 .await
                 .unwrap();
 
+        let test_model = resources::load_simple_model("simple_test", &device)
+            .await
+            .unwrap();
+
         let light_uniform = LightUniform {
             position: [2.0, 2.0, 2.0],
             _padding: 0,
@@ -356,6 +360,8 @@ impl GfxState {
             &texture_bind_group_layout,
             &light_bind_group_layout,
             shaders.remove(crate::shaders::BASIC).unwrap(),
+            shaders.remove(crate::shaders::SIMPLE).unwrap(),
+            test_model,
         );
 
         Self {

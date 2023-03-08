@@ -1,11 +1,11 @@
 use crate::{
     buffer::{self, VIBuffer},
-    texture,
+    simple_model, texture,
 };
 use gfx_api::RoadMesh;
 use glam::*;
-use std::collections::HashMap;
 use std::rc::Rc;
+use std::{borrow::Borrow, collections::HashMap};
 use utils::id::SegmentId;
 use wgpu::util::DeviceExt;
 
@@ -37,8 +37,11 @@ pub(super) struct RoadState {
     road_meshes: HashMap<SegmentId, RoadMesh>,
     marked_meshes: Vec<SegmentId>,
     sphere_render_pipeline: wgpu::RenderPipeline,
+    simple_render_pipeline: wgpu::RenderPipeline,
     instance_buffer: buffer::DBuffer,
     num_markers: u32,
+    simple_model: simple_model::SimpleModel,
+    simple_color: wgpu::BindGroup,
 }
 
 /// The information needed on gpu to render a set of road meshes.
@@ -144,6 +147,8 @@ impl RoadState {
         texture_bind_group_layout: &wgpu::BindGroupLayout,
         light_bind_group_layout: &wgpu::BindGroupLayout,
         basic_shader: wgpu::ShaderModule,
+        simple_shader: wgpu::ShaderModule,
+        test_model: simple_model::SimpleModel,
     ) -> Self {
         let road_color_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -253,6 +258,37 @@ impl RoadState {
             )
         };
 
+        let simple_render_pipeline = {
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("simple_pipeline_layout"),
+                bind_group_layouts: &[&camera_bind_group_layout, &road_color_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+            super::create_render_pipeline(
+                &device,
+                &layout,
+                color_format,
+                Some(texture::Texture::DEPTH_FORMAT),
+                &[simple_model::SimpleModelVertex::desc(), InstanceRaw::desc()],
+                simple_shader,
+                "simple_renderer",
+            )
+        };
+
+        let color_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("simple_color_buffer"),
+            contents: bytemuck::cast_slice(&[Vec4::new(1.0, 0.2, 0.8, 0.7)]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let simple_color = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &road_color_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: color_buffer.as_entire_binding(),
+            }],
+            label: Some("simple_color_bind_group"),
+        });
+
         Self {
             device,
             queue,
@@ -263,8 +299,11 @@ impl RoadState {
             road_meshes: HashMap::new(),
             marked_meshes: Vec::new(),
             sphere_render_pipeline,
+            simple_render_pipeline,
             instance_buffer,
             num_markers: 0,
+            simple_model: test_model,
+            simple_color,
         }
     }
 
@@ -410,7 +449,7 @@ where
         self.render(&road_state.tool_buffer);
         self.render(&road_state.marked_buffer);
 
-        use super::model::DrawModel;
+        // use super::model::DrawModel;
         // let mesh = &self.obj_model.meshes[0];
         // let material = &self.obj_model.materials[mesh.material];
         // render_pass.draw_mesh_instanced(
@@ -421,19 +460,31 @@ where
         //     &self.light_bind_group,
         // );
 
-        match road_state.instance_buffer.get_buffer_slice() {
-            Some(buffer_slice) => {
-                self.set_vertex_buffer(1, buffer_slice);
-                self.set_pipeline(&road_state.sphere_render_pipeline);
-                self.draw_model_instanced(
-                    &obj_model,
-                    0..road_state.num_markers,
-                    &camera_bind_group,
-                    &light_bind_group,
-                );
-                //render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
-            }
-            None => {}
-        }
+        // use super::model::DrawModel;
+        // let Some(buffer_slice) = road_state.instance_buffer.get_buffer_slice() else {
+        //     return;
+        // };
+        // self.set_vertex_buffer(1, buffer_slice);
+        // self.set_pipeline(&road_state.sphere_render_pipeline);
+        // self.draw_model_instanced(
+        //     &obj_model,
+        //     0..road_state.num_markers,
+        //     &camera_bind_group,
+        //     &light_bind_group,
+        // );
+        //render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
+
+        use simple_model::DrawSimpleModel;
+        let Some(buffer_slice) = road_state.instance_buffer.get_buffer_slice() else {
+            return;
+        };
+        self.set_vertex_buffer(1, buffer_slice);
+        self.set_pipeline(&road_state.simple_render_pipeline);
+        self.set_bind_group(1, &road_state.simple_color, &[]);
+        self.draw_mesh_instanced(
+            &road_state.simple_model,
+            0..road_state.num_markers,
+            &camera_bind_group,
+        );
     }
 }

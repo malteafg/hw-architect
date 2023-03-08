@@ -5,6 +5,7 @@ pub const BASIC: &str = "shader";
 pub const ROAD: &str = "road";
 pub const TERRAIN: &str = "terrain";
 pub const LIGHT: &str = "light";
+pub const SIMPLE: &str = "simple";
 
 pub fn load_shaders(device: &wgpu::Device) -> ShaderMap {
     let mut shaders = HashMap::new();
@@ -32,6 +33,18 @@ pub fn load_shaders(device: &wgpu::Device) -> ShaderMap {
         &mut shaders,
         LIGHT,
         wgpu::ShaderSource::Wgsl(include_str!("shaders/light.wgsl").into()),
+    );
+    load_shader(
+        device,
+        &mut shaders,
+        LIGHT,
+        wgpu::ShaderSource::Wgsl(include_str!("shaders/light.wgsl").into()),
+    );
+    load_shader(
+        device,
+        &mut shaders,
+        SIMPLE,
+        wgpu::ShaderSource::Wgsl(include_str!("shaders/simple.wgsl").into()),
     );
 
     shaders

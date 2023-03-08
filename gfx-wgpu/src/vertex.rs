@@ -1,6 +1,6 @@
-use crate::model::ModelVertex;
 use crate::renderer::terrain_renderer::TerrainVertex;
-use gfx_api::{RoadVertex,InstanceRaw};
+use crate::{model::ModelVertex, simple_model::SimpleModelVertex};
+use gfx_api::{InstanceRaw, RoadVertex};
 use std::mem;
 
 pub trait Vertex {
@@ -78,6 +78,20 @@ impl Vertex for RoadVertex {
     }
 }
 
+impl Vertex for SimpleModelVertex {
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: mem::size_of::<SimpleModelVertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[wgpu::VertexAttribute {
+                offset: 0,
+                shader_location: 0,
+                format: wgpu::VertexFormat::Float32x3,
+            }],
+        }
+    }
+}
+
 impl Vertex for InstanceRaw {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
@@ -130,4 +144,3 @@ impl Vertex for InstanceRaw {
         }
     }
 }
-
