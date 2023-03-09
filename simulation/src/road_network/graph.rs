@@ -6,7 +6,7 @@ use crate::curves;
 use utils::id::{IdManager, NodeId, SegmentId};
 
 use super::node::LNode;
-use super::road_builder::LRoadGenerator;
+use super::road_builder::LRoadBuilder;
 use super::segment::LSegment;
 use super::snap::SnapConfig;
 use super::{NodeType, Side};
@@ -49,6 +49,10 @@ impl Default for RoadGraph {
 }
 
 impl RoadGraph {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     fn get_node_mut(&mut self, node: NodeId) -> &mut LNode {
         self.node_map
             .get_mut(&node)
@@ -91,7 +95,7 @@ impl RoadGraph {
     /// {`SegmentId`}'s follow whatever order was decided by the road generator.
     pub fn add_road(
         &mut self,
-        road: LRoadGenerator,
+        road: LRoadBuilder,
         selected_node: Option<SnapConfig>,
         snapped_node: Option<SnapConfig>,
     ) -> (Option<SnapConfig>, Vec<SegmentId>) {

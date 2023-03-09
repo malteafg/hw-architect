@@ -55,7 +55,7 @@ impl State {
             camera,
             camera_controller,
             input_handler,
-            tool: WorldTool::new(gfx_handle_tool, simulation::RoadGraph::default()),
+            tool: WorldTool::new(gfx_handle_tool, simulation::World::new()),
             ground_pos: Vec3::new(0.0, 0.0, 0.0),
         }
     }

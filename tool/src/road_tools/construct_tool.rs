@@ -1,5 +1,5 @@
 use crate::cycle_selection;
-use crate::Tool;
+use crate::ToolStrategy;
 
 use super::generator;
 use super::generator::RoadGeneratorTool;
@@ -7,7 +7,7 @@ use super::SelectedRoad;
 
 use gfx_api::GfxRoadData;
 use glam::*;
-use simulation::{CurveType, RoadGraph, SnapConfig};
+use simulation::{CurveType, RoadManipulator, SnapConfig, World};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -22,7 +22,7 @@ enum Mode {
 
 pub struct ConstructTool {
     gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
-    road_graph: Rc<RefCell<RoadGraph>>,
+    world: World,
 
     state_handle: Rc<RefCell<crate::ToolState>>,
     sel_node: Option<SnapConfig>,
@@ -33,7 +33,7 @@ pub struct ConstructTool {
     mode: Mode,
 }
 
-impl crate::Tool for ConstructTool {
+impl crate::ToolStrategy for ConstructTool {
     fn process_keyboard(&mut self, key: input::KeyAction) {
         use input::Action::*;
         use input::KeyState::*;
@@ -91,11 +91,11 @@ impl crate::Tool for ConstructTool {
             Mode::SelectPos => {
                 #[cfg(debug_assertions)]
                 {
-                    self.road_graph
-                        .borrow()
+                    self.world
+                        .get_road_graph()
                         .debug_segment_from_pos(self.ground_pos);
-                    self.road_graph
-                        .borrow()
+                    self.world
+                        .get_road_graph()
                         .debug_node_from_pos(self.ground_pos);
                 }
             }
@@ -120,24 +120,25 @@ impl crate::Tool for ConstructTool {
     }
 
     /// Remove node markings from gpu, and remove the road tool mesh.
-    fn gfx_clean(&mut self) {
+    fn destroy(self: Box<Self>) -> World {
         self.gfx_handle.borrow_mut().set_node_markers(vec![]);
         self.gfx_handle
             .borrow_mut()
             .set_road_tool_mesh(Some(generator::empty_mesh()));
+        self.world
     }
 }
 
 impl ConstructTool {
     pub(crate) fn new(
         gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
-        road_graph: Rc<RefCell<RoadGraph>>,
+        world: World,
         state_handle: Rc<RefCell<crate::ToolState>>,
         ground_pos: Vec3,
     ) -> Self {
         let mut tool = Self {
             gfx_handle,
-            road_graph,
+            world,
             state_handle,
             sel_node: None,
             snapped_node: None,
@@ -254,8 +255,8 @@ impl ConstructTool {
     /// Invoked when a snapped node becomes selected.
     fn select_node(&mut self, snapped_node: SnapConfig) {
         let node_dir = self
-            .road_graph
-            .borrow()
+            .world
+            .get_road_graph()
             .get_node(snapped_node.get_id())
             .get_dir();
 
@@ -280,7 +281,7 @@ impl ConstructTool {
         let road_meshes = self.road_generator.get_road_meshes();
         let road_generator = self.road_generator.extract();
 
-        let (new_node, segment_ids) = self.road_graph.borrow_mut().add_road(
+        let (new_node, segment_ids) = self.world.mut_road_graph().add_road(
             road_generator.into_lroad_generator(),
             self.sel_node.clone(),
             self.snapped_node.clone(),
@@ -378,8 +379,8 @@ impl ConstructTool {
     /// Checks if there is a node that in should snap to, and in that case it snaps to that node.
     fn check_snapping(&mut self) {
         let node_snap_configs = if self.state_handle.borrow().road_state.snapping {
-            self.road_graph
-                .borrow()
+            self.world
+                .get_road_graph()
                 .get_snap_configs_closest_node(self.ground_pos, self.get_sel_road_type().node_type)
         } else {
             None
@@ -408,11 +409,11 @@ impl ConstructTool {
             None
         };
         let possible_snaps = self
-            .road_graph
-            .borrow()
+            .world
+            .get_road_graph()
             .get_possible_snap_nodes(reverse, self.get_sel_road_type().node_type)
             .iter()
-            .map(|id| self.road_graph.borrow().get_node(*id).get_pos())
+            .map(|id| self.world.get_road_graph().get_node(*id).get_pos())
             .collect();
 
         self.gfx_handle

@@ -3,7 +3,7 @@ use gfx_api::{RoadMesh, RoadVertex};
 use glam::*;
 use simulation::curves;
 use simulation::{
-    CurveType, LNodeBuilder, LRoadGenerator, LSegmentBuilder, NodeType, SegmentType, SnapConfig,
+    CurveType, LNodeBuilder, LRoadBuilder, LSegmentBuilder, NodeType, SegmentType, SnapConfig,
 };
 use utils::consts::{LANE_MARKINGS_WIDTH, ROAD_HEIGHT};
 use utils::VecUtils;
@@ -90,7 +90,7 @@ impl RoadGenerator {
         }
     }
 
-    pub fn into_lroad_generator(self) -> LRoadGenerator {
+    pub fn into_lroad_generator(self) -> LRoadBuilder {
         let segment_builders = self
             .segments
             .clone()
@@ -103,7 +103,7 @@ impl RoadGenerator {
                 )
             })
             .collect();
-        LRoadGenerator::new(
+        LRoadBuilder::new(
             self.nodes,
             segment_builders,
             self.start_road_type.node_type,

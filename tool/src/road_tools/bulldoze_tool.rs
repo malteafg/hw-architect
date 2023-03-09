@@ -1,23 +1,26 @@
 use gfx_api::GfxRoadData;
 use glam::*;
-use simulation::RoadGraph;
+use simulation::{RoadManipulator, World};
 use std::cell::RefCell;
 use std::rc::Rc;
 use utils::input;
 
 pub struct BulldozeTool {
     gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
-    road_graph: Rc<RefCell<RoadGraph>>,
+    world: World,
     ground_pos: Vec3,
 }
 
-impl crate::Tool for BulldozeTool {
+impl crate::ToolStrategy for BulldozeTool {
     fn process_keyboard(&mut self, _key: input::KeyAction) {}
 
     fn left_click(&mut self) {
-        let segment_id = self.road_graph.borrow().get_segment_inside(self.ground_pos);
+        let segment_id = self
+            .world
+            .get_road_graph()
+            .get_segment_inside(self.ground_pos);
         if let Some(id) = segment_id {
-            if self.road_graph.borrow_mut().remove_segment(id) {
+            if self.world.mut_road_graph().remove_segment(id) {
                 self.gfx_handle.borrow_mut().remove_road_meshes(vec![id])
             }
         }
@@ -31,20 +34,17 @@ impl crate::Tool for BulldozeTool {
     }
 
     /// Unmark any marked segment.
-    fn gfx_clean(&mut self) {
+    fn destroy(self: Box<Self>) -> World {
         self.gfx_handle.borrow_mut().mark_road_segments(vec![]);
+        self.world
     }
 }
 
 impl BulldozeTool {
-    pub fn new(
-        gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
-        road_graph: Rc<RefCell<RoadGraph>>,
-        ground_pos: Vec3,
-    ) -> Self {
+    pub fn new(gfx_handle: Rc<RefCell<dyn GfxRoadData>>, world: World, ground_pos: Vec3) -> Self {
         let mut tool = Self {
             gfx_handle,
-            road_graph,
+            world,
             ground_pos,
         };
         tool.check_segment();
@@ -52,7 +52,10 @@ impl BulldozeTool {
     }
 
     fn check_segment(&mut self) {
-        let segment_id = self.road_graph.borrow().get_segment_inside(self.ground_pos);
+        let segment_id = self
+            .world
+            .get_road_graph()
+            .get_segment_inside(self.ground_pos);
         if let Some(id) = segment_id {
             self.gfx_handle.borrow_mut().mark_road_segments(vec![id]);
             return;

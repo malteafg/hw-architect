@@ -1,15 +1,15 @@
 use gfx_api::GfxRoadData;
-use simulation::RoadGraph;
+use simulation::World;
 use std::cell::RefCell;
 use std::rc::Rc;
 use utils::input;
 
-use crate::road_tool::{BulldozeTool, ConstructTool};
-use crate::Tool;
+use crate::road_tools::{BulldozeTool, ConstructTool};
+use crate::ToolStrategy;
 
 #[derive(Debug, Clone, Copy)]
-enum Tools {
-    Dummy,
+enum Tool {
+    NoTool,
     Construct,
     Bulldoze,
 }
@@ -17,32 +17,27 @@ enum Tools {
 /// The main tool that controls how other tools are invoked.
 pub struct WorldTool {
     gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
-    /// Uses {`Rc`}+{`RefCell`} as only one tool modifies the road_graph at one point as specified
-    /// by {`curr_tool`}.
-    road_graph: Rc<RefCell<RoadGraph>>,
 
     state: Rc<RefCell<super::ToolState>>,
 
     ground_pos: glam::Vec3,
 
-    curr_tool_handle: Box<dyn Tool>,
-    curr_tool: Tools,
-    saved_tool: Option<Tools>,
+    curr_tool_handle: Box<dyn ToolStrategy>,
+    curr_tool: Tool,
+    saved_tool: Option<Tool>,
 }
 
 impl WorldTool {
-    pub fn new(gfx_handle: Rc<RefCell<dyn GfxRoadData>>, road_graph: RoadGraph) -> Self {
-        let road_graph = Rc::new(RefCell::new(road_graph));
-        let start_tool = Box::new(DummyTool);
+    pub fn new(gfx_handle: Rc<RefCell<dyn GfxRoadData>>, world: World) -> Self {
+        let start_tool = Box::new(NoTool::new(world));
         let state = Rc::new(RefCell::new(super::ToolState::default()));
 
         let mut result = WorldTool {
             gfx_handle,
-            road_graph,
             state,
             ground_pos: glam::Vec3::ZERO,
             curr_tool_handle: start_tool,
-            curr_tool: Tools::Dummy,
+            curr_tool: Tool::NoTool,
             saved_tool: None,
         };
         result.enter_construct_mode();
@@ -50,42 +45,48 @@ impl WorldTool {
     }
 
     fn enter_bulldoze_mode(&mut self) {
-        self.curr_tool = Tools::Bulldoze;
-        self.curr_tool_handle.gfx_clean();
+        let old_tool = std::mem::replace(&mut self.curr_tool_handle, Box::new(DummyTool));
+        let world = old_tool.destroy();
+
+        self.curr_tool = Tool::Bulldoze;
         self.curr_tool_handle = Box::new(BulldozeTool::new(
             Rc::clone(&self.gfx_handle),
-            Rc::clone(&self.road_graph),
+            world,
             self.ground_pos,
         ))
     }
 
     fn enter_construct_mode(&mut self) {
+        let old_tool = std::mem::replace(&mut self.curr_tool_handle, Box::new(DummyTool));
+        let world = old_tool.destroy();
+
         self.saved_tool = None;
-        self.curr_tool = Tools::Construct;
-        self.curr_tool_handle.gfx_clean();
+        self.curr_tool = Tool::Construct;
         self.curr_tool_handle = Box::new(ConstructTool::new(
             Rc::clone(&self.gfx_handle),
-            Rc::clone(&self.road_graph),
+            world,
             Rc::clone(&self.state),
             self.ground_pos,
         ))
     }
 
     fn enter_dummy_mode(&mut self) {
+        let old_tool = std::mem::replace(&mut self.curr_tool_handle, Box::new(DummyTool));
+        let world = old_tool.destroy();
+
         self.saved_tool = None;
-        self.curr_tool = Tools::Dummy;
-        self.curr_tool_handle.gfx_clean();
-        self.curr_tool_handle = Box::new(DummyTool)
+        self.curr_tool = Tool::NoTool;
+        self.curr_tool_handle = Box::new(NoTool::new(world))
     }
 
     pub fn process_keyboard(&mut self, key: input::KeyAction) {
         // TODO add leader keybindings, but maybe they should be in InputHandler.
         use input::Action::*;
         use input::KeyState::*;
-        use Tools::*;
+        use Tool::*;
         match key {
             (EnterBulldoze, Press) => match &mut self.curr_tool {
-                Dummy => self.enter_bulldoze_mode(),
+                NoTool => self.enter_bulldoze_mode(),
                 Construct => {
                     self.saved_tool = Some(Construct);
                     self.enter_bulldoze_mode();
@@ -93,7 +94,7 @@ impl WorldTool {
                 _ => {}
             },
             (EnterConstruct, Press) => match &mut self.curr_tool {
-                Dummy | Bulldoze => self.enter_construct_mode(),
+                NoTool | Bulldoze => self.enter_construct_mode(),
                 _ => {}
             },
             (Esc, Press) => match &mut self.curr_tool {
@@ -129,12 +130,34 @@ impl WorldTool {
 }
 
 /// Used as the default tool, when no tool is used.
-pub struct DummyTool;
+struct NoTool {
+    world: World,
+}
 
-impl Tool for DummyTool {
+impl NoTool {
+    fn new(world: World) -> Self {
+        NoTool { world }
+    }
+}
+
+impl ToolStrategy for NoTool {
     fn process_keyboard(&mut self, _key: input::KeyAction) {}
     fn left_click(&mut self) {}
     fn right_click(&mut self) {}
     fn update_ground_pos(&mut self, _ground_pos: glam::Vec3) {}
-    fn gfx_clean(&mut self) {}
+    fn destroy(self: Box<Self>) -> World {
+        self.world
+    }
+}
+
+/// This is a bit silly maybe find a cleaner implementation?
+struct DummyTool;
+impl ToolStrategy for DummyTool {
+    fn process_keyboard(&mut self, _key: input::KeyAction) {}
+    fn left_click(&mut self) {}
+    fn right_click(&mut self) {}
+    fn update_ground_pos(&mut self, _ground_pos: glam::Vec3) {}
+    fn destroy(self: Box<Self>) -> World {
+        todo!()
+    }
 }

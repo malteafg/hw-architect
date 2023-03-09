@@ -9,7 +9,7 @@ pub use graph::RoadGraph;
 pub use snap::SnapConfig;
 
 pub use node::{LNodeBuilder, LaneMapConfig};
-pub use road_builder::LRoadGenerator;
+pub use road_builder::LRoadBuilder;
 pub use segment::LSegmentBuilder;
 
 pub use road_type::{CurveType, LaneWidth, NodeType, SegmentType, Side};

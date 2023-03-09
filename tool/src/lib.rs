@@ -2,13 +2,13 @@ use utils::input;
 
 pub mod camera_controller;
 mod cycle_selection;
-mod road_tool;
+mod road_tools;
 mod world_tool;
 
 use cycle_selection::CycleSelection;
 pub use world_tool::WorldTool;
 
-trait Tool {
+trait ToolStrategy {
     // type InitParameters;
 
     // fn new(params: InitParameters, selection: Selection) -> Self;
@@ -29,21 +29,19 @@ trait Tool {
 
     /// This function is used to reset whatever a tool has given to the gpu, such that the next
     /// tool can manipulate the graphics from scratch, as it desires.
-    fn gfx_clean(&mut self);
-
-    // fn destroy(self) -> Selection;
+    fn destroy(self: Box<Self>) -> simulation::World;
 }
 
 #[derive(Debug, Clone, Copy)]
 struct RoadState {
-    pub selected_road: road_tool::SelectedRoad,
+    pub selected_road: road_tools::SelectedRoad,
     pub snapping: bool,
 }
 
 impl Default for RoadState {
     fn default() -> Self {
         Self {
-            selected_road: road_tool::SelectedRoad::default(),
+            selected_road: road_tools::SelectedRoad::default(),
             snapping: true,
         }
     }
@@ -161,5 +159,20 @@ struct ToolState {
 //             }
 //             _ => self.curr_tool.process_keyboard(key),
 //         }
+//     }
+// }
+
+// trait Test {
+//     fn test(&mut self);
+// }
+
+// struct ToolTest<A: Tool> {
+//     tool: A,
+//     something: u32,
+// }
+
+// impl Test for ToolTest {
+//     fn test(&mut self) {
+//         print!("asori");
 //     }
 // }
