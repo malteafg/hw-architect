@@ -1,11 +1,12 @@
 //! This module defines all the types associated with the configuration of roads. As such this file
 //! exclusively defines the set of roads that can be constructed. All types are and should be
 //! discrete.
+use serde::{Deserialize, Serialize};
 
 /// Defines the type of curves that are possible for roads.
 ///
 /// TODO: add euler spirals.
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum CurveType {
     Straight,
     #[default]
@@ -17,7 +18,7 @@ pub enum CurveType {
 ///
 /// TODO: implement such that the user can add new discrete values. Could be implemented using an
 /// Id system, similar to that of nodes and segments.
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum LaneWidth {
     Narrow,
     #[default]
@@ -39,7 +40,7 @@ impl LaneWidth {
 
 /// Defines the types of nodes that are possible. Two nodes are compatible if they have the same
 /// lane width.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct NodeType {
     pub lane_width: LaneWidth,
     pub no_lanes: u8,
@@ -57,7 +58,7 @@ impl Default for NodeType {
 /// Defines the types of segments that can be constructed.
 ///
 /// TODO: expand to include transition segments.
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SegmentType {
     pub curve_type: CurveType,
 }
@@ -69,7 +70,7 @@ impl SegmentType {
 }
 
 /// Defines the two sides of a node.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Side {
     /// The incoming side of the node.
     In,

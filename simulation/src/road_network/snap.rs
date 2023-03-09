@@ -1,6 +1,7 @@
 use super::NodeType;
 use super::Side;
 use glam::Vec3;
+use serde::{Deserialize, Serialize};
 use utils::id::NodeId;
 
 /// Represents a continuous range of lane indexes. As an example, SnapRange might contain 2,3,4
@@ -9,7 +10,7 @@ use utils::id::NodeId;
 ///
 /// # INVARIANTS
 /// A {`SnapRange`} must never be empty.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SnapRange(Vec<i8>);
 
 /// Represents a legal way (configuration) of snapping to a node.

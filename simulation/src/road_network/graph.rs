@@ -11,8 +11,11 @@ use super::segment::LSegment;
 use super::snap::SnapConfig;
 use super::{NodeType, Side};
 
+use serde::{Deserialize, Serialize};
+
 type LeadingPair = (NodeId, SegmentId);
 
+#[derive(Serialize, Deserialize)]
 pub struct RoadGraph {
     node_map: HashMap<NodeId, LNode>,
     segment_map: HashMap<SegmentId, LSegment>,

@@ -7,13 +7,39 @@ use std::mem;
 use super::snap::{SnapConfig, SnapRange};
 use super::{NodeType, Side};
 
+use serde::{Deserialize, Serialize};
+
 // Located at the bottom of this file.
 use lanes::LaneMap;
 
+// #################################################################################################
+// Definitions for others to construct an LNode
+// #################################################################################################
 #[derive(Clone, Copy)]
 pub struct LNodeBuilder {
     pos: Vec3,
     dir: Vec3,
+}
+
+impl LNodeBuilder {
+    pub fn new(pos: Vec3, dir: Vec3) -> Self {
+        LNodeBuilder { pos, dir }
+    }
+
+    pub fn build(self, node_type: NodeType, lane_map: LaneMapConfig) -> LNode {
+        let mode = match lane_map {
+            LaneMapConfig::Sym { incoming, outgoing } => Mode::Sym { incoming, outgoing },
+            LaneMapConfig::In { incoming } => Mode::Basic {
+                main_segment: incoming,
+                main_side: Side::In,
+            },
+            LaneMapConfig::Out { outgoing } => Mode::Basic {
+                main_segment: outgoing,
+                main_side: Side::Out,
+            },
+        };
+        LNode::new(self.pos, self.dir, node_type, mode)
+    }
 }
 
 /// Specifies the configuration of segments when a new node is created.
@@ -30,31 +56,10 @@ pub enum LaneMapConfig {
     },
 }
 
-/// Defines the configuration of the segments that are attached opposite to the main side of a
-/// node.
-#[derive(Clone, Debug, PartialEq)]
-struct AttachedSegment {
-    segment_id: SegmentId,
-    node_type: NodeType,
-    /// These snap ranges should only have positive indexes.
-    snap_range: SnapRange,
-}
-
-impl AttachedSegment {
-    fn new(segment_id: SegmentId, node_type: NodeType, snap_range: SnapRange) -> Self {
-        Self {
-            segment_id,
-            node_type,
-            snap_range,
-        }
-    }
-
-    fn no_lanes(&self) -> u8 {
-        self.node_type.no_lanes
-    }
-}
-
-#[derive(Clone, Debug)]
+// #################################################################################################
+// Definitions of LNode itself
+// #################################################################################################
+#[derive(Clone, Debug, Serialize, Deserialize)]
 enum Mode {
     /// A basic node is a node where only one segment connects to.
     Basic {
@@ -88,7 +93,7 @@ use Mode::*;
 
 /// Represents a logical road node. The data is the data necessary to do logical work with a road
 /// node.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LNode {
     pos: Vec3,
     dir: Vec3,
@@ -223,11 +228,7 @@ impl LNode {
                     new_snap_range.shift(no_negatives as i8);
 
                     let mut attached_segments = LaneMap::empty(snap_no_lanes);
-                    attached_segments.add_segment(AttachedSegment::new(
-                        *main_segment,
-                        self.node_type,
-                        new_snap_range,
-                    ));
+                    attached_segments.add_segment(*main_segment, self.node_type, new_snap_range);
 
                     self.pos = snap_config.get_pos();
                     self.node_type = snap_config.get_node_type();
@@ -237,13 +238,12 @@ impl LNode {
                         attached_segments,
                     }
                 } else {
-                    let new_segment = AttachedSegment::new(
+                    let mut attached_segments = LaneMap::empty(self_no_lanes);
+                    attached_segments.add_segment(
                         segment_id,
                         snap_config.get_node_type(),
                         snap_config.consume_snap_range(),
                     );
-                    let mut attached_segments = LaneMap::empty(self_no_lanes);
-                    attached_segments.add_segment(new_segment);
 
                     self.mode = Asym {
                         main_segment: *main_segment,
@@ -262,12 +262,11 @@ impl LNode {
                 #[cfg(debug_assertions)]
                 assert!(attached_segments.fits_snap_range(snap_config.get_snap_range()));
 
-                let new_segment = AttachedSegment::new(
+                attached_segments.add_segment(
                     segment_id,
                     snap_config.get_node_type(),
                     snap_config.consume_snap_range(),
-                );
-                attached_segments.add_segment(new_segment)
+                )
             }
             Open {
                 open_side,
@@ -347,14 +346,14 @@ impl LNode {
                 // must switch the side of this node.
                 if attached_segments.len() == 1 {
                     let new_main = &attached_segments[0];
-                    let segment_id = new_main.segment_id;
+                    let segment_id = new_main.get_segment_id();
 
                     // Compute new node pos.
-                    let left_space = new_main.snap_range.smallest();
-                    let right_space = self_no_lanes as i8 - (new_main.snap_range.largest() + 1);
+                    let left_space = new_main.snap_range().smallest();
+                    let right_space = self_no_lanes as i8 - (new_main.snap_range().largest() + 1);
                     self.pos += ((left_space - right_space) as f32 / 2.0) * lane_width_dir;
 
-                    self.node_type = new_main.node_type;
+                    self.node_type = new_main.get_node_type();
                     self.mode = Basic {
                         main_segment: segment_id,
                         main_side: main_side.switch(),
@@ -390,14 +389,14 @@ impl LNode {
                 // We must move to be an Asym node, as there is only one segment in the node now.
                 if attached_segments.len() == 1 {
                     let new_main = &attached_segments[0];
-                    let segment_id = new_main.segment_id;
+                    let segment_id = new_main.get_segment_id();
 
                     // Compute new node pos.
-                    let left_space = new_main.snap_range.smallest();
-                    let right_space = self_no_lanes as i8 - (new_main.snap_range.largest() + 1);
+                    let left_space = new_main.snap_range().smallest();
+                    let right_space = self_no_lanes as i8 - (new_main.snap_range().largest() + 1);
                     self.pos += ((left_space - right_space) as f32 / 2.0) * lane_width_dir;
 
-                    self.node_type = new_main.node_type;
+                    self.node_type = new_main.get_node_type();
                     self.mode = Basic {
                         main_segment: segment_id,
                         main_side: open_side.switch(),
@@ -521,40 +520,52 @@ impl LNode {
 }
 
 // #################################################################################################
-// Implementation of LNodeBuilder
-// #################################################################################################
-impl LNodeBuilder {
-    pub fn new(pos: Vec3, dir: Vec3) -> Self {
-        LNodeBuilder { pos, dir }
-    }
-
-    pub fn build(self, node_type: NodeType, lane_map: LaneMapConfig) -> LNode {
-        let mode = match lane_map {
-            LaneMapConfig::Sym { incoming, outgoing } => Mode::Sym { incoming, outgoing },
-            LaneMapConfig::In { incoming } => Mode::Basic {
-                main_segment: incoming,
-                main_side: Side::In,
-            },
-            LaneMapConfig::Out { outgoing } => Mode::Basic {
-                main_segment: outgoing,
-                main_side: Side::Out,
-            },
-        };
-        LNode::new(self.pos, self.dir, node_type, mode)
-    }
-}
-
-// #################################################################################################
 // Implementation of lanes
 // #################################################################################################
 mod lanes {
     use super::*;
 
+    /// Defines the configuration of the segments that are attached opposite to the main side of a
+    /// node.
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    pub(super) struct AttachedSegment {
+        segment_id: SegmentId,
+        node_type: NodeType,
+        /// These snap ranges should only have positive indexes.
+        snap_range: SnapRange,
+    }
+
+    impl AttachedSegment {
+        fn new(segment_id: SegmentId, node_type: NodeType, snap_range: SnapRange) -> Self {
+            Self {
+                segment_id,
+                node_type,
+                snap_range,
+            }
+        }
+
+        pub fn no_lanes(&self) -> u8 {
+            self.node_type.no_lanes
+        }
+
+        pub fn get_segment_id(&self) -> SegmentId {
+            self.segment_id
+        }
+
+        pub fn snap_range(&self) -> &SnapRange {
+            &self.snap_range
+        }
+
+        pub fn get_node_type(&self) -> NodeType {
+            self.node_type
+        }
+    }
+
     /// Represents a configuration of segments that are connected to a node on one side.
     ///
     /// # INVARIANTS
     /// Attached segments are always stored in the order from left to right.
-    #[derive(Debug, Clone, PartialEq, Default)]
+    #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
     pub(super) struct LaneMap {
         segment_list: Vec<AttachedSegment>,
         no_lanes: u8,
@@ -669,7 +680,8 @@ mod lanes {
 
         /// Adds a segment to the correct position such that the segments are in order from left to
         /// right.
-        pub fn add_segment(&mut self, new_segment: AttachedSegment) {
+        pub fn add_segment(&mut self, id: SegmentId, node_type: NodeType, snap_range: SnapRange) {
+            let new_segment = AttachedSegment::new(id, node_type, snap_range);
             let new_largest = new_segment.snap_range.largest();
             let new_smallest = new_segment.snap_range.smallest();
 

@@ -1,6 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 /// Maybe make IdSize generic over integers using the num crate.
 type IdSize = u16;
 
+#[derive(Serialize, Deserialize)]
 pub struct IdManager<A: PartialEq> {
     counter: IdSize,
     state: std::marker::PhantomData<A>,
@@ -19,9 +22,10 @@ impl<A: PartialEq> IdManager<A> {
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NodeId(IdSize);
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SegmentId(IdSize);
 
 impl IdManager<SegmentId> {

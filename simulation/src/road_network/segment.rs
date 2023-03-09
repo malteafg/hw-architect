@@ -1,8 +1,9 @@
 use super::SegmentType;
 use crate::curves::{GuidePoints, SpinePoints};
+use serde::{Deserialize, Serialize};
 use utils::id::NodeId;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LSegment {
     /// This field is used for checking if a position is inside this road segment.
     ///

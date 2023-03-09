@@ -13,5 +13,6 @@ crate-type = ["cdylib", "rlib"]
 utils = { path = "../utils" }
 
 anyhow = { workspace = true }
+serde = { workspace = true }
 
 glam = { workspace = true }

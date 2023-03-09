@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 glam = { workspace = true }
 
 anyhow = { workspace = true }
+serde = { workspace = true }
 
 cfg-if = "1"
 
