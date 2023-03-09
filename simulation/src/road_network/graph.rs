@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::curves;
 
-use utils::id::{NodeId, SegmentId};
+use utils::id::{IdManager, NodeId, SegmentId};
 
 use super::node::LNode;
 use super::road_builder::LRoadGenerator;
@@ -23,8 +23,8 @@ pub struct RoadGraph {
     /// one segment in the opposite direction of the segment.
     backward_refs: HashMap<NodeId, Vec<LeadingPair>>,
 
-    node_id_count: u32,
-    segment_id_count: u32,
+    node_id_manager: IdManager<NodeId>,
+    segment_id_manager: IdManager<SegmentId>,
 }
 
 impl Default for RoadGraph {
@@ -39,8 +39,8 @@ impl Default for RoadGraph {
             segment_map,
             forward_refs,
             backward_refs,
-            node_id_count: 0,
-            segment_id_count: 0,
+            node_id_manager: IdManager::new(),
+            segment_id_manager: IdManager::new(),
         }
     }
 }
@@ -83,18 +83,6 @@ impl RoadGraph {
         None
     }
 
-    fn generate_node_id(&mut self) -> NodeId {
-        let node_id = self.node_id_count;
-        self.node_id_count += 1;
-        NodeId(node_id)
-    }
-
-    fn generate_segment_id(&mut self) -> SegmentId {
-        let segment_id = self.segment_id_count;
-        self.segment_id_count += 1;
-        SegmentId(segment_id)
-    }
-
     /// At this point the road generator tool has allowed the construction of this road. The order
     /// of {`NodeId`}'s order always follows the direction of the road. The order of
     /// {`SegmentId`}'s follow whatever order was decided by the road generator.
@@ -116,12 +104,14 @@ impl RoadGraph {
         if selected_node.is_none() {
             num_node_ids += 1;
         };
-        let node_ids: Vec<NodeId> = (0..num_node_ids).map(|_| self.generate_node_id()).collect();
+        let node_ids: Vec<NodeId> = (0..num_node_ids)
+            .map(|_| self.node_id_manager.gen())
+            .collect();
 
         // Generate segment ids
         let num_segment_ids = segment_builders.len();
         let segment_ids: Vec<SegmentId> = (0..num_segment_ids)
-            .map(|_| self.generate_segment_id())
+            .map(|_| self.segment_id_manager.gen())
             .collect();
 
         // Create list of new and old nodes in correct order
@@ -351,7 +341,7 @@ impl RoadGraph {
             }
         }
         if let Some(id) = closest_node.map(|(id, _)| *id) {
-            println!("Node: {} -------------------------", id.0);
+            dbg!("Node: {} -------------------------", id);
             dbg!(self.node_map.get(&id));
             dbg!(self.forward_refs.get(&id));
             dbg!(self.backward_refs.get(&id));
@@ -361,7 +351,7 @@ impl RoadGraph {
     #[cfg(debug_assertions)]
     pub fn debug_segment_from_pos(&self, pos: Vec3) {
         if let Some(id) = self.get_segment_inside(pos) {
-            println!("Segment: {} ----------------------", id.0);
+            dbg!("Segment: {} ----------------------", id);
             dbg!(self.segment_map.get(&id));
         }
     }
