@@ -1,8 +1,6 @@
 use glam::*;
 use std::collections::HashMap;
 
-use crate::curves;
-
 use utils::id::{IdManager, NodeId, SegmentId};
 
 use super::node::LNode;
@@ -83,7 +81,7 @@ impl RoadGraph {
 
     pub fn get_segment_inside(&self, ground_pos: Vec3) -> Option<SegmentId> {
         for (id, s) in self.segment_map.iter() {
-            if curves::is_inside(&s.get_guide_points(), ground_pos, s.get_width()) {
+            if s.get_guide_points().is_inside(ground_pos, s.get_width()) {
                 return Some(*id);
             }
         }

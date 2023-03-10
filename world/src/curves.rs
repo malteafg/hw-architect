@@ -1,464 +1,138 @@
 use glam::*;
-use utils::VecUtils;
 
-const PRETTY_CLOSE: f32 = 0.97;
-const CLOSE_ENOUGH: f32 = 0.95;
-const COS_45: f32 = std::f32::consts::FRAC_1_SQRT_2;
+use serde::{Deserialize, Serialize};
 
-const MIN_SEGMENT_LENGTH: f32 = 10.0;
-const MAX_CIRCLE_SIZE: f32 = 400000.0;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GuidePoints(Vec<Vec3>);
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpinePoints(Vec<Vec3>);
 
-pub type GuidePoints = Vec<Vec3>;
-pub type SpinePoints = Vec<Vec3>;
+impl core::ops::Deref for GuidePoints {
+    type Target = Vec<Vec3>;
 
-// Notable functions:
-// - free_three_quarter_circle_curve
-// - snap_three_quarter_circle_curve
-// - double_snap_curve_case
-// - match_double_snap_curve_case
-// - guide_points_and_direction
-//
-// for double snap call "double_snap_curve_case" to get the enum
-// then call "match_double_snap_curve_case" with the enum
-// to get the guidepoints
-//
-// for both three quarter circle and double snap, call
-// "guide_points_and_direction" with the guidepoints
-// to get a vec of tuples with both guidepoints and the direction
-// for the new nodes
-//
-// snap_three_quarter_circle_curve makes circular curves but snaps to
-// 90 degree intervals of road curvature
-
-pub fn guide_points_and_direction(
-    guide_points: Vec<GuidePoints>,
-) -> (Vec<(GuidePoints, Vec3)>, Vec3) {
-    let mut result: Vec<(Vec<Vec3>, Vec3)> = Vec::new();
-    for curve in guide_points.iter() {
-        result.push((
-            curve.to_vec(),
-            (curve[curve.len() - 1] - curve[curve.len() - 2]).normalize(),
-        ));
-    }
-
-    (
-        result,
-        (guide_points[0][1] - guide_points[0][0]).normalize(),
-    )
-}
-
-pub fn reverse_g_points(mut guide_points: Vec<GuidePoints>) -> Vec<GuidePoints> {
-    guide_points.reverse();
-    for guide_point_segment in &mut guide_points {
-        guide_point_segment.reverse();
-    }
-    guide_points
-}
-
-pub fn three_quarter_circle_curve(
-    pos1: Vec3,
-    dir1: Vec3,
-    pos2: Vec3,
-    snap_line_angle: f32,
-    snap: bool,
-    allow_projection: bool,
-) -> Option<Vec<GuidePoints>> {
-    //return Some(vec![spiral_curve(pos1, dir1, pos2, dir1.normalize().right_hand()*50.0)])
-    let (projected_pos2, projected) = if snap {
-        (
-            snap_circle_projection(pos1, dir1, pos2, snap_line_angle),
-            true,
-        )
-    } else {
-        three_quarter_projection(pos1, dir1, pos2)
-    };
-
-    if !allow_projection && projected {
-        return None;
-    }
-
-    if (projected_pos2 - pos1).dot(dir1) >= 0.0 {
-        Some(vec![circle_curve(pos1, dir1, projected_pos2)])
-    } else {
-        let mid_point = curve_mid_point(pos1, dir1, projected_pos2);
-        Some(vec![
-            circle_curve(pos1, dir1, mid_point),
-            circle_curve(mid_point, projected_pos2 - pos1, projected_pos2),
-        ])
+    fn deref(self: &'_ Self) -> &'_ Self::Target {
+        &self.0
     }
 }
 
-fn three_quarter_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> (Vec3, bool) {
-    let diff = pos2 - pos1;
-    let proj_length = diff.dot(dir1) / dir1.length();
-    if proj_length >= -COS_45 * diff.length() {
-        (pos2, false)
-    } else {
-        (
-            pos1 + diff.proj(dir1) + diff.anti_proj(dir1).normalize() * proj_length.abs(),
-            true,
-        )
+impl core::ops::DerefMut for GuidePoints {
+    fn deref_mut(self: &'_ mut Self) -> &'_ mut Self::Target {
+        &mut self.0
     }
 }
 
-fn snap_circle_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3, line_angle: f32) -> Vec3 {
-    let diff = pos2 - pos1;
-    let tau = std::f32::consts::PI * 2.0;
-    let no_lines = tau / line_angle;
-    let a = diff.angle_between(dir1) / tau;
-    let angle = (a * no_lines).round().min((no_lines * 3.0 / 8.0).floor()) * tau / no_lines;
-    let (sin, cos) = angle.sin_cos();
+impl core::ops::Deref for SpinePoints {
+    type Target = Vec<Vec3>;
 
-    let line = dir1 * cos + dir1.right_hand() * diff.side(dir1) * sin;
-
-    pos1 + line.normalize() * diff.length()
-}
-
-fn curve_mid_point(pos1: Vec3, dir: Vec3, pos2: Vec3) -> Vec3 {
-    let diff = pos2 - pos1;
-    let dir2 = dir.normalize() + diff.normalize();
-    pos1 + (dir2 * (diff.length_squared() / 2.0 / dir2.dot(diff)))
-}
-
-/// The guidepoints for a curve as circular as posible with four guide points, up to half a circle
-pub fn circle_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> GuidePoints {
-    let diff = pos2 - pos1;
-    let r = dir1 * circle_scale(diff, dir1);
-
-    vec![
-        pos1,
-        pos1 + r,
-        pos2 + r - diff * (2.0 * diff.dot(r) / diff.length_squared()),
-        pos2,
-    ]
-}
-
-/// Best approximation of circular curve when constrained by directions at both points
-pub fn circle_curve_fudged(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> GuidePoints {
-    let diff = pos2 - pos1;
-    let r = dir1 * circle_scale(diff, dir1);
-
-    vec![pos1, pos1 + r, pos2 + dir2.normalize() * r.length(), pos2]
-}
-
-fn circle_scale(diff: Vec3, dir: Vec3) -> f32 {
-    let dot = diff.normalize().dot(dir.normalize());
-    if dot == 1.0 {
-        // Makes it so that straight curves have intermidiary guidepoints and 1/3 and 2/3
-        diff.length() / (3.0 * dir.length())
-    } else {
-        2.0 / 3.0 * diff.length() * (1.0 - dot) / (dir.length() * (1.0 - dot * dot))
+    fn deref(self: &'_ Self) -> &'_ Self::Target {
+        &self.0
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum DoubleSnapCurveCase {
-    SingleCircle,
-    DoubleCircle,
-    Ellipse,
-}
-
-#[derive(Debug, Clone)]
-pub enum DoubleSnapError {
-    TooSmall,
-    TooBig,
-    SegmentAngle,
-    CurveAngle,
-}
-
-pub fn double_snap_curve_case(
-    pos1: Vec3,
-    dir1: Vec3,
-    pos2: Vec3,
-    dir2: Vec3,
-    no_lanes: u8,
-) -> Result<DoubleSnapCurveCase, DoubleSnapError> {
-    use DoubleSnapCurveCase::*;
-    use DoubleSnapError::*;
-
-    let dir2 = -dir2;
-    let diff = pos2 - pos1;
-
-    if dir1.mirror(diff).ndot(dir2) > PRETTY_CLOSE
-        && (-diff).dot(dir2) >= PRETTY_CLOSE - 1.0
-        && diff.dot(dir1) >= PRETTY_CLOSE - 1.0
-    {
-        Ok(SingleCircle)
-    } else {
-        let ndir1 = dir1.normalize();
-        let ndir2 = dir2.normalize();
-        let t = s_curve_segment_length(pos1, ndir1, pos2, dir2);
-        let center = (pos1 + pos2 + ndir1 * t + ndir2 * t) / 2.0;
-
-        if (center - pos1).length_squared() > MAX_CIRCLE_SIZE {
-            return Err(TooBig);
-        }
-        if is_curve_too_small(dir1, center - pos1, no_lanes)
-            || is_curve_too_small(dir2, center - pos2, no_lanes)
-        {
-            return Err(TooSmall);
-        }
-        if dir1.dot(center - pos1) <= 0.0 || dir2.dot(center - pos2) <= 0.0 {
-            return Err(SegmentAngle);
-        }
-        if (pos2 - pos1).dot(center - pos1) <= 0.0 || (pos1 - pos2).dot(center - pos2) <= 0.0 {
-            return Err(CurveAngle);
-        }
-        if is_elliptical(pos1, dir1, pos2, dir2) {
-            Ok(Ellipse)
-        } else {
-            Ok(DoubleCircle)
-        }
+impl core::ops::DerefMut for SpinePoints {
+    fn deref_mut(self: &'_ mut Self) -> &'_ mut Self::Target {
+        &mut self.0
     }
 }
 
-pub fn match_double_snap_curve_case(
-    pos1: Vec3,
-    dir1: Vec3,
-    pos2: Vec3,
-    dir2: Vec3,
-    case: DoubleSnapCurveCase,
-) -> Vec<GuidePoints> {
-    let dir2 = -dir2;
-    match case {
-        DoubleSnapCurveCase::SingleCircle => vec![circle_curve_fudged(pos1, dir1, pos2, dir2)],
-        DoubleSnapCurveCase::Ellipse => {
-            vec![simple_curve_points(pos1, dir1, pos2, dir2).expect("Simple curve fuck up!")]
-        }
-        DoubleSnapCurveCase::DoubleCircle => double_curve(pos1, dir1, pos2, dir2),
+impl GuidePoints {
+    pub fn from_vec(vec: Vec<Vec3>) -> Self {
+        GuidePoints(vec)
     }
-}
 
-fn double_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> Vec<GuidePoints> {
-    let mut points = Vec::new();
-    let ndir1 = dir1.normalize();
-    let ndir2 = dir2.normalize();
-    let t = s_curve_segment_length(pos1, ndir1, pos2, dir2);
-    let center = (pos1 + pos2 + ndir1 * t + ndir2 * t) / 2.0;
-
-    points.push(circle_curve(pos1, dir1, center));
-    let mut second_half = circle_curve(pos2, dir2, center);
-    second_half.reverse();
-    points.push(second_half);
-
-    points
-}
-
-fn simple_curve_points(
-    pos1: Vec3,
-    dir1: Vec3,
-    pos2: Vec3,
-    dir2: Vec3,
-) -> anyhow::Result<GuidePoints> {
-    if dir1.intersects_in_xz(dir2) {
-        Ok(vec![pos1, pos1.intersection_in_xz(dir1, pos2, dir2), pos2])
-    } else {
-        Err(anyhow::anyhow!("No intersection in simple curve"))
+    pub fn empty() -> Self {
+        GuidePoints(vec![])
     }
-}
 
-fn s_curve_segment_length(v1: Vec3, r1: Vec3, v2: Vec3, r2: Vec3) -> f32 {
-    let v = v2 - v1;
-    let r = r2 - r1;
-    if r.length_squared() == 4.0 {
-        return 0.0;
-    }
-    let k = v.dot(r) / (4.0 - r.length_squared());
-    k + (v.length_squared() / (4.0 - r.length_squared()) + k * k).sqrt()
-}
-
-fn min_road_length(d1: Vec3, d2: Vec3, no_lanes: u8) -> f32 {
-    // TODO SHOULD DEPEND ON LANEWIDTH instead of 3.5
-    MIN_SEGMENT_LENGTH
-        .max(3.5 * no_lanes as f32 * 3.0 * d1.cross(d2).length() / d1.length() / d2.length())
-}
-
-fn is_curve_too_small(d1: Vec3, d2: Vec3, no_lanes: u8) -> bool {
-    d2.length() < min_road_length(d1, d2, no_lanes)
-}
-
-fn is_elliptical(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> bool {
-    let delta_pos = pos2 - pos1;
-    if dir1.dot(dir2) > 0.0 {
-        return false;
-    }
-    if (-delta_pos).ndot(dir2) < PRETTY_CLOSE - 1.0 || delta_pos.ndot(dir1) < PRETTY_CLOSE - 1.0 {
-        return false;
-    }
-    if dir1.anti_proj(delta_pos).dot(dir2.anti_proj(delta_pos)) < 0.0 {
-        return false;
-    }
-    if !dir1.intersects_in_xz(dir2) {
-        return false;
-    }
-    let intersection = pos1.intersection_in_xz(dir1, pos2, dir2);
-    let f1 = (intersection - pos1).length();
-    let f2 = (intersection - pos2).length();
-    let rel = f1.min(f2) / f1.max(f2);
-    if f1 * rel < MIN_SEGMENT_LENGTH || f2 * rel < MIN_SEGMENT_LENGTH {
-        return false;
-    }
-    rel <= CLOSE_ENOUGH
-}
-
-pub fn calc_bezier_pos(guide_points: &GuidePoints, t: f32) -> Vec3 {
-    let mut v = Vec3::new(0.0, 0.0, 0.0);
-    let mut r = (1.0 - t).powi(guide_points.len() as i32 - 1);
-    let mut l = 1.0;
-    for (i, p) in guide_points.iter().enumerate() {
-        let f = l * r;
-        v += *p * f;
-        if t == 1.0 {
-            if i == guide_points.len() - 2 {
-                r = 1.0;
+    pub fn calc_bezier_pos(&self, t: f32) -> Vec3 {
+        let mut v = Vec3::new(0.0, 0.0, 0.0);
+        let mut r = (1.0 - t).powi(self.len() as i32 - 1);
+        let mut l = 1.0;
+        for (i, p) in self.iter().enumerate() {
+            let f = l * r;
+            v += *p * f;
+            if t == 1.0 {
+                if i == self.len() - 2 {
+                    r = 1.0;
+                } else {
+                    r = 0.0;
+                }
             } else {
-                r = 0.0;
+                r *= t / (1.0 - t);
             }
-        } else {
-            r *= t / (1.0 - t);
+            l *= self.len() as f32 / (1.0 + i as f32) - 1.0;
         }
-        l *= guide_points.len() as f32 / (1.0 + i as f32) - 1.0;
+        v
     }
-    v
-}
 
-pub fn calc_bezier_dir(guide_points: &GuidePoints, t: f32) -> Vec3 {
-    let mut v = Vec3::new(0.0, 0.0, 0.0);
-    let mut r = (1.0 - t).powi(guide_points.len() as i32 - 2);
-    let mut l = 1.0;
-    for p in 0..(guide_points.len() - 1) {
-        v += (guide_points[p + 1] - guide_points[p]) * l * r;
-        if t == 1.0 {
-            if p == guide_points.len() - 3 {
-                r = 1.0;
+    pub fn calc_bezier_dir(&self, t: f32) -> Vec3 {
+        let mut v = Vec3::new(0.0, 0.0, 0.0);
+        let mut r = (1.0 - t).powi(self.len() as i32 - 2);
+        let mut l = 1.0;
+        for p in 0..(self.len() - 1) {
+            v += (self[p + 1] - self[p]) * l * r;
+            if t == 1.0 {
+                if p == self.len() - 3 {
+                    r = 1.0;
+                } else {
+                    r = 0.0;
+                }
             } else {
-                r = 0.0;
+                r *= t / (1.0 - t);
             }
-        } else {
-            r *= t / (1.0 - t);
+            l *= (self.len() as f32 - 1.0) / (1.0 + p as f32) - 1.0;
         }
-        l *= (guide_points.len() as f32 - 1.0) / (1.0 + p as f32) - 1.0;
+        v * self.len() as f32
     }
-    v * guide_points.len() as f32
-}
 
-pub fn is_inside(guide_points: &GuidePoints, ground_pos: Vec3, width: f32) -> bool {
-    let direct_dist = (guide_points[guide_points.len() - 1] - guide_points[0]).length_squared();
+    pub fn is_inside(&self, ground_pos: Vec3, width: f32) -> bool {
+        let direct_dist = (self[self.len() - 1] - self[0]).length_squared();
 
-    let mut close = false;
-    let mut distance_squared = f32::MAX;
-    for &point in guide_points.iter() {
-        let dist = (point - ground_pos).length_squared();
-        if dist < direct_dist {
-            close = true;
-            if dist < distance_squared {
-                distance_squared = dist;
+        let mut close = false;
+        let mut distance_squared = f32::MAX;
+        for &point in self.iter() {
+            let dist = (point - ground_pos).length_squared();
+            if dist < direct_dist {
+                close = true;
+                if dist < distance_squared {
+                    distance_squared = dist;
+                }
             }
         }
-    }
-    if !close {
-        return false;
-    } else if distance_squared < width * width {
-        return true;
-    }
-
-    let mut a = 0.0;
-    let mut c = 1.0;
-    let mut point_a = calc_bezier_pos(guide_points, a);
-    let mut point_c = calc_bezier_pos(guide_points, c);
-    for _ in 0..10 {
-        let point_b = calc_bezier_pos(guide_points, (a + c) / 2.0);
-        if (point_b - ground_pos).length_squared() < width * width {
+        if !close {
+            return false;
+        } else if distance_squared < width * width {
             return true;
         }
 
-        if (point_a - ground_pos).length_squared() < (point_c - ground_pos).length_squared() {
-            point_c = point_b;
-            c = (a + c) / 2.0;
-        } else {
-            point_a = point_b;
-            a = (a + c) / 2.0;
+        let mut a = 0.0;
+        let mut c = 1.0;
+        let mut point_a = self.calc_bezier_pos(a);
+        let mut point_c = self.calc_bezier_pos(c);
+        for _ in 0..10 {
+            let point_b = self.calc_bezier_pos((a + c) / 2.0);
+            if (point_b - ground_pos).length_squared() < width * width {
+                return true;
+            }
+
+            if (point_a - ground_pos).length_squared() < (point_c - ground_pos).length_squared() {
+                point_c = point_b;
+                c = (a + c) / 2.0;
+            } else {
+                point_a = point_b;
+                a = (a + c) / 2.0;
+            }
         }
+        false
     }
-    false
 }
 
-pub fn calc_uniform_spine_points(
-    spine_points: SpinePoints,
-    spine_dirs: SpinePoints,
-    point_distance: f32,
-) -> (SpinePoints, SpinePoints) {
-    let mut segment_length = 0.0;
-
-    for i in 0..(spine_points.len() - 1) {
-        segment_length += (spine_points[i + 1] - spine_points[i]).length();
+impl SpinePoints {
+    pub fn from_vec(vec: Vec<Vec3>) -> Self {
+        SpinePoints(vec)
     }
 
-    let num_of_subsegements = (segment_length / point_distance / 3.0).round() * 3.0;
-    let uniform_dist = segment_length / (num_of_subsegements as f32);
-
-    let mut uniform_points: SpinePoints = vec![spine_points[0]];
-    let mut uniform_dirs: SpinePoints = vec![spine_dirs[0]];
-    let mut oldpoint = 0;
-    let mut track_pos = 0.0;
-    let mut within_subsegment = true;
-
-    while oldpoint < spine_points.len() - 2 || within_subsegment {
-        let old_subsegment = spine_points[oldpoint + 1] - spine_points[oldpoint];
-        let oss_length = old_subsegment.length();
-
-        within_subsegment = track_pos < oss_length - uniform_dist;
-
-        if !within_subsegment && oldpoint < spine_points.len() - 2 {
-            track_pos -= oss_length;
-            oldpoint += 1;
-        } else {
-            let interpolation_factor = (track_pos + uniform_dist) / oss_length;
-            uniform_points.push(spine_points[oldpoint] + old_subsegment * interpolation_factor);
-            uniform_dirs.push(
-                spine_dirs[oldpoint + 1] * interpolation_factor
-                    + spine_dirs[oldpoint] * (1.0 - interpolation_factor),
-            );
-            track_pos += uniform_dist;
-        }
+    pub fn empty() -> Self {
+        SpinePoints(vec![])
     }
-    oldpoint += 1;
-    uniform_points.push(spine_points[oldpoint]);
-    uniform_dirs.push(spine_dirs[oldpoint]);
-
-    (uniform_points, uniform_dirs)
-}
-
-pub fn spine_points_and_dir(
-    guide_points: &GuidePoints,
-    dt: f32,
-    point_distance: f32,
-    num_of_cuts: u32,
-) -> (SpinePoints, SpinePoints) {
-    let mut points = vec![];
-    let mut dirs = vec![];
-
-    let mut t = 0.0;
-
-    for _ in 0..num_of_cuts {
-        points.push(calc_bezier_pos(guide_points, t));
-        dirs.push(calc_bezier_dir(guide_points, t));
-        t += dt;
-    }
-
-    calc_uniform_spine_points(points, dirs, point_distance)
-}
-
-pub fn spiral_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3, radius: Vec3) -> GuidePoints {
-    let diff = pos2 - pos1;
-    let dir = dir1.normalize();
-
-    let d = ((radius - 4.0 / 3.0 * diff).cross(dir)).length();
-    let a = d * d - radius.length_squared();
-    let b = 2.0 * (diff.dot(dir) * radius.length_squared() - radius.cross(diff).length() * d);
-    let c = -radius.dot(diff).powi(2);
-
-    let s = -(b + (b * b - 4.0 * a * c).sqrt()) / (2.0 * a);
-
-    return vec![pos1, pos1 + dir * s, pos2];
 }
