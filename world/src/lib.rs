@@ -1,7 +1,12 @@
+//! This crate defines all the static data of the world, and how other crates are allowed to
+//! manipulate this data such that the world is always in a valid configuration. Note that this
+//! crate does not care about constraints such as road curvature, it only concerns itself with the
+//! logical state of the world. For stuff like road curvature the tool crate is intended to enforce
+//! it.
 pub mod curves;
-mod road_network;
+pub mod roads;
 
-pub use road_network::*;
+use roads::RoadGraph;
 
 use serde::{Deserialize, Serialize};
 

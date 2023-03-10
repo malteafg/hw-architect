@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 utils = { path = "../utils" }
-simulation = { path = "../simulation" }
+world = { path = "../world" }
 gfx-api = { path = "../gfx-api" }
 
 bytemuck = { workspace = true }

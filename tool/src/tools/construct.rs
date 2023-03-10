@@ -4,8 +4,9 @@ use crate::road_gen::generator;
 use crate::road_gen::generator::RoadGeneratorTool;
 use crate::tool_state::{SelectedRoad, ToolState};
 
-use simulation::{CurveType, RoadManipulator, SnapConfig, World};
 use utils::input;
+use world::roads::{CurveType, SnapConfig};
+use world::{RoadManipulator, World};
 
 use gfx_api::GfxRoadData;
 use glam::*;

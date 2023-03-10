@@ -1,8 +1,8 @@
 use gfx_api::GfxRoadData;
-use simulation::World;
 use std::cell::RefCell;
 use std::rc::Rc;
 use utils::input;
+use world::World;
 
 use crate::tool_state::ToolState;
 use crate::tools::{BulldozeTool, ConstructTool, ToolStrategy};

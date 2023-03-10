@@ -1,7 +1,7 @@
 use super::ToolStrategy;
 
-use simulation::{RoadManipulator, World};
 use utils::input;
+use world::{RoadManipulator, World};
 
 use gfx_api::GfxRoadData;
 use glam::*;

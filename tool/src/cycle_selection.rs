@@ -12,7 +12,7 @@ pub fn scroll_mut<A: CycleSelection>(elem: &mut A, scroll_state: ScrollState) {
     }
 }
 
-impl CycleSelection for simulation::LaneWidth {
+impl CycleSelection for world::roads::LaneWidth {
     fn prev(&self) -> Self {
         match self {
             Self::Narrow => Self::Wide,

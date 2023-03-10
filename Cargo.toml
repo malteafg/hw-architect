@@ -3,7 +3,7 @@ members = [
 "app",
 "gfx-api",
 "gfx-wgpu",
-"simulation",
+"world",
 "tool",
 "utils",
 ]

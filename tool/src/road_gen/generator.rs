@@ -1,11 +1,11 @@
 use crate::tool_state::SelectedRoad;
 
-use simulation::curves;
-use simulation::{
-    CurveType, LNodeBuilder, LRoadBuilder, LSegmentBuilder, NodeType, SegmentType, SnapConfig,
-};
 use utils::consts::{LANE_MARKINGS_WIDTH, ROAD_HEIGHT};
 use utils::VecUtils;
+use world::curves;
+use world::roads::{
+    CurveType, LNodeBuilder, LRoadBuilder, LSegmentBuilder, NodeType, SegmentType, SnapConfig,
+};
 
 use gfx_api::{RoadMesh, RoadVertex};
 use glam::*;

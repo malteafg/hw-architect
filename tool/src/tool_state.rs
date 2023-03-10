@@ -1,4 +1,4 @@
-use simulation::{NodeType, SegmentType};
+use world::roads::{NodeType, SegmentType};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ToolState {
