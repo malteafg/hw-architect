@@ -1,7 +1,9 @@
+use utils::{input, Angle};
+
 use glam::*;
+
 use std::f32::consts::{FRAC_PI_2, PI};
 use std::time::Duration;
-use utils::{input, Angle};
 
 const MIN_CAMERA_PITCH: f32 = -0.15;
 const MAX_CAMERA_PITCH: f32 = 1.5;
@@ -54,7 +56,7 @@ impl Default for CameraController {
 }
 
 impl CameraController {
-    pub fn linear_move(f: f32) -> f32 {
+    pub fn _linear_move(f: f32) -> f32 {
         f
     }
 
@@ -71,7 +73,7 @@ impl CameraController {
         3.0 * f.powi(2) - 2.0 * f.powi(3)
     }
 
-    pub fn momentum_move(f: f32) -> f32 {
+    pub fn _momentum_move(f: f32) -> f32 {
         let a = 5.2; //6 is extremely cartoony, 5.2 is balanced
         a * f.powi(3)
             + 60.0 * f.powi(4)

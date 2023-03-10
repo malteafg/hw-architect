@@ -1,12 +1,14 @@
-use super::SelectedRoad;
-use gfx_api::{RoadMesh, RoadVertex};
-use glam::*;
+use crate::tool_state::SelectedRoad;
+
 use simulation::curves;
 use simulation::{
     CurveType, LNodeBuilder, LRoadBuilder, LSegmentBuilder, NodeType, SegmentType, SnapConfig,
 };
 use utils::consts::{LANE_MARKINGS_WIDTH, ROAD_HEIGHT};
 use utils::VecUtils;
+
+use gfx_api::{RoadMesh, RoadVertex};
+use glam::*;
 
 const VERTEX_DENSITY: f32 = 0.05;
 const DEFAULT_DIR: Vec3 = Vec3::new(1.0, 0.0, 0.0);

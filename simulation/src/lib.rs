@@ -1,9 +1,9 @@
-use serde::{Deserialize, Serialize};
-
 pub mod curves;
 mod road_network;
 
 pub use road_network::*;
+
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct World {

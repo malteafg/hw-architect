@@ -4,8 +4,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use utils::input;
 
-use crate::road_tools::{BulldozeTool, ConstructTool};
-use crate::ToolStrategy;
+use crate::tool_state::ToolState;
+use crate::tools::{BulldozeTool, ConstructTool, ToolStrategy};
 
 #[derive(Debug, Clone, Copy)]
 enum Tool {
@@ -18,7 +18,7 @@ enum Tool {
 pub struct WorldTool {
     gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
 
-    state: Rc<RefCell<super::ToolState>>,
+    state: Rc<RefCell<ToolState>>,
 
     ground_pos: glam::Vec3,
 
@@ -30,7 +30,7 @@ pub struct WorldTool {
 impl WorldTool {
     pub fn new(gfx_handle: Rc<RefCell<dyn GfxRoadData>>, world: World) -> Self {
         let start_tool = Box::new(NoTool::new(world));
-        let state = Rc::new(RefCell::new(super::ToolState::default()));
+        let state = Rc::new(RefCell::new(ToolState::default()));
 
         let mut result = WorldTool {
             gfx_handle,

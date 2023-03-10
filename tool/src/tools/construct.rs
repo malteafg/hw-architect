@@ -1,17 +1,18 @@
+use super::ToolStrategy;
 use crate::cycle_selection;
-use crate::ToolStrategy;
+use crate::road_gen::generator;
+use crate::road_gen::generator::RoadGeneratorTool;
+use crate::tool_state::{SelectedRoad, ToolState};
 
-use super::generator;
-use super::generator::RoadGeneratorTool;
-use super::SelectedRoad;
+use simulation::{CurveType, RoadManipulator, SnapConfig, World};
+use utils::input;
 
 use gfx_api::GfxRoadData;
 use glam::*;
-use simulation::{CurveType, RoadManipulator, SnapConfig, World};
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use utils::input;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Mode {
@@ -24,7 +25,7 @@ pub struct ConstructTool {
     gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
     world: World,
 
-    state_handle: Rc<RefCell<crate::ToolState>>,
+    state_handle: Rc<RefCell<ToolState>>,
     sel_node: Option<SnapConfig>,
     snapped_node: Option<SnapConfig>,
     road_generator: RoadGeneratorTool,
@@ -33,7 +34,7 @@ pub struct ConstructTool {
     mode: Mode,
 }
 
-impl crate::ToolStrategy for ConstructTool {
+impl ToolStrategy for ConstructTool {
     fn process_keyboard(&mut self, key: input::KeyAction) {
         use input::Action::*;
         use input::KeyState::*;
@@ -133,7 +134,7 @@ impl ConstructTool {
     pub(crate) fn new(
         gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
         world: World,
-        state_handle: Rc<RefCell<crate::ToolState>>,
+        state_handle: Rc<RefCell<ToolState>>,
         ground_pos: Vec3,
     ) -> Self {
         let mut tool = Self {

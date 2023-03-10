@@ -1,9 +1,13 @@
+use super::ToolStrategy;
+
+use simulation::{RoadManipulator, World};
+use utils::input;
+
 use gfx_api::GfxRoadData;
 use glam::*;
-use simulation::{RoadManipulator, World};
+
 use std::cell::RefCell;
 use std::rc::Rc;
-use utils::input;
 
 pub struct BulldozeTool {
     gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
@@ -11,7 +15,7 @@ pub struct BulldozeTool {
     ground_pos: Vec3,
 }
 
-impl crate::ToolStrategy for BulldozeTool {
+impl ToolStrategy for BulldozeTool {
     fn process_keyboard(&mut self, _key: input::KeyAction) {}
 
     fn left_click(&mut self) {

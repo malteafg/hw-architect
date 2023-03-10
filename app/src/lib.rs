@@ -1,3 +1,12 @@
+mod camera_controller;
+mod configuration;
+mod input_handler;
+
+use camera_controller::CameraController;
+use gfx_api::Gfx;
+use tool::WorldTool;
+use utils::input;
+
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -9,13 +18,6 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-mod configuration;
-mod input_handler;
-
-use gfx_api::Gfx;
-use tool::{camera_controller, WorldTool};
-use utils::input;
-
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -26,7 +28,7 @@ struct State {
     gfx_handle: Rc<RefCell<gfx_wgpu::GfxState>>,
     window_size: PhysicalSize<u32>,
     camera: gfx_api::Camera,
-    camera_controller: camera_controller::CameraController,
+    camera_controller: CameraController,
     input_handler: input_handler::InputHandler,
     tool: WorldTool,
     ground_pos: Vec3,
@@ -44,7 +46,7 @@ impl State {
             50.0f32.to_radians(),
             100.0,
         );
-        let camera_controller = camera_controller::CameraController::default();
+        let camera_controller = CameraController::default();
 
         let gfx_handle = Rc::new(RefCell::new(gfx));
         let gfx_handle_tool = Rc::clone(&gfx_handle);
