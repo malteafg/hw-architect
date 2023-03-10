@@ -1,5 +1,5 @@
+use crate::primitives::{ModelVertex, SimpleModelVertex};
 use crate::renderer::terrain_renderer::TerrainVertex;
-use crate::{model::ModelVertex, simple_model::SimpleModelVertex};
 use gfx_api::{InstanceRaw, RoadVertex};
 use std::mem;
 

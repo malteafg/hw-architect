@@ -1,18 +1,19 @@
 mod road_renderer;
 pub mod terrain_renderer;
 
-use glam::*;
-use utils::Mat4Utils;
-use wgpu::util::DeviceExt;
-
-use crate::vertex::Vertex;
-use winit::{dpi::PhysicalSize, window::Window};
-
-use crate::{model, resources, texture};
-use std::collections::HashMap;
-use std::rc::Rc;
+// use crate::vertex::Vertex;
+use crate::primitives;
+use crate::resources;
 
 use utils::id::SegmentId;
+use utils::Mat4Utils;
+
+use glam::*;
+use wgpu::util::DeviceExt;
+use winit::{dpi::PhysicalSize, window::Window};
+
+use std::collections::HashMap;
+use std::rc::Rc;
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: Mat4 = Mat4::from_cols(
@@ -69,8 +70,8 @@ pub struct GfxState {
     projection: Projection,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
-    depth_texture: texture::Texture,
-    obj_model: model::Model,
+    depth_texture: primitives::Texture,
+    obj_model: primitives::Model,
     light_uniform: LightUniform,
     light_buffer: wgpu::Buffer,
     light_bind_group: wgpu::BindGroup,
@@ -279,7 +280,7 @@ impl GfxState {
         });
 
         let depth_texture =
-            texture::Texture::create_depth_texture(&device, &config, "depth_texture");
+            primitives::Texture::create_depth_texture(&device, &config, "depth_texture");
 
         let obj_model =
             resources::load_model("sphere", &device, &queue, &texture_bind_group_layout)
@@ -327,6 +328,7 @@ impl GfxState {
             label: None,
         });
 
+        use primitives::Vertex;
         let light_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Light Pipeline Layout"),
@@ -337,8 +339,8 @@ impl GfxState {
                 &device,
                 &layout,
                 config.format,
-                Some(texture::Texture::DEPTH_FORMAT),
-                &[model::ModelVertex::desc()],
+                Some(primitives::Texture::DEPTH_FORMAT),
+                &[primitives::ModelVertex::desc()],
                 shaders.remove(crate::shaders::LIGHT).unwrap(),
                 "Light Pipeline",
             )
@@ -429,7 +431,7 @@ impl gfx_api::Gfx for GfxState {
             render_pass.render_terrain(&self.terrain_renderer, &self.camera_bind_group);
 
             // render light
-            use model::DrawLight;
+            use primitives::DrawLight;
             render_pass.set_pipeline(&self.light_render_pipeline);
             render_pass.draw_light_model(
                 &self.obj_model,
@@ -460,7 +462,7 @@ impl gfx_api::Gfx for GfxState {
         }
 
         self.depth_texture =
-            texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
+            primitives::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
 
         self.projection.resize(new_size.width, new_size.height);
     }

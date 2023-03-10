@@ -1,18 +1,19 @@
-use std::io::{BufReader, Cursor};
+use crate::primitives;
+
+use utils::loader;
 
 use wgpu::util::DeviceExt;
 
-use crate::{model, simple_model, texture};
-use utils::loader;
+use std::io::{BufReader, Cursor};
 
 pub async fn load_texture(
     file_name: &str,
     is_normal_map: bool,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
-) -> anyhow::Result<texture::Texture> {
+) -> anyhow::Result<primitives::Texture> {
     let data = loader::load_binary(file_name).await?;
-    texture::Texture::from_bytes(device, queue, &data, file_name, is_normal_map)
+    primitives::Texture::from_bytes(device, queue, &data, file_name, is_normal_map)
 }
 
 /// Loads 3D models from the res/models directory. To load the cube model for
@@ -22,7 +23,7 @@ pub async fn load_model(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     layout: &wgpu::BindGroupLayout,
-) -> anyhow::Result<model::Model> {
+) -> anyhow::Result<primitives::Model> {
     let path = format!("models/{file_name}/");
     let obj_text = loader::load_string(&format!("{path}{file_name}.obj")).await?;
     let obj_cursor = Cursor::new(obj_text);
@@ -53,7 +54,7 @@ pub async fn load_model(
         let normal_texture =
             load_texture(&format!("{path}{normal_path}"), true, device, queue).await?;
 
-        materials.push(model::Material::new(
+        materials.push(primitives::Material::new(
             device,
             &m.name,
             diffuse_texture,
@@ -68,7 +69,7 @@ pub async fn load_model(
         .into_iter()
         .map(|m| {
             let mut vertices = (0..m.mesh.positions.len() / 3)
-                .map(|i| model::ModelVertex {
+                .map(|i| primitives::ModelVertex {
                     position: [
                         m.mesh.positions[i * 3],
                         m.mesh.positions[i * 3 + 1],
@@ -165,7 +166,7 @@ pub async fn load_model(
                 usage: wgpu::BufferUsages::INDEX,
             });
 
-            model::Mesh {
+            primitives::Mesh {
                 name: file_name.to_string(),
                 vertex_buffer,
                 index_buffer,
@@ -175,14 +176,14 @@ pub async fn load_model(
         })
         .collect::<Vec<_>>();
 
-    Ok(model::Model { meshes, materials })
+    Ok(primitives::Model { meshes, materials })
 }
 
 /// Will not load on web.
 pub async fn load_simple_model(
     file_name: &str,
     device: &wgpu::Device,
-) -> anyhow::Result<simple_model::SimpleModel> {
+) -> anyhow::Result<primitives::SimpleModel> {
     // let path = format!("models/{file_name}/");
     // let obj_text = loader::load_string(&format!("{path}{file_name}.obj")).await?;
     // let obj_cursor = Cursor::new(obj_text);
@@ -206,7 +207,7 @@ pub async fn load_simple_model(
     let obj_vertices = &models[0].mesh.positions;
     let obj_indices = &models[0].mesh.indices;
     let vertices: Vec<_> = (0..obj_vertices.len() / 3)
-        .map(|i| simple_model::SimpleModelVertex {
+        .map(|i| primitives::SimpleModelVertex {
             position: [
                 obj_vertices[i * 3],
                 obj_vertices[i * 3 + 1],
@@ -226,7 +227,7 @@ pub async fn load_simple_model(
         contents: bytemuck::cast_slice(&obj_indices),
         usage: wgpu::BufferUsages::INDEX,
     });
-    Result::Ok(simple_model::SimpleModel {
+    Result::Ok(primitives::SimpleModel {
         name: file_name.to_string(),
         vertex_buffer,
         index_buffer,

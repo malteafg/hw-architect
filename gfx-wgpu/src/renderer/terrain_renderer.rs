@@ -1,6 +1,9 @@
+use crate::primitives;
+
 use rand::prelude::*;
-use std::rc::Rc;
 use wgpu::util::DeviceExt;
+
+use std::rc::Rc;
 
 pub(super) struct TerrainState {
     // device: Rc<wgpu::Device>,
@@ -24,12 +27,12 @@ impl TerrainState {
                 bind_group_layouts: &[camera_bind_group_layout],
                 push_constant_ranges: &[],
             });
-            use crate::vertex::Vertex;
+            use primitives::Vertex;
             super::create_render_pipeline(
                 &device,
                 &layout,
                 color_format,
-                Some(crate::texture::Texture::DEPTH_FORMAT),
+                Some(primitives::Texture::DEPTH_FORMAT),
                 &[TerrainVertex::desc()],
                 terrain_shader,
                 "terrain_pipeline",
