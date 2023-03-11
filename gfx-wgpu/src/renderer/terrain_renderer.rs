@@ -5,7 +5,7 @@ use wgpu::util::DeviceExt;
 
 use std::rc::Rc;
 
-pub(super) struct TerrainState {
+pub struct TerrainState {
     // device: Rc<wgpu::Device>,
     // queue: Rc<wgpu::Queue>,
     terrain_mesh: TerrainMesh,
@@ -48,7 +48,7 @@ impl TerrainState {
     }
 }
 
-pub(super) trait RenderTerrain<'a> {
+pub trait RenderTerrain<'a> {
     fn render_terrain(
         &mut self,
         terrain_state: &'a TerrainState,

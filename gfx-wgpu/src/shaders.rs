@@ -37,12 +37,6 @@ pub fn load_shaders(device: &wgpu::Device) -> ShaderMap {
     load_shader(
         device,
         &mut shaders,
-        LIGHT,
-        wgpu::ShaderSource::Wgsl(include_str!("shaders/light.wgsl").into()),
-    );
-    load_shader(
-        device,
-        &mut shaders,
         SIMPLE,
         wgpu::ShaderSource::Wgsl(include_str!("shaders/simple.wgsl").into()),
     );

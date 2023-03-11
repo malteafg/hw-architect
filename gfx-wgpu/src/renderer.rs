@@ -1,5 +1,6 @@
 mod road_renderer;
 pub mod terrain_renderer;
+mod tree_renderer;
 
 // use crate::vertex::Vertex;
 use crate::primitives;
@@ -78,9 +79,10 @@ pub struct GfxState {
     light_render_pipeline: wgpu::RenderPipeline,
     terrain_renderer: terrain_renderer::TerrainState,
     road_renderer: road_renderer::RoadState,
+    tree_renderer: tree_renderer::TreeState,
 }
 
-pub(crate) fn create_render_pipeline(
+fn create_render_pipeline(
     device: &wgpu::Device,
     layout: &wgpu::PipelineLayout,
     color_format: wgpu::TextureFormat,
@@ -291,6 +293,11 @@ impl GfxState {
             .await
             .unwrap();
 
+        let tree_model =
+            resources::load_model("tree_test", &device, &queue, &texture_bind_group_layout)
+                .await
+                .unwrap();
+
         let light_uniform = LightUniform {
             position: [2.0, 2.0, 2.0],
             _padding: 0,
@@ -359,11 +366,19 @@ impl GfxState {
             config.format,
             shaders.remove(crate::shaders::ROAD).unwrap(),
             &camera_bind_group_layout,
+            shaders.remove(crate::shaders::SIMPLE).unwrap(),
+            test_model,
+        );
+
+        let tree_renderer = tree_renderer::TreeState::new(
+            Rc::clone(&device),
+            Rc::clone(&queue),
+            config.format,
+            &camera_bind_group_layout,
             &texture_bind_group_layout,
             &light_bind_group_layout,
             shaders.remove(crate::shaders::BASIC).unwrap(),
-            shaders.remove(crate::shaders::SIMPLE).unwrap(),
-            test_model,
+            tree_model,
         );
 
         Self {
@@ -384,6 +399,7 @@ impl GfxState {
             light_render_pipeline,
             terrain_renderer,
             road_renderer,
+            tree_renderer,
         }
     }
 }
@@ -440,11 +456,13 @@ impl gfx_api::Gfx for GfxState {
             );
 
             use road_renderer::RenderRoad;
-            render_pass.render_roads(
-                &self.road_renderer,
+            render_pass.render_roads(&self.road_renderer, &self.camera_bind_group);
+
+            use tree_renderer::RenderTrees;
+            render_pass.render_trees(
+                &self.tree_renderer,
                 &self.camera_bind_group,
                 &self.light_bind_group,
-                &self.obj_model,
             );
         }
 
@@ -482,41 +500,6 @@ impl gfx_api::Gfx for GfxState {
             bytemuck::cast_slice(&[self.light_uniform]),
         );
     }
-
-    // fn add_instance(&mut self, position: Vec3) {
-    //     let rotation = if position == Vec3::ZERO {
-    //         Quat::from_axis_angle(Vec3::Z, 0.0)
-    //     } else {
-    //         Quat::from_axis_angle(position.normalize(), std::f32::consts::PI / 4.)
-    //     };
-    //     self.instances.push(Instance { position, rotation });
-    //     let instance_data = self
-    //         .instances
-    //         .iter()
-    //         .map(Instance::to_raw)
-    //         .collect::<Vec<_>>();
-    //     self.instance_buffer.write(
-    //         &self.queue,
-    //         &self.device,
-    //         &bytemuck::cast_slice(&instance_data),
-    //     );
-    // }
-
-    // fn remove_instance(&mut self) {
-    //     if self.instances.len() != 0 {
-    //         self.instances.remove(0);
-    //         let instance_data = self
-    //             .instances
-    //             .iter()
-    //             .map(Instance::to_raw)
-    //             .collect::<Vec<_>>();
-    //         self.instance_buffer.write(
-    //             &self.queue,
-    //             &self.device,
-    //             &bytemuck::cast_slice(&instance_data),
-    //         );
-    //     }
-    // }
 }
 
 use gfx_api::Camera;

@@ -216,7 +216,6 @@ pub async fn load_simple_model(
         })
         .collect();
 
-    dbg!(vertices.clone());
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some(&format!("{:?} Vertex Buffer", file_name)),
         contents: bytemuck::cast_slice(&vertices),
