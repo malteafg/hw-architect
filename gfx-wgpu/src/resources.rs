@@ -24,6 +24,8 @@ pub async fn load_model(
     queue: &wgpu::Queue,
     layout: &wgpu::BindGroupLayout,
 ) -> anyhow::Result<primitives::Model> {
+    let mut timer = utils::time::Timer::new();
+
     let path = format!("models/{file_name}/");
     let obj_text = loader::load_string(&format!("{path}{file_name}.obj")).await?;
     let obj_cursor = Cursor::new(obj_text);
@@ -45,14 +47,18 @@ pub async fn load_model(
     )
     .await?;
 
+    timer.emit("model_loaded");
+
     let mut materials = Vec::new();
     for m in obj_materials? {
         let diffuse_path = m.diffuse_texture;
         let normal_path = m.normal_texture;
         let diffuse_texture =
             load_texture(&format!("{path}{diffuse_path}"), false, device, queue).await?;
+        timer.emit("diffuse_loaded");
         let normal_texture =
             load_texture(&format!("{path}{normal_path}"), true, device, queue).await?;
+        timer.emit("normal_loaded");
 
         materials.push(primitives::Material::new(
             device,
@@ -62,6 +68,8 @@ pub async fn load_model(
             layout,
         ));
     }
+
+    timer.emit("materials_loaded");
 
     use glam::*;
 
@@ -176,6 +184,7 @@ pub async fn load_model(
         })
         .collect::<Vec<_>>();
 
+    timer.emit("model_completed");
     Ok(primitives::Model { meshes, materials })
 }
 

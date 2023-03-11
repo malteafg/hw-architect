@@ -152,6 +152,8 @@ impl GfxState {
     where
         W: raw_window_handle::HasRawWindowHandle + raw_window_handle::HasRawDisplayHandle,
     {
+        let mut timer = utils::time::Timer::new();
+
         // instance is a handle to the GPU in use
         // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(wgpu::Backends::all());
@@ -200,8 +202,7 @@ impl GfxState {
         };
         surface.configure(&device, &config);
 
-        // load shaders
-        let mut shaders = crate::shaders::load_shaders(&device);
+        timer.emit("init_gfx_time");
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -282,23 +283,6 @@ impl GfxState {
             label: Some("camera_bind_group"),
         });
 
-        let depth_texture =
-            primitives::Texture::create_depth_texture(&device, &config, "depth_texture");
-
-        let obj_model =
-            resources::load_model("sphere", &device, &queue, &texture_bind_group_layout)
-                .await
-                .unwrap();
-
-        let test_model = resources::load_simple_model("simple_test", &device)
-            .await
-            .unwrap();
-
-        let tree_model =
-            resources::load_model("tree_test", &device, &queue, &texture_bind_group_layout)
-                .await
-                .unwrap();
-
         let light_uniform = LightUniform {
             position: [2.0, 2.0, 2.0],
             _padding: 0,
@@ -336,6 +320,34 @@ impl GfxState {
             label: None,
         });
 
+        let depth_texture =
+            primitives::Texture::create_depth_texture(&device, &config, "depth_texture");
+
+        timer.emit("setup_time");
+
+        // load shaders
+        let mut shaders = crate::shaders::load_shaders(&device);
+
+        timer.emit("shader_time");
+
+        let obj_model =
+            resources::load_model("sphere", &device, &queue, &texture_bind_group_layout)
+                .await
+                .unwrap();
+        timer.emit("obj_model");
+
+        let test_model = resources::load_simple_model("simple_test", &device)
+            .await
+            .unwrap();
+        timer.emit("test_model");
+
+        let tree_model =
+            resources::load_model("tree_test", &device, &queue, &texture_bind_group_layout)
+                .await
+                .unwrap();
+
+        timer.emit("tree_model");
+
         use primitives::Vertex;
         let light_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -354,6 +366,8 @@ impl GfxState {
             )
         };
 
+        timer.emit("light_time");
+
         let terrain_renderer = terrain_renderer::TerrainState::new(
             Rc::clone(&device),
             // Rc::clone(&queue),
@@ -361,6 +375,9 @@ impl GfxState {
             shaders.remove(crate::shaders::TERRAIN).unwrap(),
             &camera_bind_group_layout,
         );
+
+        timer.emit("terrain_time");
+
         let road_renderer = road_renderer::RoadState::new(
             Rc::clone(&device),
             Rc::clone(&queue),
@@ -370,6 +387,8 @@ impl GfxState {
             shaders.remove(crate::shaders::SIMPLE).unwrap(),
             test_model,
         );
+
+        timer.emit("road_time");
 
         let tree_renderer = tree_renderer::TreeState::new(
             Rc::clone(&device),
@@ -381,6 +400,8 @@ impl GfxState {
             shaders.remove(crate::shaders::BASIC).unwrap(),
             tree_model,
         );
+
+        timer.emit("tree_time");
 
         Self {
             surface,

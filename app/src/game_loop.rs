@@ -25,12 +25,19 @@ pub async fn run() {
         }
     }
 
+    let mut timer = utils::time::Timer::new();
+
     // load configuration
     let config = configuration::load_config().await.unwrap();
     let window_width = config.window.width as u32;
     let window_height = config.window.height as u32;
+
+    timer.emit("config_time");
+
     let key_map = configuration::load_key_map(config.key_map).await.unwrap();
     let input_handler = input_handler::InputHandler::new(key_map);
+
+    timer.emit("input_time");
 
     // create event_loop and window
     let event_loop = EventLoop::new();
@@ -38,6 +45,8 @@ pub async fn run() {
     window.set_title("Highway Architect");
     window.set_inner_size(PhysicalSize::new(window_width, window_height));
     window.set_outer_position(PhysicalPosition::new(0, 0));
+
+    timer.emit("window_time");
 
     #[cfg(target_arch = "wasm32")]
     {
@@ -59,7 +68,13 @@ pub async fn run() {
 
     // Create handle to graphics card. Change line to use different gpu backend.
     let gfx = gfx_wgpu::GfxState::new(&window, window_width, window_height).await;
+
+    timer.emit("gfx_time");
+
     let mut state = state::State::new(gfx, window_width, window_height, input_handler).await;
+
+    timer.emit("state_time");
+    timer.elapsed();
 
     let mut last_render_time = instant::Instant::now();
     event_loop.run(move |event, _, control_flow| {

@@ -59,7 +59,9 @@ impl Texture {
         label: &str,
         is_normal_map: bool,
     ) -> Result<Self> {
+        let mut timer = utils::time::Timer::new();
         let img = image::load_from_memory(bytes)?;
+        timer.emit("from_memory_loaded");
         Self::from_image(device, queue, &img, Some(label), is_normal_map)
     }
 
