@@ -1,7 +1,5 @@
 use crate::primitives;
-use crate::primitives::{DBuffer, Instance, Model};
-
-use gfx_api::InstanceRaw;
+use crate::primitives::{DBuffer, Instance, InstanceRaw, Model};
 
 use glam::*;
 

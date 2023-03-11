@@ -18,10 +18,49 @@ const MOUSE_VERTICAL_SENSITIVITY: f32 = 0.002;
 
 const NUM_OF_MOVE_BUTTONS: i32 = 6;
 
-// const SAFE_FRAC_PI_2: f32 = FRAC_PI_2 - 0.0001;
+#[derive(Debug, Clone, Copy)]
+pub struct Camera {
+    /// The point that the camera is tracking. For now this is a point on the terrain.
+    pub target: Vec3,
+    pub pitch: f32,
+    pub yaw: f32,
+    pub dist_to_target: f32,
+}
+
+impl Camera {
+    pub fn new(target: Vec3, pitch: f32, yaw: f32, dist_to_target: f32) -> Self {
+        Self {
+            target,
+            pitch,
+            yaw,
+            dist_to_target,
+        }
+    }
+
+    /// Computes and returns the camera's current position
+    pub fn calc_pos(&self) -> Vec3 {
+        let (sin_pitch, cos_pitch) = self.pitch.sin_cos();
+        let (sin_yaw, cos_yaw) = self.yaw.sin_cos();
+
+        self.target
+            + (Vec3::new(-cos_yaw, 0.0, -sin_yaw) * cos_pitch + Vec3::new(0.0, sin_pitch, 0.0))
+                * self.dist_to_target
+    }
+}
+
+impl Into<gfx_api::RawCameraData> for Camera {
+    fn into(self) -> gfx_api::RawCameraData {
+        gfx_api::RawCameraData {
+            pos: self.calc_pos().into(),
+            pitch: self.pitch,
+            yaw: self.yaw,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct CameraController {
+    camera: Camera,
     input: [bool; NUM_OF_MOVE_BUTTONS as usize],
     velocity: [i32; (2 + NUM_OF_MOVE_BUTTONS) as usize],
     delta_pitch: f32,
@@ -36,9 +75,11 @@ pub struct CameraController {
     move_init: bool,
 }
 
-impl Default for CameraController {
-    fn default() -> Self {
+impl CameraController {
+    pub fn new(target: Vec3, pitch: f32, yaw: f32, dist_to_target: f32) -> Self {
+        let camera = Camera::new(target, pitch, yaw, dist_to_target);
         Self {
+            camera,
             input: [false; NUM_OF_MOVE_BUTTONS as usize],
             velocity: [0; (2 + NUM_OF_MOVE_BUTTONS) as usize],
             delta_pitch: 0.0,
@@ -53,9 +94,15 @@ impl Default for CameraController {
             move_init: false,
         }
     }
-}
 
-impl CameraController {
+    pub fn get_raw_camera(&self) -> gfx_api::RawCameraData {
+        self.camera.into()
+    }
+
+    pub fn get_camera_pos(&self) -> Vec3 {
+        self.camera.calc_pos()
+    }
+
     pub fn _linear_move(f: f32) -> f32 {
         f
     }
@@ -170,19 +217,20 @@ impl CameraController {
         }
     }
 
-    pub fn update_camera(&mut self, camera: &mut gfx_api::Camera, dt: Duration) -> bool {
+    pub fn update_camera(&mut self, dt: Duration) -> bool {
         let dt = dt.as_secs_f32();
 
-        let pos = camera.calc_pos();
+        let pos = self.camera.calc_pos();
         if self.progression_speed > 0.0 {
-            self.update_progress(camera, dt)
+            self.update_progress(dt)
         } else {
-            self.update_manuel(camera, dt)
+            self.update_manually(dt)
         }
-        pos != camera.calc_pos()
+        pos != self.camera.calc_pos()
     }
 
-    fn update_progress(&mut self, camera: &mut gfx_api::Camera, dt: f32) {
+    fn update_progress(&mut self, dt: f32) {
+        let mut camera = &mut self.camera;
         if self.move_init {
             self.move_init = false;
             self.progression_speed *= 36.0
@@ -227,7 +275,8 @@ impl CameraController {
         }
     }
 
-    fn update_manuel(&mut self, camera: &mut gfx_api::Camera, dt: f32) {
+    fn update_manually(&mut self, dt: f32) {
+        let mut camera = &mut self.camera;
         camera.yaw = center(camera.yaw - self.delta_yaw, PI);
         camera.pitch = restrainf(
             camera.pitch + self.delta_pitch,

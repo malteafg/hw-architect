@@ -1,7 +1,5 @@
 use utils::{Mat3Utils, Mat4Utils};
 
-use gfx_api::InstanceRaw;
-
 use glam::{Mat3, Mat4, Quat, Vec3};
 
 pub struct Instance {
@@ -21,4 +19,11 @@ impl Instance {
             normal: Mat3::from_quat(self.rotation).to_3x3(),
         }
     }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct InstanceRaw {
+    pub model: [[f32; 4]; 4],
+    pub normal: [[f32; 3]; 3],
 }

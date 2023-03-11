@@ -1,10 +1,9 @@
 use crate::primitives;
-use crate::primitives::{DBuffer, Instance, VIBuffer};
+use crate::primitives::{DBuffer, Instance, InstanceRaw, VIBuffer};
 
 use utils::id::SegmentId;
 
 // temporary, remove once proper road markings
-use gfx_api::InstanceRaw;
 use gfx_api::RoadMesh;
 use glam::*;
 use wgpu::util::DeviceExt;
@@ -191,7 +190,7 @@ impl RoadState {
                 &layout,
                 color_format,
                 Some(primitives::Texture::DEPTH_FORMAT),
-                &[gfx_api::RoadVertex::desc()],
+                &[<[f32; 3]>::desc()],
                 road_shader,
                 "road_render_pipeline",
             )
@@ -310,11 +309,11 @@ impl gfx_api::GfxRoadData for RoadState {
         }
     }
 
-    fn set_node_markers(&mut self, markers: Vec<Vec3>) {
+    fn set_node_markers(&mut self, markers: Vec<[f32; 3]>) {
         self.num_markers = markers.len() as u32;
         let instance_data = markers
             .into_iter()
-            .map(|pos| Instance::new(pos, glam::Quat::IDENTITY))
+            .map(|pos| Instance::new(Vec3::from_array(pos), glam::Quat::IDENTITY))
             .collect::<Vec<_>>()
             .iter()
             .map(Instance::to_raw)

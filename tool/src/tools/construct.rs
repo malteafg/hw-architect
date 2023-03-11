@@ -8,7 +8,7 @@ use utils::input;
 use world::roads::{CurveType, SnapConfig};
 use world::{RoadManipulator, World};
 
-use gfx_api::GfxRoadData;
+use gfx_api::{GfxRoadData, RoadMesh};
 use glam::*;
 
 use std::cell::RefCell;
@@ -126,7 +126,7 @@ impl ToolStrategy for ConstructTool {
         self.gfx_handle.borrow_mut().set_node_markers(vec![]);
         self.gfx_handle
             .borrow_mut()
-            .set_road_tool_mesh(Some(generator::empty_mesh()));
+            .set_road_tool_mesh(Some(RoadMesh::empty()));
         self.world
     }
 }
@@ -324,7 +324,7 @@ impl ConstructTool {
     /// Updates the construct tool when there is no node that we should snap to.
     fn update_no_snap(&mut self) {
         self.snapped_node = None;
-        let empty_mesh = Some(generator::empty_mesh());
+        let empty_mesh = Some(RoadMesh::empty());
 
         match self.mode {
             Mode::SelectPos => self.gfx_handle.borrow_mut().set_road_tool_mesh(empty_mesh),
@@ -415,7 +415,7 @@ impl ConstructTool {
             .get_road_graph()
             .get_possible_snap_nodes(reverse, self.get_sel_road_type().node_type)
             .iter()
-            .map(|id| self.world.get_road_graph().get_node(*id).get_pos())
+            .map(|id| self.world.get_road_graph().get_node(*id).get_pos().into())
             .collect();
 
         self.gfx_handle

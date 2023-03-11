@@ -11,7 +11,7 @@ use utils::Mat4Utils;
 
 use glam::*;
 use wgpu::util::DeviceExt;
-use winit::{dpi::PhysicalSize, window::Window};
+use winit::window::Window;
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -253,7 +253,7 @@ impl GfxState {
 
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
-            contents: bytemuck::cast_slice(&[gfx_api::CameraView::default()]),
+            contents: bytemuck::cast_slice(&[CameraView::default()]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -472,17 +472,18 @@ impl gfx_api::Gfx for GfxState {
         Ok(())
     }
 
-    fn resize(&mut self, new_size: PhysicalSize<u32>) {
-        if new_size.width > 0 && new_size.height > 0 {
-            self.config.width = new_size.width;
-            self.config.height = new_size.height;
-            self.surface.configure(&self.device, &self.config);
+    fn resize(&mut self, width: u32, height: u32) {
+        if width > 0 || height > 0 {
+            return;
         }
+        self.config.width = width;
+        self.config.height = height;
+        self.surface.configure(&self.device, &self.config);
 
         self.depth_texture =
             primitives::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
 
-        self.projection.resize(new_size.width, new_size.height);
+        self.projection.resize(width, height);
     }
 
     fn update(&mut self, dt: instant::Duration) {
@@ -502,7 +503,6 @@ impl gfx_api::Gfx for GfxState {
     }
 }
 
-use gfx_api::Camera;
 use gfx_api::RoadMesh;
 
 /// This implementation simply passes the information along to the road_renderer
@@ -523,34 +523,80 @@ impl gfx_api::GfxRoadData for GfxState {
         self.road_renderer.set_road_tool_mesh(road_mesh);
     }
 
-    fn set_node_markers(&mut self, markers: Vec<Vec3>) {
+    fn set_node_markers(&mut self, markers: Vec<[f32; 3]>) {
         self.road_renderer.set_node_markers(markers);
     }
 }
 
+// Represents a cameras position and projection view matrix in raw form. It cannot be computed
+// without the projection from the gpu side
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct CameraView {
+    view_pos: [f32; 4],
+    view_proj: [[f32; 4]; 4],
+}
+
+impl Default for CameraView {
+    fn default() -> Self {
+        Self {
+            view_pos: [0.0; 4],
+            view_proj: [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ],
+        }
+    }
+}
+
+impl CameraView {
+    pub fn new(view_pos: [f32; 4], view_proj: [[f32; 4]; 4]) -> Self {
+        Self {
+            view_pos,
+            view_proj,
+        }
+    }
+}
+
+use gfx_api::RawCameraData;
+
+/// Computes and returns the camera's current view matrix
+fn compute_view_matrix(camera: RawCameraData) -> Mat4 {
+    let (sin_pitch, cos_pitch) = camera.pitch.sin_cos();
+    let (sin_yaw, cos_yaw) = camera.yaw.sin_cos();
+
+    Mat4::look_to_rh(
+        Vec3::from_array(camera.pos),
+        Vec3::new(cos_pitch * cos_yaw, -sin_pitch, cos_pitch * sin_yaw).normalize(),
+        Vec3::Y,
+    )
+}
+
 impl gfx_api::GfxCameraData for GfxState {
-    fn update_camera(&mut self, camera: &Camera) {
-        let view_pos = camera.calc_pos().extend(1.0).into();
+    fn update_camera(&mut self, camera: RawCameraData) {
+        let view_pos = Vec3::from_array(camera.pos).extend(1.0).into();
         let view_proj =
-            (OPENGL_TO_WGPU_MATRIX * self.projection.calc_matrix() * camera.compute_view_matrix())
+            (OPENGL_TO_WGPU_MATRIX * self.projection.calc_matrix() * compute_view_matrix(camera))
                 .to_4x4();
-        let camera_view = gfx_api::CameraView::new(view_pos, view_proj);
+        let camera_view = CameraView::new(view_pos, view_proj);
         self.queue
             .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[camera_view]));
     }
 
-    fn compute_ray(&self, mouse_pos: Vec2, camera: &Camera) -> utils::Ray {
+    fn compute_ray(&self, mouse_pos: [f32; 2], camera: RawCameraData) -> [f32; 3] {
         let screen_vec = Vec4::new(
-            2.0 * mouse_pos.x as f32 / self.window_width as f32 - 1.0,
-            1.0 - 2.0 * mouse_pos.y as f32 / self.window_height as f32,
+            2.0 * mouse_pos[0] as f32 / self.window_width as f32 - 1.0,
+            1.0 - 2.0 * mouse_pos[1] as f32 / self.window_height as f32,
             1.0,
             1.0,
         );
         let eye_vec = self.projection.calc_matrix().inverse() * screen_vec;
         let full_vec =
-            camera.compute_view_matrix().inverse() * Vec4::new(eye_vec.x, eye_vec.y, -1.0, 0.0);
+            compute_view_matrix(camera).inverse() * Vec4::new(eye_vec.x, eye_vec.y, -1.0, 0.0);
         let processed_vec = Vec3::new(full_vec.x, full_vec.y, full_vec.z).normalize();
 
-        utils::Ray::new(camera.calc_pos(), processed_vec)
+        processed_vec.into()
     }
 }

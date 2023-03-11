@@ -27,7 +27,6 @@ struct State {
     /// uses the GfxRoadData trait.
     gfx_handle: Rc<RefCell<gfx_wgpu::GfxState>>,
     window_size: PhysicalSize<u32>,
-    camera: gfx_api::Camera,
     camera_controller: CameraController,
     input_handler: input_handler::InputHandler,
     tool: WorldTool,
@@ -40,13 +39,12 @@ impl State {
         let gfx = gfx_wgpu::GfxState::new(window).await;
         let window_size = window.inner_size();
 
-        let camera = gfx_api::Camera::new(
+        let camera_controller = CameraController::new(
             Vec3::new(0.0, 0.0, 0.0),
-            2.0f32.to_radians(),
             50.0f32.to_radians(),
+            2.0f32.to_radians(),
             100.0,
         );
-        let camera_controller = CameraController::default();
 
         let gfx_handle = Rc::new(RefCell::new(gfx));
         let gfx_handle_tool = Rc::clone(&gfx_handle);
@@ -54,7 +52,6 @@ impl State {
         Self {
             gfx_handle,
             window_size,
-            camera,
             camera_controller,
             input_handler,
             tool: WorldTool::new(gfx_handle_tool, world::World::new()),
@@ -80,28 +77,34 @@ impl State {
     }
 
     fn update(&mut self, dt: instant::Duration) {
-        if self.camera_controller.update_camera(&mut self.camera, dt) {
+        if self.camera_controller.update_camera(dt) {
             self.update_ground_pos();
         }
         use gfx_api::GfxCameraData;
-        self.gfx_handle.borrow_mut().update_camera(&self.camera);
+        self.gfx_handle
+            .borrow_mut()
+            .update_camera(self.camera_controller.get_raw_camera());
         self.gfx_handle.borrow_mut().update(dt);
     }
 
     fn update_ground_pos(&mut self) {
         let mouse_pos = self.input_handler.get_mouse_pos();
         use gfx_api::GfxCameraData;
-        let ray = self.gfx_handle.borrow_mut().compute_ray(
-            glam::Vec2::new(mouse_pos.x as f32, mouse_pos.y as f32),
-            &self.camera,
+        let ray_dir = self.gfx_handle.borrow_mut().compute_ray(
+            [mouse_pos.x as f32, mouse_pos.y as f32],
+            self.camera_controller.get_raw_camera(),
         );
-        let ground_pos = ray.pos + ray.dir * (-ray.pos.y / ray.dir.y);
+        let ray_dir = Vec3::from_array(ray_dir);
+        let cam_pos = self.camera_controller.get_camera_pos();
+        let ground_pos = cam_pos + ray_dir * (-cam_pos.y / ray_dir.y);
         self.ground_pos = ground_pos;
         self.tool.update_ground_pos(self.ground_pos);
     }
 
     fn resize(&mut self, new_size: PhysicalSize<u32>) {
-        self.gfx_handle.borrow_mut().resize(new_size);
+        self.gfx_handle
+            .borrow_mut()
+            .resize(new_size.width, new_size.height);
     }
 }
 
