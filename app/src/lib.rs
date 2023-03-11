@@ -3,7 +3,9 @@ mod configuration;
 mod input_handler;
 
 use camera_controller::CameraController;
+
 use gfx_api::Gfx;
+use gfx_wgpu::GfxState;
 use tool::WorldTool;
 use utils::input;
 
@@ -25,7 +27,7 @@ struct State {
     /// The handle to the graphics card. A reference counter is used such that the road tool can
     /// also have a reference to the gfx_handle. Functionality is still separated as road tool only
     /// uses the GfxRoadData trait.
-    gfx_handle: Rc<RefCell<gfx_wgpu::GfxState>>,
+    gfx_handle: Rc<RefCell<GfxState>>,
     window_size: PhysicalSize<u32>,
     camera_controller: CameraController,
     input_handler: input_handler::InputHandler,
@@ -34,10 +36,14 @@ struct State {
 }
 
 impl State {
-    async fn new(window: &Window, input_handler: input_handler::InputHandler) -> Self {
+    async fn new(
+        window: &Window,
+        window_width: u32,
+        window_height: u32,
+        input_handler: input_handler::InputHandler,
+    ) -> Self {
         // change line to use other gpu backend
-        let gfx = gfx_wgpu::GfxState::new(window).await;
-        let window_size = window.inner_size();
+        let gfx = GfxState::new(window, window_width, window_height).await;
 
         let camera_controller = CameraController::new(
             Vec3::new(0.0, 0.0, 0.0),
@@ -48,6 +54,8 @@ impl State {
 
         let gfx_handle = Rc::new(RefCell::new(gfx));
         let gfx_handle_tool = Rc::clone(&gfx_handle);
+
+        let window_size = PhysicalSize::new(window_width, window_height);
 
         Self {
             gfx_handle,
@@ -149,8 +157,15 @@ pub async fn run() {
             })
             .expect("Couldn't append canvas to document body.");
     }
+    dbg!(window.inner_size());
 
-    let mut state = State::new(&window, input_handler).await;
+    let mut state = State::new(
+        &window,
+        config.window.width as u32,
+        config.window.height as u32,
+        input_handler,
+    )
+    .await;
 
     let mut last_render_time = instant::Instant::now();
     event_loop.run(move |event, _, control_flow| {
@@ -186,16 +201,18 @@ pub async fn run() {
                     last_render_time = now;
                     state.update(dt);
                     let render_error = state.gfx_handle.borrow_mut().render();
+
+                    use gfx_api::GfxFrameError;
                     match render_error {
                         Ok(_) => {}
                         // Reconfigure the surface if it's lost or outdated
-                        Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                        Err(GfxFrameError::Lost | GfxFrameError::Outdated) => {
                             state.resize(state.window_size)
                         }
                         // The system is out of memory, we should probably quit
-                        Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
+                        Err(GfxFrameError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                         // We're ignoring timeouts
-                        Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
+                        Err(GfxFrameError::Timeout) => log::warn!("Surface timeout"),
                     }
                 }
                 _ => {}

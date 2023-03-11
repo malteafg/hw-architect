@@ -13,8 +13,6 @@ default-members = [
 resolver="2"
 
 [workspace.dependencies]
-wgpu = "0.14"
-winit = "0.27"
 bytemuck = { version = "1.13", features = [ "derive" ] }
 
 anyhow = "1.0"

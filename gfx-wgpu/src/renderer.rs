@@ -9,9 +9,10 @@ use crate::resources;
 use utils::id::SegmentId;
 use utils::Mat4Utils;
 
+use gfx_api::{GfxFrameError, RawCameraData};
+
 use glam::*;
 use wgpu::util::DeviceExt;
-use winit::window::Window;
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -146,7 +147,11 @@ fn create_render_pipeline(
 }
 
 impl GfxState {
-    pub async fn new(window: &Window) -> Self {
+    /// The units of the window sizes are in pixels and should be without the window decorations.
+    pub async fn new<W>(window: &W, window_width: u32, window_height: u32) -> Self
+    where
+        W: raw_window_handle::HasRawWindowHandle + raw_window_handle::HasRawDisplayHandle,
+    {
         // instance is a handle to the GPU in use
         // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(wgpu::Backends::all());
@@ -185,19 +190,15 @@ impl GfxState {
         let device = Rc::new(device);
         let queue = Rc::new(queue);
 
-        let size = window.inner_size();
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface.get_supported_formats(&adapter)[0],
-            width: size.width,
-            height: size.height,
+            width: window_width,
+            height: window_height,
             present_mode: wgpu::PresentMode::Fifo,
             alpha_mode: wgpu::CompositeAlphaMode::Opaque,
         };
         surface.configure(&device, &config);
-
-        let window_width = size.width;
-        let window_height = size.height;
 
         // load shaders
         let mut shaders = crate::shaders::load_shaders(&device);
@@ -404,9 +405,18 @@ impl GfxState {
     }
 }
 
+fn map_error(err: wgpu::SurfaceError) -> GfxFrameError {
+    match err {
+        wgpu::SurfaceError::Timeout => GfxFrameError::Timeout,
+        wgpu::SurfaceError::Outdated => GfxFrameError::Outdated,
+        wgpu::SurfaceError::Lost => GfxFrameError::Lost,
+        wgpu::SurfaceError::OutOfMemory => GfxFrameError::OutOfMemory,
+    }
+}
+
 impl gfx_api::Gfx for GfxState {
-    fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        let output = self.surface.get_current_texture()?;
+    fn render(&mut self) -> Result<(), GfxFrameError> {
+        let output = self.surface.get_current_texture().map_err(map_error)?;
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -559,8 +569,6 @@ impl CameraView {
         }
     }
 }
-
-use gfx_api::RawCameraData;
 
 /// Computes and returns the camera's current view matrix
 fn compute_view_matrix(camera: RawCameraData) -> Mat4 {

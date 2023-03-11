@@ -16,8 +16,7 @@ tool = { path = "../tool"}
 utils = { path = "../utils"}
 world = { path = "../world"}
 
-winit = { workspace = true }
-wgpu = { workspace = true }
+winit = "0.27"
 
 anyhow = { workspace = true }
 instant = { workspace = true }

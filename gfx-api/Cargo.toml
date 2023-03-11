@@ -12,8 +12,5 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 utils = { path = "../utils" }
 
-# This dependency should be removed
-wgpu = { workspace = true }
-
 bytemuck = { workspace = true }
 instant = { workspace = true }

@@ -3,27 +3,24 @@
 //! things modular.
 //! Dependency on wgpu in Gfx.render should be removed
 mod data;
+mod error;
+
 pub use data::*;
+pub use error::*;
 
 use std::collections::HashMap;
 use utils::id::SegmentId;
 
 /// This trait defines how a gpu engine should be interacted with
 pub trait Gfx {
-    // render should contain error handling as well
-    // fn render(&mut self) -> Result<(), wgpu::SurfaceError>;
     /// This method should be changed to a generic way of handling errors, such that this crate
     /// does not depend on wgpu
-    fn render(&mut self) -> Result<(), wgpu::SurfaceError>;
+    fn render(&mut self) -> Result<(), GfxFrameError>;
 
     /// Resizes the window. The unit of the parameters are in pixels.
     fn resize(&mut self, width: u32, height: u32);
 
     fn update(&mut self, dt: instant::Duration);
-
-    // some function that loads gfx data from a file on startup. This should be coded in such a way
-    // that Gfx can be used without being dependent on GfxData
-    // fn load_gfx();
 }
 
 /// This trait defines how tool is allowed to interact with the data associated with roads,

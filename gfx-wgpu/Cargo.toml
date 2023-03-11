@@ -13,8 +13,9 @@ crate-type = ["cdylib", "rlib"]
 utils = { path = "../utils" }
 gfx-api = { path = "../gfx-api" }
 
-winit = { workspace = true }
-wgpu = { workspace = true }
+wgpu = "0.14"
+raw-window-handle = "0.5.1"
+
 bytemuck = { workspace = true }
 
 anyhow = { workspace = true }
