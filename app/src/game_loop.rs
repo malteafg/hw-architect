@@ -2,9 +2,6 @@ use super::{configuration, input_handler, state};
 
 use utils::input;
 
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
-
 use glam::*;
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
@@ -13,28 +10,19 @@ use winit::{
     window::WindowBuilder,
 };
 
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
-    // initialize logging depending on architecture
-    cfg_if::cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
-            std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-            console_log::init_with_level(log::Level::Warn).expect("Couldn't initialize logger");
-        } else {
-            env_logger::init();
-        }
-    }
+    env_logger::init();
 
     let mut timer = utils::time::Timer::new();
 
     // load configuration
-    let config = configuration::load_config().await.unwrap();
+    let config = configuration::load_config().unwrap();
     let window_width = config.window.width as u32;
     let window_height = config.window.height as u32;
 
     timer.emit("config_time");
 
-    let key_map = configuration::load_key_map(config.key_map).await.unwrap();
+    let key_map = configuration::load_key_map(config.key_map).unwrap();
     let input_handler = input_handler::InputHandler::new(key_map);
 
     timer.emit("input_time");
@@ -48,30 +36,12 @@ pub async fn run() {
 
     timer.emit("window_time");
 
-    #[cfg(target_arch = "wasm32")]
-    {
-        // Winit prevents sizing with CSS, so we have to set
-        // the size manually when on web.
-        window.set_inner_size(PhysicalSize::new(window_width, window_height));
-
-        use winit::platform::web::WindowExtWebSys;
-        web_sys::window()
-            .and_then(|win| win.document())
-            .and_then(|doc| {
-                let dst = doc.get_element_by_id("wasm-container")?;
-                let canvas = web_sys::Element::from(window.canvas());
-                dst.append_child(&canvas).ok()?;
-                Some(())
-            })
-            .expect("Couldn't append canvas to document body.");
-    }
-
     // Create handle to graphics card. Change line to use different gpu backend.
     let gfx = gfx_wgpu::GfxState::new(&window, window_width, window_height).await;
 
     timer.emit("gfx_time");
 
-    let mut state = state::State::new(gfx, window_width, window_height, input_handler).await;
+    let mut state = state::State::new(gfx, window_width, window_height, input_handler);
 
     timer.emit("state_time");
     timer.elapsed();

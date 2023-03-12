@@ -90,8 +90,8 @@ impl Config {
 }
 
 /// Loads the configuration file for highway architect
-pub async fn load_config() -> anyhow::Result<Config> {
-    let config_file = loader::load_string("config/base_config.yml").await?;
+pub fn load_config() -> anyhow::Result<Config> {
+    let config_file = loader::load_string("config/base_config.yml")?;
     let base_config: Config = serde_yaml::from_str(&config_file)?;
 
     let config = match load_user_config_to_yaml("config.yml") {
@@ -113,13 +113,13 @@ type KeyConfig = BTreeMap<String, Vec<String>>;
 /// # Arguments
 ///
 /// * `key_map` - Default and ONLY (for now) options are "qwerty" "wokmok"
-pub async fn load_key_map(key_map: String) -> anyhow::Result<input_handler::KeyMap> {
+pub fn load_key_map(key_map: String) -> anyhow::Result<input_handler::KeyMap> {
     let key_config_path = format!("config/{}.yml", &key_map);
     #[cfg(debug_assertions)]
     {
         dbg!(key_config_path.clone());
     }
-    let key_config_file = loader::load_string(&key_config_path).await?;
+    let key_config_file = loader::load_string(&key_config_path)?;
     let key_config: KeyConfig = serde_yaml::from_str(&key_config_file)?;
 
     let key_map = key_config

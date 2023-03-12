@@ -5,9 +5,6 @@ use gfx_api::Gfx;
 use tool::WorldTool;
 use utils::input;
 
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
-
 use glam::*;
 
 use std::cell::RefCell;
@@ -27,7 +24,7 @@ pub struct State {
 }
 
 impl State {
-    pub async fn new(
+    pub fn new(
         gfx: gfx_wgpu::GfxState,
         window_width: u32,
         window_height: u32,

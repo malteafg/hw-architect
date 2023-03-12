@@ -161,8 +161,9 @@ impl GfxState {
         // surface is the part of the window that we draw to
         let surface = unsafe { instance.create_surface(window) };
 
-        // adapter is direct handle to graphics card to retrieve information about it
-        // is locked to specific backend; to graphics cards yield 4 adapters on window 2 for Vulkan and 2 for DirectX
+        // Adapter is direct handle to graphics card to retrieve information about it.
+        // Is locked to specific backend; to graphics cards yield 4 adapters on window 2 for Vulkan
+        // and 2 for DirectX
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -333,27 +334,18 @@ impl GfxState {
         // load models
         let tree_model =
             resources::load_model("tree_test", &device, &queue, &texture_bind_group_layout)
-                .await
                 .unwrap();
 
         timer.emit("tree_model");
 
         let obj_model =
-            resources::load_model("sphere", &device, &queue, &texture_bind_group_layout)
-                .await
-                .unwrap();
+            resources::load_model("sphere", &device, &queue, &texture_bind_group_layout).unwrap();
 
         timer.emit("obj_model");
 
-        let test_model = resources::load_simple_model("simple_test", &device)
-            .await
-            .unwrap();
+        let test_model = resources::load_simple_model("simple_test", &device).unwrap();
 
         timer.emit("test_model");
-
-        // let tree_model = tree_model.await.unwrap();
-        // let obj_model = obj_model.await.unwrap();
-        // let test_model = test_model.await.unwrap();
 
         use primitives::Vertex;
         let light_render_pipeline = {

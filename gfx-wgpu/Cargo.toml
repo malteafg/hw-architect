@@ -24,22 +24,9 @@ instant = { workspace = true }
 glam = { workspace = true }
 rand = { workspace = true }
 
-tobj = { version = "3.2", features = [
-  "async",
-]}
-cfg-if = "1"
+tobj = { version = "3.2" }
 
 [dependencies.image]
 version = "0.24"
 default-features = false
 features = ["png", "jpeg"]
-
-# Specific for web assembly
-# Only included if targeting wasm32 architecture
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-console_error_panic_hook = "0.1.6"
-console_log = "0.2.0"
-wgpu = { version = "0.14", features = ["webgl"]}
-wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.4.30"
-getrandom = { version = "0.2", features = ["js"] }

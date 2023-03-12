@@ -15,18 +15,5 @@ glam = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 
-cfg-if = "1"
-
 strum = "0.24.0"
 strum_macros = "0.24.0"
-
-# Specific for web assembly
-# Only included if targeting wasm32 architecture
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-reqwest = { version = "0.11" }
-web-sys = { version = "0.3", features = [
-  "Document",
-  "Window",
-  "Element",
-  "Location",
-]}

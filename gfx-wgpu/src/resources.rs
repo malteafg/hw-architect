@@ -6,19 +6,20 @@ use wgpu::util::DeviceExt;
 
 use std::io::{BufReader, Cursor};
 
-pub async fn load_texture(
+pub fn load_texture(
     file_name: &str,
     is_normal_map: bool,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
 ) -> anyhow::Result<primitives::Texture> {
-    let data = loader::load_binary(file_name).await?;
+    let data = loader::load_binary(file_name)?;
     primitives::Texture::from_bytes(device, queue, &data, file_name, is_normal_map)
 }
 
 /// Loads 3D models from the res/models directory. To load the cube model for
 /// instance simply pass "cube" as the file name
-pub async fn load_model(
+/// Note that this functions panics if a materials file cannot be found, which is not ideal.
+pub fn load_model(
     file_name: &str,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -27,25 +28,25 @@ pub async fn load_model(
     let mut timer = utils::time::Timer::new();
 
     let path = format!("models/{file_name}/");
-    let obj_text = loader::load_string(&format!("{path}{file_name}.obj")).await?;
+    let obj_text = loader::load_string(&format!("{path}{file_name}.obj"))?;
     let obj_cursor = Cursor::new(obj_text);
     let mut obj_reader = BufReader::new(obj_cursor);
 
-    let (models, obj_materials) = tobj::load_obj_buf_async(
+    let (models, obj_materials) = tobj::load_obj_buf(
         &mut obj_reader,
         &tobj::LoadOptions {
             triangulate: true,
             single_index: true,
             ..Default::default()
         },
-        |p| async move {
+        |p| {
+            let p = p.to_str().unwrap();
             let file = p.replace(".mtl", "");
             let path = format!("models/{file}/{p}");
-            let mat_text = loader::load_string(&path).await.unwrap();
+            let mat_text = loader::load_string(&path).unwrap();
             tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mat_text)))
         },
-    )
-    .await?;
+    )?;
 
     timer.emit("model_loaded");
 
@@ -53,9 +54,9 @@ pub async fn load_model(
     for m in obj_materials? {
         let diffuse_path = format!("{}{}", path, m.diffuse_texture);
         let normal_path = format!("{}{}", path, m.normal_texture);
-        let diffuse_texture = load_texture(&diffuse_path, false, device, queue).await?;
+        let diffuse_texture = load_texture(&diffuse_path, false, device, queue)?;
         timer.emit("diffuse_loaded");
-        let normal_texture = load_texture(&normal_path, true, device, queue).await?;
+        let normal_texture = load_texture(&normal_path, true, device, queue)?;
         timer.emit("normal_loaded");
 
         materials.push(primitives::Material::new(
@@ -187,7 +188,7 @@ pub async fn load_model(
 }
 
 /// Will not load on web.
-pub async fn load_simple_model(
+pub fn load_simple_model(
     file_name: &str,
     device: &wgpu::Device,
 ) -> anyhow::Result<primitives::SimpleModel> {
