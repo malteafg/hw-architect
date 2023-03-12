@@ -13,8 +13,8 @@ use utils::id::SegmentId;
 
 /// This trait defines all the behavior that a gpu backend must implement to render all of
 /// hw-architect.
-pub trait GfxSuper: Gfx + GfxWorldData {}
-impl<T: Gfx + GfxWorldData> GfxSuper for T {}
+pub trait GfxSuper: Gfx + GfxWorldData + GfxCameraData {}
+impl<T: Gfx + GfxWorldData + GfxCameraData> GfxSuper for T {}
 
 /// This trait defines how a gpu backend should be interacted with
 pub trait Gfx {
@@ -29,8 +29,8 @@ pub trait Gfx {
 }
 
 /// This trait defines all the data that a gpu backend must implement in order to render the world.
-pub trait GfxWorldData: GfxRoadData + GfxCameraData + GfxTreeData {}
-impl<T: GfxRoadData + GfxCameraData + GfxTreeData> GfxWorldData for T {}
+pub trait GfxWorldData: GfxRoadData + GfxTreeData {}
+impl<T: GfxRoadData + GfxTreeData> GfxWorldData for T {}
 
 /// This trait defines how tool is allowed to interact with the data associated with roads,
 /// that is needed by the gpu.
@@ -70,5 +70,5 @@ pub trait GfxCameraData {
 /// This trait defines how tool is allowed to interact with the data associated with trees.
 pub trait GfxTreeData {
     /// Sets the trees that should be rendered by the gpu.
-    fn set_trees(&mut self, pos_with_zrot: Vec<([f32; 3], f32)>);
+    fn set_trees(&mut self, pos_with_yrot: Vec<([f32; 3], f32)>);
 }

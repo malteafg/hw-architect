@@ -16,3 +16,4 @@ anyhow = { workspace = true }
 serde = { workspace = true }
 
 glam = { workspace = true }
+rand = { workspace = true }

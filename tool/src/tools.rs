@@ -1,8 +1,10 @@
 mod bulldoze;
 mod construct;
+mod tree_plopper;
 
 pub use bulldoze::BulldozeTool;
 pub use construct::ConstructTool;
+pub use tree_plopper::TreePlopperTool;
 
 use utils::input;
 

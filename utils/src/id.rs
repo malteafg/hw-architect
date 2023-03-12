@@ -53,8 +53,8 @@ impl FromIdSize for SegmentId {
     }
 }
 
-// impl FromIdSize for TreeId {
-//     fn from_id_size(id_size: IdSize) -> Self {
-//         TreeId(id_size)
-//     }
-// }
+impl FromIdSize for TreeId {
+    fn from_id_size(id_size: IdSize) -> Self {
+        TreeId(id_size)
+    }
+}

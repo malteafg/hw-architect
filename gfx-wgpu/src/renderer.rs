@@ -630,5 +630,7 @@ impl gfx_api::GfxCameraData for GfxState {
 }
 
 impl gfx_api::GfxTreeData for GfxState {
-    fn set_trees(&mut self, _pos_with_zrot: Vec<([f32; 3], f32)>) {}
+    fn set_trees(&mut self, pos_with_yrot: Vec<([f32; 3], f32)>) {
+        self.tree_renderer.set_trees(pos_with_yrot);
+    }
 }

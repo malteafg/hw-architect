@@ -9,7 +9,7 @@ pub struct TreeState {
     device: Rc<wgpu::Device>,
     queue: Rc<wgpu::Queue>,
     tree_render_pipeline: wgpu::RenderPipeline,
-    trees: Vec<Instance>,
+    num_trees: u32,
     instance_buffer: DBuffer,
     tree_model: Model,
 }
@@ -49,46 +49,65 @@ impl TreeState {
         };
 
         let instance_buffer = DBuffer::new("tree_buffer", wgpu::BufferUsages::VERTEX, &device);
-        let trees = Vec::new();
 
-        let mut result = Self {
+        Self {
             device,
             queue,
             tree_render_pipeline,
-            trees,
+            num_trees: 0,
             instance_buffer,
             tree_model,
-        };
+        }
 
-        result.add_instance(Vec3::new(1.0, 1.0, 0.0));
-        result
+        // result.add_instance(Vec3::new(1.0, 1.0, 0.0));
+        // result
     }
 
-    fn add_instance(&mut self, position: Vec3) {
-        let rotation = if position == Vec3::ZERO {
-            Quat::from_axis_angle(Vec3::Z, 0.0)
-        } else {
-            Quat::from_axis_angle(position.normalize(), std::f32::consts::PI / 4.)
-        };
-        self.trees.push(Instance::new(position, rotation));
-        let instance_data = self.trees.iter().map(Instance::to_raw).collect::<Vec<_>>();
+    // fn add_instance(&mut self, position: Vec3) {
+    //     let rotation = if position == Vec3::ZERO {
+    //         Quat::from_axis_angle(Vec3::Z, 0.0)
+    //     } else {
+    //         Quat::from_axis_angle(position.normalize(), std::f32::consts::PI / 4.)
+    //     };
+    //     self.trees.push(Instance::new(position, rotation));
+    //     let instance_data = self.trees.iter().map(Instance::to_raw).collect::<Vec<_>>();
+    //     self.instance_buffer.write(
+    //         &self.queue,
+    //         &self.device,
+    //         &bytemuck::cast_slice(&instance_data),
+    //     );
+    // }
+
+    // fn _remove_instance(&mut self) {
+    //     if self.trees.len() != 0 {
+    //         self.trees.remove(0);
+    //         let instance_data = self.trees.iter().map(Instance::to_raw).collect::<Vec<_>>();
+    //         self.instance_buffer.write(
+    //             &self.queue,
+    //             &self.device,
+    //             &bytemuck::cast_slice(&instance_data),
+    //         );
+    //     }
+    // }
+}
+
+impl gfx_api::GfxTreeData for TreeState {
+    fn set_trees(&mut self, pos_with_yrot: Vec<([f32; 3], f32)>) {
+        self.num_trees = pos_with_yrot.len() as u32;
+        let instance_data = pos_with_yrot
+            .iter()
+            .map(|(pos, zrot)| {
+                Instance::to_raw(&Instance::new(
+                    Vec3::from_array(*pos),
+                    Quat::from_rotation_y(*zrot),
+                ))
+            })
+            .collect::<Vec<_>>();
         self.instance_buffer.write(
             &self.queue,
             &self.device,
             &bytemuck::cast_slice(&instance_data),
         );
-    }
-
-    fn _remove_instance(&mut self) {
-        if self.trees.len() != 0 {
-            self.trees.remove(0);
-            let instance_data = self.trees.iter().map(Instance::to_raw).collect::<Vec<_>>();
-            self.instance_buffer.write(
-                &self.queue,
-                &self.device,
-                &bytemuck::cast_slice(&instance_data),
-            );
-        }
     }
 }
 
@@ -120,7 +139,7 @@ where
         self.set_pipeline(&tree_state.tree_render_pipeline);
         self.draw_model_instanced(
             &tree_state.tree_model,
-            0..tree_state.trees.len() as u32,
+            0..tree_state.num_trees,
             &camera_bind_group,
             &light_bind_group,
         );

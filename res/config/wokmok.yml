@@ -23,6 +23,8 @@ enter_bulldoze:
   - j
 enter_construct:
   - d
+enter_tree_plopper:
+  - w
 one_lane:
   - "1"
 two_lane:

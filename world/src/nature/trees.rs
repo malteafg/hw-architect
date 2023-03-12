@@ -3,12 +3,31 @@ use utils::id::{IdManager, TreeId};
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
+use rand::Rng;
 use std::collections::HashMap;
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct Tree {
     pos: Vec3,
-    y_rot: f32,
+    yrot: f32,
+}
+
+impl Tree {
+    pub fn new(pos: Vec3) -> Self {
+        let mut rng = rand::thread_rng();
+        Self {
+            pos,
+            yrot: rng.gen_range(0.0..3.14),
+        }
+    }
+
+    pub fn get_pos(&self) -> Vec3 {
+        self.pos
+    }
+
+    pub fn get_yrot(&self) -> f32 {
+        self.yrot
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -44,8 +63,12 @@ impl TreeMap {
         tree_vec.push(tree);
     }
 
-    pub fn remove_tree(&mut self, pos: Vec3) {
+    pub fn _remove_tree(&mut self, pos: Vec3) {
         // TODO find nearest tree and remove it?
         // Take in an area range or circle range?
+    }
+
+    pub fn get_trees(&self, id: TreeId) -> &Vec<Tree> {
+        &self.tree_map.get(&id).unwrap()
     }
 }

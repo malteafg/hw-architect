@@ -30,6 +30,7 @@ pub enum Action {
     CycleLaneWidth,
     EnterBulldoze,
     EnterConstruct,
+    EnterTreePlopper,
     OneLane,
     TwoLane,
     ThreeLane,
@@ -42,7 +43,7 @@ pub enum Action {
 
 /// Defines the modes that a scroll can be in. For now this is up or down, corresponding to exactly
 /// one roll of the mouse wheel either up or down.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
 pub enum ScrollState {
     Up,
     Down,
@@ -50,7 +51,7 @@ pub enum ScrollState {
 
 /// Defines the state of the key that an event is regarding.
 /// TODO maybe have two different release events? One is sent if no scrolling has been sent.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
 pub enum KeyState {
     /// The key has just been pressed.
     Press,
