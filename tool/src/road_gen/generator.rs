@@ -68,7 +68,8 @@ impl RoadGenerator {
             (sel_pos, sel_pos + start_dir * 10.0)
         };
 
-        let (mesh, spine_points) = generate_straight_mesh(start_pos, end_pos, sel_road_type);
+        let (mesh, spine_points) =
+            generate_straight_mesh(start_pos, end_pos, sel_road_type.node_type);
 
         let nodes = vec![
             LNodeBuilder::new(start_pos, start_dir),
@@ -156,7 +157,7 @@ impl RoadGenerator {
                     let (mesh, spine_points) = generate_circular_mesh(
                         start_pos,
                         end_pos,
-                        self.start_road_type,
+                        self.start_road_type.node_type,
                         g_points.clone(),
                     );
                     self.nodes.push(LNodeBuilder::new(end_pos, end_dir));
@@ -179,7 +180,8 @@ impl RoadGenerator {
     }
 
     fn update_straight(&mut self, start_pos: Vec3, end_pos: Vec3, dir: Vec3) {
-        let (mesh, spine_points) = generate_straight_mesh(start_pos, end_pos, self.start_road_type);
+        let (mesh, spine_points) =
+            generate_straight_mesh(start_pos, end_pos, self.start_road_type.node_type);
         self.nodes = vec![
             LNodeBuilder::new(start_pos, dir),
             LNodeBuilder::new(end_pos, dir),
@@ -220,8 +222,12 @@ impl RoadGenerator {
         g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
             let start_pos = g_points[0];
             let end_pos = g_points[g_points.len() - 1];
-            let (mesh, spine_points) =
-                generate_circular_mesh(start_pos, end_pos, self.start_road_type, g_points.clone());
+            let (mesh, spine_points) = generate_circular_mesh(
+                start_pos,
+                end_pos,
+                self.start_road_type.node_type,
+                g_points.clone(),
+            );
             self.nodes.push(LNodeBuilder::new(end_pos, end_dir));
             // TODO update curvetype to be correct
             self.segments.push(SegmentBuilder::new(
@@ -262,8 +268,12 @@ impl RoadGenerator {
         g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
             let start_pos = g_points[0];
             let end_pos = g_points[g_points.len() - 1];
-            let (mesh, spine_points) =
-                generate_circular_mesh(start_pos, end_pos, self.start_road_type, g_points.clone());
+            let (mesh, spine_points) = generate_circular_mesh(
+                start_pos,
+                end_pos,
+                self.start_road_type.node_type,
+                g_points.clone(),
+            );
             self.nodes.push(LNodeBuilder::new(end_pos, end_dir));
             // TODO update curvetype to be correct
             self.segments.push(SegmentBuilder::new(
