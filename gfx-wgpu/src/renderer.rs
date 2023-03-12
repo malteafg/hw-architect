@@ -330,23 +330,30 @@ impl GfxState {
 
         timer.emit("shader_time");
 
-        let obj_model =
-            resources::load_model("sphere", &device, &queue, &texture_bind_group_layout)
-                .await
-                .unwrap();
-        timer.emit("obj_model");
-
-        let test_model = resources::load_simple_model("simple_test", &device)
-            .await
-            .unwrap();
-        timer.emit("test_model");
-
+        // load models
         let tree_model =
             resources::load_model("tree_test", &device, &queue, &texture_bind_group_layout)
                 .await
                 .unwrap();
 
         timer.emit("tree_model");
+
+        let obj_model =
+            resources::load_model("sphere", &device, &queue, &texture_bind_group_layout)
+                .await
+                .unwrap();
+
+        timer.emit("obj_model");
+
+        let test_model = resources::load_simple_model("simple_test", &device)
+            .await
+            .unwrap();
+
+        timer.emit("test_model");
+
+        // let tree_model = tree_model.await.unwrap();
+        // let obj_model = obj_model.await.unwrap();
+        // let test_model = test_model.await.unwrap();
 
         use primitives::Vertex;
         let light_render_pipeline = {

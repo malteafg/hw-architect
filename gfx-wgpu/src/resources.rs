@@ -51,13 +51,11 @@ pub async fn load_model(
 
     let mut materials = Vec::new();
     for m in obj_materials? {
-        let diffuse_path = m.diffuse_texture;
-        let normal_path = m.normal_texture;
-        let diffuse_texture =
-            load_texture(&format!("{path}{diffuse_path}"), false, device, queue).await?;
+        let diffuse_path = format!("{}{}", path, m.diffuse_texture);
+        let normal_path = format!("{}{}", path, m.normal_texture);
+        let diffuse_texture = load_texture(&diffuse_path, false, device, queue).await?;
         timer.emit("diffuse_loaded");
-        let normal_texture =
-            load_texture(&format!("{path}{normal_path}"), true, device, queue).await?;
+        let normal_texture = load_texture(&normal_path, true, device, queue).await?;
         timer.emit("normal_loaded");
 
         materials.push(primitives::Material::new(
