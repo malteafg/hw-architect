@@ -1,7 +1,7 @@
 use super::camera_controller::CameraController;
 use super::input_handler::InputHandler;
 
-use gfx_api::Gfx;
+use gfx_api::GfxSuper;
 use tool::WorldTool;
 use utils::input;
 
@@ -14,7 +14,7 @@ pub struct State {
     /// The handle to the graphics card. A reference counter is used such that tools can
     /// also have a reference to the gfx_handle. Functionality is still separated as tools have
     /// specific traits for interacting with the gpu.
-    gfx_handle: Rc<RefCell<gfx_wgpu::GfxState>>,
+    gfx_handle: Rc<RefCell<dyn GfxSuper>>,
     window_width: u32,
     window_height: u32,
     camera_controller: CameraController,
@@ -25,7 +25,7 @@ pub struct State {
 
 impl State {
     pub fn new(
-        gfx: gfx_wgpu::GfxState,
+        gfx_handle: Rc<RefCell<dyn GfxSuper>>,
         window_width: u32,
         window_height: u32,
         input_handler: InputHandler,
@@ -37,7 +37,6 @@ impl State {
             100.0,
         );
 
-        let gfx_handle = Rc::new(RefCell::new(gfx));
         let gfx_handle_tool = Rc::clone(&gfx_handle);
 
         let world = world::World::new();
@@ -75,7 +74,6 @@ impl State {
         if self.camera_controller.update_camera(dt) {
             self.update_ground_pos();
         }
-        use gfx_api::GfxCameraData;
         self.gfx_handle
             .borrow_mut()
             .update_camera(self.camera_controller.get_raw_camera());
@@ -84,7 +82,6 @@ impl State {
 
     fn update_ground_pos(&mut self) {
         let mouse_pos = self.input_handler.get_mouse_pos();
-        use gfx_api::GfxCameraData;
         let ray_dir = self.gfx_handle.borrow_mut().compute_ray(
             [mouse_pos.x as f32, mouse_pos.y as f32],
             self.camera_controller.get_raw_camera(),

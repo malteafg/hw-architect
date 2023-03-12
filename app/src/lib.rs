@@ -1,3 +1,5 @@
+#![feature(trait_upcasting)]
+
 mod camera_controller;
 mod configuration;
 mod game_loop;

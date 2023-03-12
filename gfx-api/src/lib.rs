@@ -11,7 +11,12 @@ pub use error::*;
 use std::collections::HashMap;
 use utils::id::SegmentId;
 
-/// This trait defines how a gpu engine should be interacted with
+/// This trait defines all the behavior that a gpu backend must implement to render all of
+/// hw-architect.
+pub trait GfxSuper: Gfx + GfxWorldData {}
+impl<T: Gfx + GfxWorldData> GfxSuper for T {}
+
+/// This trait defines how a gpu backend should be interacted with
 pub trait Gfx {
     /// This method should be changed to a generic way of handling errors, such that this crate
     /// does not depend on wgpu
@@ -22,6 +27,10 @@ pub trait Gfx {
 
     fn update(&mut self, dt: instant::Duration);
 }
+
+/// This trait defines all the data that a gpu backend must implement in order to render the world.
+pub trait GfxWorldData: GfxRoadData + GfxCameraData + GfxTreeData {}
+impl<T: GfxRoadData + GfxCameraData + GfxTreeData> GfxWorldData for T {}
 
 /// This trait defines how tool is allowed to interact with the data associated with roads,
 /// that is needed by the gpu.
@@ -56,4 +65,10 @@ pub trait GfxCameraData {
     /// Given a the position of the mouse on the screen and the camera, the ray is computed and
     /// returned as the direction of the ray.
     fn compute_ray(&self, mouse_pos: [f32; 2], camera: RawCameraData) -> [f32; 3];
+}
+
+/// This trait defines how tool is allowed to interact with the data associated with trees.
+pub trait GfxTreeData {
+    /// Sets the trees that should be rendered by the gpu.
+    fn set_trees(&mut self, pos_with_zrot: Vec<([f32; 3], f32)>);
 }

@@ -1,4 +1,4 @@
-use gfx_api::GfxRoadData;
+use gfx_api::GfxWorldData;
 use std::cell::RefCell;
 use std::rc::Rc;
 use utils::input;
@@ -16,7 +16,7 @@ enum Tool {
 
 /// The main tool that controls how other tools are invoked.
 pub struct WorldTool {
-    gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
+    gfx_handle: Rc<RefCell<dyn GfxWorldData>>,
 
     state: Rc<RefCell<ToolState>>,
 
@@ -28,7 +28,7 @@ pub struct WorldTool {
 }
 
 impl WorldTool {
-    pub fn new(gfx_handle: Rc<RefCell<dyn GfxRoadData>>, world: World) -> Self {
+    pub fn new(gfx_handle: Rc<RefCell<dyn GfxWorldData>>, world: World) -> Self {
         let start_tool = Box::new(NoTool::new(world));
         let state = Rc::new(RefCell::new(ToolState::default()));
 
@@ -48,22 +48,22 @@ impl WorldTool {
         let old_tool = std::mem::replace(&mut self.curr_tool_handle, Box::new(DummyTool));
         let world = old_tool.destroy();
 
+        let tool_gfx_handle = Rc::clone(&self.gfx_handle);
+
         self.curr_tool = Tool::Bulldoze;
-        self.curr_tool_handle = Box::new(BulldozeTool::new(
-            Rc::clone(&self.gfx_handle),
-            world,
-            self.ground_pos,
-        ))
+        self.curr_tool_handle = Box::new(BulldozeTool::new(tool_gfx_handle, world, self.ground_pos))
     }
 
     fn enter_construct_mode(&mut self) {
         let old_tool = std::mem::replace(&mut self.curr_tool_handle, Box::new(DummyTool));
         let world = old_tool.destroy();
 
+        let tool_gfx_handle = Rc::clone(&self.gfx_handle);
+
         self.saved_tool = None;
         self.curr_tool = Tool::Construct;
         self.curr_tool_handle = Box::new(ConstructTool::new(
-            Rc::clone(&self.gfx_handle),
+            tool_gfx_handle,
             world,
             Rc::clone(&self.state),
             self.ground_pos,

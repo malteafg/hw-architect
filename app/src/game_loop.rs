@@ -10,6 +10,9 @@ use winit::{
     window::WindowBuilder,
 };
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 pub async fn run() {
     env_logger::init();
 
@@ -41,7 +44,12 @@ pub async fn run() {
 
     timer.emit("gfx_time");
 
-    let mut state = state::State::new(gfx, window_width, window_height, input_handler);
+    let mut state = state::State::new(
+        Rc::new(RefCell::new(gfx)),
+        window_width,
+        window_height,
+        input_handler,
+    );
 
     timer.emit("state_time");
     timer.elapsed();
