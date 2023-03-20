@@ -1,4 +1,4 @@
-use gfx_api::GfxWorldData;
+use gfx_api::GfxSuper;
 use std::cell::RefCell;
 use std::rc::Rc;
 use utils::id::{IdManager, TreeId};
@@ -18,7 +18,8 @@ enum Tool {
 
 /// The main tool that controls how other tools are invoked.
 pub struct WorldTool {
-    gfx_handle: Rc<RefCell<dyn GfxWorldData>>,
+    // gfx_handle: Rc<RefCell<dyn GfxWorldData>>,
+    gfx_handle: Rc<RefCell<dyn GfxSuper>>,
 
     state: Rc<RefCell<ToolState>>,
 
@@ -34,7 +35,7 @@ pub struct WorldTool {
 }
 
 impl WorldTool {
-    pub fn new(gfx_handle: Rc<RefCell<dyn GfxWorldData>>, world: World) -> Self {
+    pub fn new(gfx_handle: Rc<RefCell<dyn GfxSuper>>, world: World) -> Self {
         let start_tool = Box::new(NoTool::new(world));
         let state = Rc::new(RefCell::new(ToolState::default()));
 

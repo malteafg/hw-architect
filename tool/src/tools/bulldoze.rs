@@ -3,14 +3,15 @@ use super::ToolStrategy;
 use utils::input;
 use world::{RoadManipulator, World};
 
-use gfx_api::GfxRoadData;
+use gfx_api::GfxSuper;
 use glam::*;
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
 pub struct BulldozeTool {
-    gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
+    // gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
+    gfx_handle: Rc<RefCell<dyn GfxSuper>>,
     world: World,
     ground_pos: Vec3,
 }
@@ -45,7 +46,7 @@ impl ToolStrategy for BulldozeTool {
 }
 
 impl BulldozeTool {
-    pub fn new(gfx_handle: Rc<RefCell<dyn GfxRoadData>>, world: World, ground_pos: Vec3) -> Self {
+    pub fn new(gfx_handle: Rc<RefCell<dyn GfxSuper>>, world: World, ground_pos: Vec3) -> Self {
         let mut tool = Self {
             gfx_handle,
             world,

@@ -5,7 +5,7 @@ use utils::id::TreeId;
 use world::nature::Tree;
 use world::{TreeManipulator, World};
 
-use gfx_api::GfxTreeData;
+use gfx_api::GfxSuper;
 
 use glam::Vec3;
 
@@ -13,7 +13,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 pub struct TreePlopperTool {
-    gfx_handle: Rc<RefCell<dyn GfxTreeData>>,
+    // gfx_handle: Rc<RefCell<dyn GfxTreeData>>,
+    gfx_handle: Rc<RefCell<dyn GfxSuper>>,
     world: World,
 
     ground_pos: Vec3,
@@ -50,7 +51,7 @@ impl ToolStrategy for TreePlopperTool {
 
 impl TreePlopperTool {
     pub fn new(
-        gfx_handle: Rc<RefCell<dyn GfxTreeData>>,
+        gfx_handle: Rc<RefCell<dyn GfxSuper>>,
         world: World,
         ground_pos: Vec3,
         tree_id: TreeId,

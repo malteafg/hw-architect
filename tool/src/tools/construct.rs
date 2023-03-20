@@ -8,7 +8,7 @@ use utils::input;
 use world::roads::{CurveType, SnapConfig};
 use world::{RoadManipulator, World};
 
-use gfx_api::{GfxRoadData, RoadMesh};
+use gfx_api::{GfxSuper, RoadMesh};
 use glam::*;
 
 use std::cell::RefCell;
@@ -23,7 +23,8 @@ enum Mode {
 }
 
 pub struct ConstructTool {
-    gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
+    // gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
+    gfx_handle: Rc<RefCell<dyn GfxSuper>>,
     world: World,
 
     state_handle: Rc<RefCell<ToolState>>,
@@ -75,7 +76,7 @@ impl ToolStrategy for ConstructTool {
                 CurveType::Straight => self.build_road(),
                 CurveType::Curved => {
                     self.road_generator.lock_dir(self.ground_pos);
-                    self.road_generator.update_pos(self.ground_pos);
+                    self.road_generator.update_ground_pos(self.ground_pos);
                     self.gfx_handle
                         .borrow_mut()
                         .set_road_tool_mesh(self.road_generator.get_mesh());
@@ -133,7 +134,7 @@ impl ToolStrategy for ConstructTool {
 
 impl ConstructTool {
     pub(crate) fn new(
-        gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
+        gfx_handle: Rc<RefCell<dyn GfxSuper>>,
         world: World,
         state_handle: Rc<RefCell<ToolState>>,
         ground_pos: Vec3,
@@ -268,7 +269,7 @@ impl ConstructTool {
             self.get_sel_road_type().clone(),
             snapped_node.is_reverse(),
         );
-        self.road_generator.update_pos(self.ground_pos);
+        self.road_generator.update_ground_pos(self.ground_pos);
         self.gfx_handle
             .borrow_mut()
             .set_road_tool_mesh(self.road_generator.get_mesh());
@@ -329,13 +330,13 @@ impl ConstructTool {
         match self.mode {
             Mode::SelectPos => self.gfx_handle.borrow_mut().set_road_tool_mesh(empty_mesh),
             Mode::SelectDir => {
-                self.road_generator.update_pos(self.ground_pos);
+                self.road_generator.update_ground_pos(self.ground_pos);
                 self.gfx_handle
                     .borrow_mut()
                     .set_road_tool_mesh(self.road_generator.get_mesh());
             }
             Mode::Build => {
-                self.road_generator.update_pos(self.ground_pos);
+                self.road_generator.update_ground_pos(self.ground_pos);
                 self.gfx_handle
                     .borrow_mut()
                     .set_road_tool_mesh(self.road_generator.get_mesh());
@@ -375,12 +376,13 @@ impl ConstructTool {
                 }
                 self.update_no_snap();
             }
-        };
+        }
     }
 
-    /// Checks if there is a node that in should snap to, and in that case it snaps to that node.
+    /// Checks if there is a node that we should snap to, and in that case it snaps to that node.
     fn check_snapping(&mut self) {
         let node_snap_configs = if self.state_handle.borrow().road_state.snapping {
+            // TODO add functionality to report why a node cannot be snapped to.
             self.world
                 .get_road_graph()
                 .get_snap_configs_closest_node(self.ground_pos, self.get_sel_road_type().node_type)

@@ -347,7 +347,7 @@ impl RoadGeneratorTool {
             .collect()
     }
 
-    pub fn update_pos(&mut self, ground_pos: Vec3) {
+    pub fn update_ground_pos(&mut self, ground_pos: Vec3) {
         if let Some(road) = self.road.as_mut() {
             road.reverse = road.init_reverse;
             if let Some(dir) = road.init_dir {
