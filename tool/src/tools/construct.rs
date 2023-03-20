@@ -75,13 +75,17 @@ impl ToolStrategy for ConstructTool {
             Mode::SelectDir => match self.get_sel_road_type().segment_type.curve_type {
                 CurveType::Straight => self.build_road(),
                 CurveType::Curved => {
-                    self.road_generator.lock_dir(self.ground_pos);
-                    self.road_generator.update_ground_pos(self.ground_pos);
-                    self.gfx_handle
-                        .borrow_mut()
-                        .set_road_tool_mesh(self.road_generator.get_mesh());
+                    if self.snapped_node.is_some() {
+                        self.build_road()
+                    } else {
+                        self.road_generator.lock_dir(self.ground_pos);
+                        self.road_generator.update_ground_pos(self.ground_pos);
+                        self.gfx_handle
+                            .borrow_mut()
+                            .set_road_tool_mesh(self.road_generator.get_mesh());
 
-                    self.mode = Mode::Build;
+                        self.mode = Mode::Build;
+                    }
                 }
             },
             Mode::Build => self.build_road(),
