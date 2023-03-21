@@ -5,7 +5,7 @@ use crate::road_gen::generator::RoadGeneratorTool;
 use crate::tool_state::{SelectedRoad, ToolState};
 
 use utils::input;
-use world::roads::{CurveType, SnapConfig};
+use world::roads::{CurveType, NodeType, SnapConfig};
 use world::{RoadManipulator, World};
 
 use gfx_api::{GfxSuper, RoadMesh};
@@ -15,12 +15,26 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+const DEFAULT_DIR: Vec3 = Vec3::new(1.0, 0.0, 0.0);
+
+#[derive(Clone, PartialEq)]
+/// Defines the mode of the construct tool. At any time can the user snap to a node, which will
+/// result in a change in the generated node. Data is small so clone is fine.
 enum Mode {
+    /// The user must select a position to build a road from.
     SelectPos,
-    SelectDir,
-    Build,
+    /// The user must select the direction that the road shall have.
+    SelectDir { pos: Vec3, init_node_type: NodeType },
+    /// The user must select where the road should be built to.
+    Build {
+        pos: Vec3,
+        dir: Vec3,
+        init_node_type: NodeType,
+    },
+    /// The user has selected a node and must therefore select where the road should be built to.
+    SelNode(SnapConfig),
 }
+use Mode::*;
 
 pub struct ConstructTool {
     // gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
@@ -28,7 +42,6 @@ pub struct ConstructTool {
     world: World,
 
     state_handle: Rc<RefCell<ToolState>>,
-    sel_node: Option<SnapConfig>,
     snapped_node: Option<SnapConfig>,
     road_generator: RoadGeneratorTool,
 
@@ -55,46 +68,54 @@ impl ToolStrategy for ConstructTool {
     }
 
     fn left_click(&mut self) {
-        match self.mode {
-            Mode::SelectPos => {
+        match &self.mode {
+            SelectPos => {
                 if let Some(snapped_node) = self.snapped_node.clone() {
                     self.select_node(snapped_node);
                 } else {
-                    self.road_generator = RoadGeneratorTool::new(
-                        self.ground_pos,
-                        None,
-                        self.get_sel_road_type().clone(),
-                        false,
-                    );
+                    let pos = self.ground_pos;
+                    let road_type = self.get_sel_road_type();
+                    self.road_generator = RoadGeneratorTool::new(pos, None, road_type, false);
                     self.gfx_handle
                         .borrow_mut()
                         .set_road_tool_mesh(self.road_generator.get_mesh());
-                    self.mode = Mode::SelectDir;
+                    self.mode = SelectDir {
+                        pos,
+                        init_node_type: road_type.node_type,
+                    };
                 }
             }
-            Mode::SelectDir => match self.get_sel_road_type().segment_type.curve_type {
+            SelectDir { pos, .. } => match self.get_sel_road_type().segment_type.curve_type {
                 CurveType::Straight => self.build_road(),
                 CurveType::Curved => {
                     if self.snapped_node.is_some() {
                         self.build_road()
                     } else {
+                        let dir = (*pos - self.ground_pos)
+                            .try_normalize()
+                            .unwrap_or(DEFAULT_DIR);
                         self.road_generator.lock_dir(self.ground_pos);
                         self.road_generator.update_ground_pos(self.ground_pos);
                         self.gfx_handle
                             .borrow_mut()
                             .set_road_tool_mesh(self.road_generator.get_mesh());
 
-                        self.mode = Mode::Build;
+                        self.mode = Build {
+                            pos: *pos,
+                            dir,
+                            init_node_type: self.get_sel_road_type().node_type,
+                        };
                     }
                 }
             },
-            Mode::Build => self.build_road(),
+            Build { .. } => self.build_road(),
+            SelNode(_sel_node) => self.build_road(),
         }
         self.show_snappable_nodes();
     }
 
     fn right_click(&mut self) {
-        match self.mode {
+        match &self.mode {
             Mode::SelectPos => {
                 #[cfg(debug_assertions)]
                 {
@@ -106,17 +127,22 @@ impl ToolStrategy for ConstructTool {
                         .debug_node_from_pos(self.ground_pos);
                 }
             }
-            Mode::SelectDir => self.reset(Mode::SelectPos),
-            Mode::Build => match (
-                self.get_sel_road_type().segment_type.curve_type,
-                self.sel_node.clone(),
-            ) {
-                (CurveType::Curved, None) => {
+            SelectDir { .. } => self.reset(SelectPos),
+            Build {
+                pos,
+                init_node_type,
+                ..
+            } => match self.get_sel_road_type().segment_type.curve_type {
+                CurveType::Curved => {
                     self.road_generator.unlock_dir();
-                    self.reset(Mode::SelectDir)
+                    self.reset(SelectDir {
+                        pos: *pos,
+                        init_node_type: *init_node_type,
+                    })
                 }
-                _ => self.reset(Mode::SelectPos),
+                CurveType::Straight => self.reset(SelectPos),
             },
+            SelNode(_sel_node) => self.reset(SelectPos),
         }
         self.show_snappable_nodes();
     }
@@ -147,11 +173,10 @@ impl ConstructTool {
             gfx_handle,
             world,
             state_handle,
-            sel_node: None,
             snapped_node: None,
             road_generator: RoadGeneratorTool::default(),
             ground_pos,
-            mode: Mode::SelectPos,
+            mode: SelectPos,
         };
         tool.show_snappable_nodes();
         tool.update_ground_pos(ground_pos);
@@ -177,10 +202,10 @@ impl ConstructTool {
             .node_type
             .no_lanes = no_lanes;
         self.road_generator.update_no_lanes(no_lanes);
-        if self.sel_node.is_none() {
-            self.check_snapping();
+        if let SelNode(_) = self.mode {
+            self.reset(SelectPos);
         } else {
-            self.reset(Mode::SelectPos);
+            self.check_snapping();
         }
         self.show_snappable_nodes();
     }
@@ -197,7 +222,7 @@ impl ConstructTool {
                     .segment_type
                     .curve_type = Curved;
                 self.road_generator.update_curve_type(Curved);
-                if let Mode::Build = self.mode {
+                if let Build { .. } | SelNode(_) = self.mode {
                     self.check_snapping();
                 }
             }
@@ -209,11 +234,20 @@ impl ConstructTool {
                     .segment_type
                     .curve_type = Straight;
                 self.road_generator.update_curve_type(Straight);
-                if let Mode::Build = self.mode {
-                    if self.sel_node.is_none() {
-                        self.road_generator.unlock_dir();
-                        self.mode = Mode::SelectDir;
-                    }
+                if let Build {
+                    pos,
+                    init_node_type,
+                    ..
+                } = self.mode
+                {
+                    self.road_generator.unlock_dir();
+                    self.mode = SelectDir {
+                        pos,
+                        init_node_type,
+                    };
+                    self.check_snapping();
+                }
+                if let Build { .. } | SelNode(_) = self.mode {
                     self.check_snapping();
                 }
             }
@@ -278,9 +312,16 @@ impl ConstructTool {
             .borrow_mut()
             .set_road_tool_mesh(self.road_generator.get_mesh());
 
-        self.sel_node = Some(snapped_node);
+        self.mode = SelNode(snapped_node);
         self.snapped_node = None;
-        self.mode = Mode::Build;
+    }
+
+    /// Returns the optionally selected node.
+    fn get_selected_node(&self) -> Option<SnapConfig> {
+        match &self.mode {
+            SelectPos | SelectDir { .. } | Build { .. } => None,
+            SelNode(snap_config) => Some(snap_config.clone()),
+        }
     }
 
     /// Constructs the road that is being generated.
@@ -288,9 +329,12 @@ impl ConstructTool {
         let road_meshes = self.road_generator.get_road_meshes();
         let road_generator = self.road_generator.extract();
 
+        let sel_node = self.get_selected_node();
+
+        // TODO: code this smarter and remove clones
         let (new_node, segment_ids) = self.world.mut_road_graph().add_road(
             road_generator.into_lroad_generator(),
-            self.sel_node.clone(),
+            sel_node,
             self.snapped_node.clone(),
         );
 
@@ -302,21 +346,20 @@ impl ConstructTool {
 
         // TODO have add_road return new_node in such a way that is not necessary to check snapped_node
         if self.snapped_node.is_some() {
-            self.reset(Mode::SelectPos);
+            self.reset(SelectPos);
         } else if let Some(new_node) = new_node {
             self.select_node(new_node);
         } else {
-            self.reset(Mode::SelectPos);
+            self.reset(SelectPos);
         }
     }
 
     /// Resets to the given mode, maintaining necessary information and unsnapping and deselecting
     /// nodes.
     fn reset(&mut self, new_mode: Mode) {
-        if let Mode::SelectPos = new_mode {
+        if let SelectPos = new_mode {
             self.road_generator = RoadGeneratorTool::default();
         };
-        self.sel_node = None;
         self.snapped_node = None;
         self.mode = new_mode;
         self.check_snapping();
@@ -332,14 +375,8 @@ impl ConstructTool {
         let empty_mesh = Some(RoadMesh::empty());
 
         match self.mode {
-            Mode::SelectPos => self.gfx_handle.borrow_mut().set_road_tool_mesh(empty_mesh),
-            Mode::SelectDir => {
-                self.road_generator.update_ground_pos(self.ground_pos);
-                self.gfx_handle
-                    .borrow_mut()
-                    .set_road_tool_mesh(self.road_generator.get_mesh());
-            }
-            Mode::Build => {
+            SelectPos => self.gfx_handle.borrow_mut().set_road_tool_mesh(empty_mesh),
+            SelectDir { .. } | Build { .. } | SelNode(_) => {
                 self.road_generator.update_ground_pos(self.ground_pos);
                 self.gfx_handle
                     .borrow_mut()
@@ -351,7 +388,7 @@ impl ConstructTool {
     /// Updates the construct tool with the snap configs from the snapped node.
     fn update_snap(&mut self, snap_configs: Vec<SnapConfig>) {
         match self.mode {
-            Mode::SelectPos => {
+            SelectPos => {
                 let snap_config = &snap_configs[0];
                 let road_generator = RoadGeneratorTool::new(
                     snap_config.get_pos(),
@@ -364,11 +401,28 @@ impl ConstructTool {
                     .borrow_mut()
                     .set_road_tool_mesh(road_generator.get_mesh());
             }
-            Mode::SelectDir | Mode::Build => {
+            // TODO make nice road generator to remove code duplication
+            SelectDir { .. } | Build { .. } => {
                 for snap_config in snap_configs {
                     if self
                         .road_generator
-                        .try_snap(snap_config.clone(), self.sel_node.is_some())
+                        .try_snap(snap_config.clone(), false)
+                        .is_some()
+                    {
+                        self.snapped_node = Some(snap_config);
+                        self.gfx_handle
+                            .borrow_mut()
+                            .set_road_tool_mesh(self.road_generator.get_mesh());
+                        return;
+                    }
+                }
+                self.update_no_snap();
+            }
+            SelNode(_) => {
+                for snap_config in snap_configs {
+                    if self
+                        .road_generator
+                        .try_snap(snap_config.clone(), true)
                         .is_some()
                     {
                         self.snapped_node = Some(snap_config);
@@ -411,7 +465,7 @@ impl ConstructTool {
         if !self.state_handle.borrow().road_state.snapping {
             return;
         }
-        let reverse = if self.sel_node.is_some() {
+        let reverse = if let SelNode(_) = self.mode {
             self.road_generator.is_reverse()
         } else {
             None
