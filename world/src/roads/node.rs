@@ -19,14 +19,19 @@ use lanes::LaneMap;
 pub struct LNodeBuilder {
     pos: Vec3,
     dir: Vec3,
+    node_type: NodeType,
 }
 
 impl LNodeBuilder {
-    pub fn new(pos: Vec3, dir: Vec3) -> Self {
-        LNodeBuilder { pos, dir }
+    pub fn new(pos: Vec3, dir: Vec3, node_type: NodeType) -> Self {
+        LNodeBuilder {
+            pos,
+            dir,
+            node_type,
+        }
     }
 
-    pub fn build(self, node_type: NodeType, lane_map: LaneMapConfig) -> LNode {
+    pub fn build(self, lane_map: LaneMapConfig) -> LNode {
         let mode = match lane_map {
             LaneMapConfig::Sym { incoming, outgoing } => Mode::Sym { incoming, outgoing },
             LaneMapConfig::In { incoming } => Mode::Basic {
@@ -38,7 +43,7 @@ impl LNodeBuilder {
                 main_side: Side::Out,
             },
         };
-        LNode::new(self.pos, self.dir, node_type, mode)
+        LNode::new(self.pos, self.dir, self.node_type, mode)
     }
 }
 

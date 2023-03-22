@@ -97,7 +97,7 @@ impl RoadGraph {
         selected_node: Option<SnapConfig>,
         snapped_node: Option<SnapConfig>,
     ) -> (Option<SnapConfig>, Vec<SegmentId>) {
-        let (node_builders, segment_builders, node_type, _segment_type, reverse) = road.extract();
+        let (node_builders, segment_builders, node_type, _segment_type, reverse) = road.consume();
         let node_type = node_type;
         let mut new_snap_index = 0;
 
@@ -170,7 +170,7 @@ impl RoadGraph {
                         (None, None) => panic!("Cannot construct a new node with no segments"),
                     };
                     self.node_map
-                        .insert(node_id, node_builders[i].build(node_type, lane_map_config));
+                        .insert(node_id, node_builders[i].build(lane_map_config));
                     node_id
                 }
             };
@@ -248,6 +248,7 @@ impl RoadGraph {
             .expect("node does not exist in backward map")
             .retain(|(_, id)| *id != segment_id);
 
+        // TODO put this code in remove node
         if self
             .get_node_mut(segment.get_from_node())
             .remove_segment(segment_id)
@@ -272,26 +273,22 @@ impl RoadGraph {
 
     /// Returns a list of node id's that have an open slot for the selected road type to snap to.
     /// If reverse parameter is set to {`None`}, then no direction is checked when matching nodes.
-    pub fn get_possible_snap_nodes(
-        &self,
-        reverse: Option<bool>,
-        node_type: NodeType,
-    ) -> Vec<NodeId> {
+    pub fn get_possible_snap_nodes(&self, side: Option<Side>, node_type: NodeType) -> Vec<NodeId> {
         self.node_map
             .iter()
-            .filter(|(id, n)| {
+            .filter(|(&id, n)| {
                 if !n.can_add_some_segment() {
                     return false;
                 };
-                let Some(snap_config) = n.construct_snap_configs(node_type, **id).pop() else {
+                let Some(snap_config) = n.construct_snap_configs(node_type, id).pop() else {
                     return false
                 };
-                if let Some(reverse) = reverse {
-                    return reverse != (snap_config.get_side() == Side::In);
+                if let Some(side) = side {
+                    return side != snap_config.get_side();
                 };
                 true
             })
-            .map(|(id, _)| *id)
+            .map(|(&id, _)| id)
             .collect()
     }
 

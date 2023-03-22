@@ -72,8 +72,8 @@ impl RoadGenerator {
             generate_straight_mesh(start_pos, end_pos, sel_road_type.node_type);
 
         let nodes = vec![
-            LNodeBuilder::new(start_pos, start_dir),
-            LNodeBuilder::new(end_pos, start_dir),
+            LNodeBuilder::new(start_pos, start_dir, sel_road_type.node_type),
+            LNodeBuilder::new(end_pos, start_dir, sel_road_type.node_type),
         ];
         let segments = vec![SegmentBuilder::new(
             sel_road_type,
@@ -149,7 +149,11 @@ impl RoadGenerator {
                 }
                 let (g_points_vec, start_dir) = curve_gen::guide_points_and_direction(g_points_vec);
 
-                self.nodes = vec![LNodeBuilder::new(start_pos, start_dir)];
+                self.nodes = vec![LNodeBuilder::new(
+                    start_pos,
+                    start_dir,
+                    self.start_road_type.node_type,
+                )];
                 self.segments = vec![];
                 g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
                     let start_pos = g_points[0];
@@ -160,7 +164,11 @@ impl RoadGenerator {
                         self.start_road_type.node_type,
                         g_points.clone(),
                     );
-                    self.nodes.push(LNodeBuilder::new(end_pos, end_dir));
+                    self.nodes.push(LNodeBuilder::new(
+                        end_pos,
+                        end_dir,
+                        self.start_road_type.node_type,
+                    ));
                     self.segments.push(SegmentBuilder::new(
                         self.start_road_type,
                         g_points,
@@ -183,8 +191,8 @@ impl RoadGenerator {
         let (mesh, spine_points) =
             generate_straight_mesh(start_pos, end_pos, self.start_road_type.node_type);
         self.nodes = vec![
-            LNodeBuilder::new(start_pos, dir),
-            LNodeBuilder::new(end_pos, dir),
+            LNodeBuilder::new(start_pos, dir, self.start_road_type.node_type),
+            LNodeBuilder::new(end_pos, dir, self.start_road_type.node_type),
         ];
         self.segments = vec![SegmentBuilder::new(
             self.start_road_type,
@@ -217,7 +225,11 @@ impl RoadGenerator {
                 start_pos, start_dir, end_pos, end_dir, snap_case,
             )); // use snap_three_quarter_circle_curve for snapping
                 // and free_three_quarter_circle_curve otherwise
-        self.nodes = vec![LNodeBuilder::new(start_pos, start_dir)];
+        self.nodes = vec![LNodeBuilder::new(
+            start_pos,
+            start_dir,
+            self.start_road_type.node_type,
+        )];
         self.segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
             let start_pos = g_points[0];
@@ -228,7 +240,11 @@ impl RoadGenerator {
                 self.start_road_type.node_type,
                 g_points.clone(),
             );
-            self.nodes.push(LNodeBuilder::new(end_pos, end_dir));
+            self.nodes.push(LNodeBuilder::new(
+                end_pos,
+                end_dir,
+                self.start_road_type.node_type,
+            ));
             // TODO update curvetype to be correct
             self.segments.push(SegmentBuilder::new(
                 SelectedRoad::new(
@@ -263,7 +279,11 @@ impl RoadGenerator {
         }
 
         let (g_points_vec, start_dir) = curve_gen::guide_points_and_direction(g_points_vec);
-        self.nodes = vec![LNodeBuilder::new(start_pos, start_dir)];
+        self.nodes = vec![LNodeBuilder::new(
+            start_pos,
+            start_dir,
+            self.start_road_type.node_type,
+        )];
         self.segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
             let start_pos = g_points[0];
@@ -274,7 +294,11 @@ impl RoadGenerator {
                 self.start_road_type.node_type,
                 g_points.clone(),
             );
-            self.nodes.push(LNodeBuilder::new(end_pos, end_dir));
+            self.nodes.push(LNodeBuilder::new(
+                end_pos,
+                end_dir,
+                self.start_road_type.node_type,
+            ));
             // TODO update curvetype to be correct
             self.segments.push(SegmentBuilder::new(
                 SelectedRoad::new(

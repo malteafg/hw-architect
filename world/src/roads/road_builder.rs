@@ -1,4 +1,14 @@
-use super::{LNodeBuilder, LSegmentBuilder, NodeType, SegmentType};
+use super::{LNodeBuilder, LSegmentBuilder, NodeType, SegmentType, SnapConfig};
+
+pub enum LNodeBuilderType {
+    New(LNodeBuilder),
+    Old(SnapConfig),
+}
+
+// pub struct LRoadBuilder {
+//     nodes: Vec<LNodeBuilderType>,
+//     segments: Vec<LSegmentBuilder>,
+// }
 
 /// This struct defines exactly the data that a road graph needs in order to add new segments to
 /// it.
@@ -27,7 +37,7 @@ impl LRoadBuilder {
         }
     }
 
-    pub fn extract(
+    pub fn consume(
         self,
     ) -> (
         Vec<LNodeBuilder>,

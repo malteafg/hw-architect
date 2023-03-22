@@ -1,8 +1,48 @@
 use super::SegmentType;
 use crate::curves::{GuidePoints, SpinePoints};
-use serde::{Deserialize, Serialize};
+
 use utils::id::NodeId;
 
+use serde::{Deserialize, Serialize};
+
+// #################################################################################################
+// Definition for others to construct an LSegment
+// #################################################################################################
+#[derive(Debug, Clone)]
+pub struct LSegmentBuilder {
+    segment_type: SegmentType,
+    guide_points: GuidePoints,
+    spine_points: SpinePoints,
+}
+
+impl LSegmentBuilder {
+    pub fn new(
+        segment_type: SegmentType,
+        guide_points: GuidePoints,
+        spine_points: SpinePoints,
+    ) -> Self {
+        LSegmentBuilder {
+            segment_type,
+            guide_points,
+            spine_points,
+        }
+    }
+
+    pub fn build(self, width: f32, from_node: NodeId, to_node: NodeId) -> LSegment {
+        LSegment::new(
+            width,
+            self.segment_type,
+            self.guide_points,
+            self.spine_points,
+            from_node,
+            to_node,
+        )
+    }
+}
+
+// #################################################################################################
+// Implementation of LSegment
+// #################################################################################################
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LSegment {
     /// This field is used for checking if a position is inside this road segment.
@@ -17,16 +57,6 @@ pub struct LSegment {
     to_node: NodeId,
 }
 
-#[derive(Debug, Clone)]
-pub struct LSegmentBuilder {
-    pub segment_type: SegmentType,
-    pub guide_points: GuidePoints,
-    pub spine_points: SpinePoints,
-}
-
-// #################################################################################################
-// Implementation of LSegment
-// #################################################################################################
 impl LSegment {
     pub fn new(
         width: f32,
@@ -68,33 +98,5 @@ impl LSegment {
 
     pub fn get_to_node(&self) -> NodeId {
         self.to_node
-    }
-}
-
-// #################################################################################################
-// Implementation of LSegmentBuilder
-// #################################################################################################
-impl LSegmentBuilder {
-    pub fn new(
-        segment_type: SegmentType,
-        guide_points: GuidePoints,
-        spine_points: SpinePoints,
-    ) -> Self {
-        LSegmentBuilder {
-            segment_type,
-            guide_points,
-            spine_points,
-        }
-    }
-
-    pub fn build(self, width: f32, from_node: NodeId, to_node: NodeId) -> LSegment {
-        LSegment::new(
-            width,
-            self.segment_type,
-            self.guide_points,
-            self.spine_points,
-            from_node,
-            to_node,
-        )
     }
 }
