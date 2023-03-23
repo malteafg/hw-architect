@@ -5,7 +5,7 @@ use crate::road_gen::generator::RoadGeneratorTool;
 use crate::tool_state::{SelectedRoad, ToolState};
 
 use utils::input;
-use world::roads::{CurveType, NodeType, Side, SnapConfig};
+use world::roads::{CurveType, LRoadBuilder, NodeType, Side, SnapConfig};
 use world::{RoadManipulator, World};
 
 use gfx_api::{GfxSuper, RoadMesh};
@@ -17,7 +17,6 @@ use std::rc::Rc;
 
 const DEFAULT_DIR: Vec3 = Vec3::new(1.0, 0.0, 0.0);
 
-#[derive(Clone, PartialEq)]
 /// Defines the mode of the construct tool. At any time can the user snap to a node, which will
 /// result in a change in the generated node. Data is small so clone is fine.
 enum Mode {
@@ -25,15 +24,23 @@ enum Mode {
     SelectPos,
     /// The user must select the direction that the road shall have. Left clicking will build the
     /// road in straight mode, or set the curves direction in curve mode.
-    SelectDir { pos: Vec3, init_node_type: NodeType },
+    SelectDir {
+        pos: Vec3,
+        init_node_type: NodeType,
+        road_builder: LRoadBuilder,
+    },
     /// The user must select where the road should be built to.
     CurveEnd {
         pos: Vec3,
         dir: Vec3,
         init_node_type: NodeType,
+        road_builder: LRoadBuilder,
     },
     /// The user has selected a node and must therefore select where the road should be built to.
-    SelNode(SnapConfig),
+    SelNode {
+        snap: SnapConfig,
+        road_builder: LRoadBuilder,
+    },
 }
 use Mode::*;
 

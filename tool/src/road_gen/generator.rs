@@ -105,7 +105,7 @@ impl RoadGenerator {
                 )
             })
             .collect();
-        LRoadBuilder::new(self.nodes, segment_builders, self.reverse)
+        // LRoadBuilder::new(self.nodes, segment_builders, self.reverse)
     }
 
     fn update_dir_locked(&mut self, ground_pos: Vec3, dir: Vec3) {
