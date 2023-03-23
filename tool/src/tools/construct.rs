@@ -137,6 +137,7 @@ impl ToolStrategy for ConstructTool {
                 ..
             } => match self.get_sel_road_type().segment_type.curve_type {
                 CurveType::Curved => {
+                    // RG SFD
                     self.road_generator.unlock_dir();
                     self.reset(SelectDir {
                         pos: *pos,
@@ -204,6 +205,7 @@ impl ConstructTool {
             .selected_road
             .node_type
             .no_lanes = no_lanes;
+        // RG update
         self.road_generator.update_no_lanes(no_lanes);
         if let SelNode(_) = self.mode {
             self.reset(SelectPos);
@@ -224,6 +226,7 @@ impl ConstructTool {
                     .selected_road
                     .segment_type
                     .curve_type = Curved;
+                // RG update
                 self.road_generator.update_curve_type(Curved);
                 if let CurveEnd { .. } | SelNode(_) = self.mode {
                     self.check_snapping();
@@ -236,6 +239,7 @@ impl ConstructTool {
                     .selected_road
                     .segment_type
                     .curve_type = Straight;
+                // RG update
                 self.road_generator.update_curve_type(Straight);
                 if let CurveEnd {
                     pos,
@@ -243,6 +247,7 @@ impl ConstructTool {
                     ..
                 } = self.mode
                 {
+                    // SG SFD
                     self.road_generator.unlock_dir();
                     self.mode = SelectDir {
                         pos,
@@ -304,6 +309,7 @@ impl ConstructTool {
             .get_node(snapped_node.get_id())
             .get_dir();
 
+        // RG CC
         self.road_generator = generator::RoadGeneratorTool::new(
             snapped_node.get_pos(),
             Some(node_dir),
@@ -334,11 +340,10 @@ impl ConstructTool {
 
         let sel_node = self.get_selected_node();
 
-        // TODO: code this smarter and remove clones
+        // TODO: code this smarter and remove node_type
         let (new_node, segment_ids) = self.world.mut_road_graph().add_road(
             road_generator.into_lroad_generator(),
-            sel_node,
-            self.snapped_node.clone(),
+            self.get_sel_road_type().node_type,
         );
 
         let mut mesh_map = HashMap::new();
@@ -380,6 +385,7 @@ impl ConstructTool {
         match self.mode {
             SelectPos => self.gfx_handle.borrow_mut().set_road_tool_mesh(empty_mesh),
             SelectDir { .. } | CurveEnd { .. } | SelNode(_) => {
+                // RG update
                 self.road_generator.update_ground_pos(self.ground_pos);
                 self.gfx_handle
                     .borrow_mut()
@@ -393,6 +399,7 @@ impl ConstructTool {
         match self.mode {
             SelectPos => {
                 let snap_config = &snap_configs[0];
+                // RG just generate a small stub
                 let road_generator = RoadGeneratorTool::new(
                     snap_config.get_pos(),
                     Some(snap_config.get_dir()),
@@ -412,6 +419,7 @@ impl ConstructTool {
                         .try_snap(snap_config.clone(), false)
                         .is_some()
                     {
+                        // RG DS
                         self.snapped_node = Some(snap_config);
                         self.gfx_handle
                             .borrow_mut()
@@ -428,6 +436,7 @@ impl ConstructTool {
                         .try_snap(snap_config.clone(), true)
                         .is_some()
                     {
+                        // RG CCS
                         self.snapped_node = Some(snap_config);
                         self.gfx_handle
                             .borrow_mut()

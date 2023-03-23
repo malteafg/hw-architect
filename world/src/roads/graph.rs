@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use utils::id::{IdManager, NodeId, SegmentId};
 
 use super::node::LNode;
-use super::road_builder::LRoadBuilder;
+use super::road_builder::{LNodeBuilderType, LRoadBuilder};
 use super::segment::LSegment;
 use super::snap::SnapConfig;
 use super::{NodeType, Side};
@@ -88,29 +88,22 @@ impl RoadGraph {
         None
     }
 
-    /// At this point the road generator tool has allowed the construction of this road. The order
-    /// of {`NodeId`}'s order always follows the direction of the road. The order of
-    /// {`SegmentId`}'s follow whatever order was decided by the road generator.
+    /// The node_type parameter is temporary until implementation of transition segments.
     pub fn add_road(
         &mut self,
         road: LRoadBuilder,
-        selected_node: Option<SnapConfig>,
-        snapped_node: Option<SnapConfig>,
+        node_type: NodeType,
     ) -> (Option<SnapConfig>, Vec<SegmentId>) {
-        let (node_builders, segment_builders, node_type, _segment_type, reverse) = road.consume();
-        let node_type = node_type;
-        let mut new_snap_index = 0;
+        let (node_builders, segment_builders, reverse) = road.consume();
+        let num_nodes = node_builders.len();
 
         // Generate node ids
-        let mut num_node_ids = segment_builders.len() - 1;
-        if snapped_node.is_none() {
-            num_node_ids += 1;
-        };
-        if selected_node.is_none() {
-            num_node_ids += 1;
-        };
-        let node_ids: Vec<NodeId> = (0..num_node_ids)
-            .map(|_| self.node_id_manager.gen())
+        let node_builders_with_id: Vec<(NodeId, LNodeBuilderType)> = node_builders
+            .into_iter()
+            .map(|n| match n {
+                new @ LNodeBuilderType::New(_) => (self.node_id_manager.gen(), new),
+                LNodeBuilderType::Old(snap) => (snap.get_id(), LNodeBuilderType::Old(snap)),
+            })
             .collect();
 
         // Generate segment ids
@@ -119,92 +112,77 @@ impl RoadGraph {
             .map(|_| self.segment_id_manager.gen())
             .collect();
 
-        // Create list of new and old nodes in correct order
-        let mut nodes = vec![];
-        if reverse {
-            nodes.push(snapped_node);
-            for _ in 0..node_builders.len() - 2 {
-                nodes.push(None);
-            }
-            nodes.push(selected_node);
-        } else {
-            nodes.push(selected_node);
-            for _ in 0..node_builders.len() - 2 {
-                nodes.push(None);
-            }
-            nodes.push(snapped_node);
-            new_snap_index = nodes.len() - 1;
-        }
+        // Create new nodes and update old ones
+        let node_ids: Vec<NodeId> = node_builders_with_id
+            .into_iter()
+            .enumerate()
+            .map(|(i, (node_id, node_builder))| {
+                match node_builder {
+                    LNodeBuilderType::New(node_builder) => {
+                        // generate new node
+                        self.forward_refs.insert(node_id, Vec::new());
+                        self.backward_refs.insert(node_id, Vec::new());
 
-        let mut node_id_counter = 0;
-        let mut new_node_ids = vec![];
-        nodes.into_iter().enumerate().for_each(|(i, node)| {
-            let node_id = match node {
-                Some(snap_config) => {
-                    // update existing node lane_map
-                    let segment_id = match snap_config.get_side() {
-                        Side::Out => segment_ids[0],
-                        Side::In => segment_ids[segment_ids.len() - 1],
-                    };
-                    let new_id = snap_config.get_id();
-                    self.get_node_mut(snap_config.get_id())
-                        .add_segment(segment_id, snap_config);
-                    new_id
-                }
-                None => {
-                    // generate new node
-                    let node_id = node_ids[node_id_counter];
-                    node_id_counter += 1;
-                    self.forward_refs.insert(node_id, Vec::new());
-                    self.backward_refs.insert(node_id, Vec::new());
+                        use super::LaneMapConfig::*;
+                        let lane_map_config = if i == 0 {
+                            Out {
+                                outgoing: segment_ids[0],
+                            }
+                        } else if i == num_nodes - 1 {
+                            In {
+                                incoming: segment_ids[i - 1],
+                            }
+                        } else {
+                            Sym {
+                                incoming: segment_ids[i],
+                                outgoing: segment_ids[i + 1],
+                            }
+                        };
 
-                    // TODO hacky solution generalize to VecUtils trait?
-                    let incoming = segment_ids.get(((i as i32 - 1) % 100) as usize).copied();
-                    let outgoing = segment_ids.get(i).copied();
-
-                    use super::LaneMapConfig::*;
-                    let lane_map_config = match (incoming, outgoing) {
-                        (Some(incoming), Some(outgoing)) => Sym { incoming, outgoing },
-                        (Some(incoming), None) => In { incoming },
-                        (None, Some(outgoing)) => Out { outgoing },
-                        (None, None) => panic!("Cannot construct a new node with no segments"),
-                    };
-                    self.node_map
-                        .insert(node_id, node_builders[i].build(lane_map_config));
-                    node_id
-                }
-            };
-            new_node_ids.push(node_id);
-        });
+                        self.node_map
+                            .insert(node_id, node_builder.build(lane_map_config));
+                    }
+                    LNodeBuilderType::Old(snap_config) => {
+                        // update existing node
+                        let segment_id = match snap_config.get_side() {
+                            Side::Out => segment_ids[0],
+                            Side::In => segment_ids[segment_ids.len() - 1],
+                        };
+                        self.get_node_mut(node_id)
+                            .add_segment(segment_id, snap_config);
+                    }
+                };
+                node_id
+            })
+            .collect();
 
         let segment_width = node_type.lane_width.getf32() * node_type.no_lanes as f32;
         segment_builders
             .into_iter()
             .enumerate()
             .for_each(|(i, segment_builder)| {
-                let segment =
-                    segment_builder.build(segment_width, new_node_ids[i], new_node_ids[i + 1]);
+                let segment = segment_builder.build(segment_width, node_ids[i], node_ids[i + 1]);
                 let id = segment_ids[i];
                 self.segment_map.insert(id, segment);
             });
 
         // update forward_refs and backward_refs
-        new_node_ids.iter().enumerate().for_each(|(i, node_id)| {
+        node_ids.iter().enumerate().for_each(|(i, node_id)| {
             if let Some(backward_id) = segment_ids.get(((i as i32 - 1) % 100) as usize) {
                 self.backward_refs
                     .get_mut(node_id)
                     .expect("NodeId does not exist in backward_refs")
-                    .push((new_node_ids[i - 1], *backward_id));
+                    .push((node_ids[i - 1], *backward_id));
             }
             if let Some(forward_id) = segment_ids.get(i) {
                 self.forward_refs
                     .get_mut(node_id)
                     .expect("NodeId does not exist in forward_refs")
-                    .push((new_node_ids[i + 1], *forward_id));
+                    .push((node_ids[i + 1], *forward_id));
             }
         });
 
-        let new_snap_id = new_node_ids[new_snap_index];
+        let new_snap_id = node_ids[if reverse { 0 } else { node_ids.len() - 1 }];
         let new_snap = self
             .get_node(new_snap_id)
             .construct_snap_configs(node_type, new_snap_id)

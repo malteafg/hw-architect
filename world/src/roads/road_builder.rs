@@ -1,57 +1,35 @@
-use super::{LNodeBuilder, LSegmentBuilder, NodeType, SegmentType, SnapConfig};
+use super::{LNodeBuilder, LSegmentBuilder, SnapConfig};
 
 pub enum LNodeBuilderType {
     New(LNodeBuilder),
     Old(SnapConfig),
 }
 
-// pub struct LRoadBuilder {
-//     nodes: Vec<LNodeBuilderType>,
-//     segments: Vec<LSegmentBuilder>,
-// }
-
 /// This struct defines exactly the data that a road graph needs in order to add new segments to
 /// it.
+/// Nodes and segments are generated in the direction that the car drives.
+/// This should always only be able to generate a valid road.
+/// There is always one more node than segment.
 pub struct LRoadBuilder {
-    node_builders: Vec<LNodeBuilder>,
-    segment_builders: Vec<LSegmentBuilder>,
-    node_type: NodeType,
-    segment_type: SegmentType,
+    nodes: Vec<LNodeBuilderType>,
+    segments: Vec<LSegmentBuilder>,
     reverse: bool,
 }
 
 impl LRoadBuilder {
     pub fn new(
-        node_builders: Vec<LNodeBuilder>,
-        segment_builders: Vec<LSegmentBuilder>,
-        node_type: NodeType,
-        segment_type: SegmentType,
+        nodes: Vec<LNodeBuilderType>,
+        segments: Vec<LSegmentBuilder>,
         reverse: bool,
     ) -> Self {
         Self {
-            node_builders,
-            segment_builders,
-            node_type,
-            segment_type,
+            nodes,
+            segments,
             reverse,
         }
     }
 
-    pub fn consume(
-        self,
-    ) -> (
-        Vec<LNodeBuilder>,
-        Vec<LSegmentBuilder>,
-        NodeType,
-        SegmentType,
-        bool,
-    ) {
-        (
-            self.node_builders,
-            self.segment_builders,
-            self.node_type,
-            self.segment_type,
-            self.reverse,
-        )
+    pub fn consume(self) -> (Vec<LNodeBuilderType>, Vec<LSegmentBuilder>, bool) {
+        (self.nodes, self.segments, self.reverse)
     }
 }
