@@ -1,10 +1,9 @@
-use super::curve_gen;
 use super::mesh_gen::*;
 
 use crate::tool_state::SelectedRoad;
 
+use utils::curves::{curve_gen, GuidePoints, SpinePoints};
 use utils::VecUtils;
-use world::curves::{GuidePoints, SpinePoints};
 use world::roads::{
     CurveType, LNodeBuilder, LRoadBuilder, LSegmentBuilder, SegmentType, SnapConfig,
 };

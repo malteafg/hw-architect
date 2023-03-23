@@ -15,6 +15,7 @@ pub use math_utils::Round;
 pub use math_utils::VecUtils;
 
 pub mod consts;
+pub mod curves;
 pub mod id;
 pub mod input;
 pub mod loader;

@@ -1,8 +1,8 @@
-use crate::road_gen::curve_gen;
+use utils::curves::curve_gen;
 
 use utils::consts::{LANE_MARKINGS_WIDTH, ROAD_HEIGHT};
+use utils::curves::{GuidePoints, SpinePoints};
 use utils::VecUtils;
-use world::curves::{GuidePoints, SpinePoints};
 use world::roads::NodeType;
 
 use gfx_api::RoadMesh;

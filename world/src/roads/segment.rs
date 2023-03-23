@@ -1,5 +1,5 @@
 use super::SegmentType;
-use crate::curves::{GuidePoints, SpinePoints};
+use utils::curves::{GuidePoints, SpinePoints};
 
 use utils::id::NodeId;
 

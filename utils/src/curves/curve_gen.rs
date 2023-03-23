@@ -1,5 +1,5 @@
-use utils::VecUtils;
-use world::curves::{GuidePoints, SpinePoints};
+use super::{GuidePoints, SpinePoints};
+use crate::VecUtils;
 
 use glam::Vec3;
 
