@@ -20,6 +20,15 @@ pub enum LNodeBuilderType {
     Old(SnapConfig),
 }
 
+impl LNodeBuilderType {
+    fn get_pos_and_dir(&self) -> (Vec3, Vec3) {
+        match self {
+            New(node_builder) => (node_builder.get_pos(), node_builder.get_dir()),
+            Old(snap_config) => (snap_config.get_pos(), snap_config.get_dir()),
+        }
+    }
+}
+
 /// This struct defines exactly the data that a road graph needs in order to add new segments to
 /// it.
 /// Nodes and segments are generated in the direction that the car drives.
@@ -171,7 +180,7 @@ impl LRoadBuilder {
         end_node: SnapConfig,
         segment_type: SegmentType,
     ) -> Result<Self, RoadGenErr> {
-        let reverse = end_node.get_side() == Side::In;
+        let reverse = end_node.get_side() == Side::Out;
         let mut end_dir = end_node.get_dir();
         if !reverse {
             end_dir *= -1.0;
@@ -212,17 +221,62 @@ impl LRoadBuilder {
 
     /// Attempts a double snap between the given positions and directions. If double snap fails, an
     /// error is returned.
-    pub fn gen_ds(start_node: LNodeBuilderType, end_node: SnapConfig) -> Result<Self, RoadGenErr> {
-        todo!()
+    pub fn gen_ds(
+        start_node: LNodeBuilderType,
+        end_node: SnapConfig,
+        segment_type: SegmentType,
+    ) -> Result<Self, RoadGenErr> {
+        let node_type = end_node.get_node_type();
+        let (start_node, (start_pos, start_dir), end_node, (end_pos, end_dir), reverse) =
+            if end_node.get_side() == Side::In {
+                let start_pos_and_dir = start_node.get_pos_and_dir();
+                let end_pos_and_dir = end_node.get_pos_and_dir();
+                (
+                    start_node,
+                    start_pos_and_dir,
+                    Old(end_node),
+                    end_pos_and_dir,
+                    false,
+                )
+            } else {
+                let start_pos_and_dir = start_node.get_pos_and_dir();
+                let end_pos_and_dir = end_node.get_pos_and_dir();
+                (
+                    Old(end_node),
+                    end_pos_and_dir,
+                    start_node,
+                    start_pos_and_dir,
+                    true,
+                )
+            };
+
+        let snap_case = curve_gen::double_snap_curve_case(
+            start_pos,
+            start_dir,
+            end_pos,
+            end_dir,
+            node_type.no_lanes,
+        )
+        .map_err(|_| RoadGenErr::DoubleSnapFailed)?;
+
+        let (g_points_vec, _) =
+            curve_gen::guide_points_and_direction(curve_gen::match_double_snap_curve_case(
+                start_pos, start_dir, end_pos, end_dir, snap_case,
+            ));
+        let mut nodes = vec![start_node];
+        let mut segments = vec![];
+        g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
+            let end_pos = g_points[g_points.len() - 1];
+            // TODO fix 0.05, and figure out what to do with it.
+            let spine_points = g_points.get_spine_points(0.05);
+            nodes.push(New(LNodeBuilder::new(end_pos, end_dir, node_type)));
+            segments.push(LSegmentBuilder::new(segment_type, g_points, spine_points));
+        });
+        nodes.pop();
+        nodes.push(end_node);
+        Result::Ok(Self::new(nodes, segments, reverse))
     }
 }
-
-// fn get_start_end(start: Vec3, end: Vec3, side: Side) -> (Vec3, Vec3, bool) {
-//     match side {
-//         Side::In => (end, start, true),
-//         Side::Out => (start, end, false),
-//     }
-// }
 
 fn proj_straight_too_short(start_pos: Vec3, pref_pos: Vec3, proj_dir: Vec3) -> Vec3 {
     if (pref_pos - start_pos).length() < ROAD_MIN_LENGTH {

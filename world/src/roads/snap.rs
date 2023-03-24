@@ -124,6 +124,10 @@ impl SnapConfig {
         self.dir
     }
 
+    pub fn get_pos_and_dir(&self) -> (Vec3, Vec3) {
+        (self.pos, self.dir)
+    }
+
     pub(super) fn get_snap_range(&self) -> &SnapRange {
         &self.snap_range
     }
