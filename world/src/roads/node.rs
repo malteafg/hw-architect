@@ -45,6 +45,18 @@ impl LNodeBuilder {
         };
         LNode::new(self.pos, self.dir, self.node_type, mode)
     }
+
+    pub fn get_pos(&self) -> Vec3 {
+        self.pos
+    }
+
+    pub fn get_dir(&self) -> Vec3 {
+        self.dir
+    }
+
+    pub fn get_node_type(&self) -> NodeType {
+        self.node_type
+    }
 }
 
 /// Specifies the configuration of segments when a new node is created.

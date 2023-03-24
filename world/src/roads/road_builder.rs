@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use super::{LNodeBuilder, LSegmentBuilder, NodeType, SegmentType, Side, SnapConfig};
 
 use utils::consts::{DEFAULT_DIR, ROAD_MIN_LENGTH};
@@ -9,6 +11,7 @@ use glam::Vec3;
 /// TODO add better error types.
 pub enum RoadGenErr {
     Placeholder,
+    CCSFailed,
     DoubleSnapFailed,
 }
 
@@ -109,8 +112,55 @@ impl LRoadBuilder {
 
     /// Generates a circle curved road. The circle curve starts from start_pos and start_dir, and
     /// then end_pos is projected to smallest curvature and 270 degrees.
-    pub fn gen_cc(start_node: LNodeBuilderType, end_pos: Vec3, end_type: NodeType) -> Self {
-        todo!()
+    pub fn gen_cc(
+        start_node: LNodeBuilderType,
+        end_pos: Vec3,
+        end_type: NodeType,
+        segment_type: SegmentType,
+    ) -> Self {
+        let (start_pos, start_dir, reverse) = match &start_node {
+            New(node_builder) => (node_builder.get_pos(), node_builder.get_dir(), false),
+            Old(snap_config) => (
+                snap_config.get_pos(),
+                snap_config.get_dir(),
+                Side::In == snap_config.get_side(),
+            ),
+        };
+
+        // Not sure why this line was here
+        // let end_pos = proj_too_small(start_pos, end_pos, start_dir);
+        let mut g_points_vec = curve_gen::three_quarter_circle_curve(
+            start_pos,
+            start_dir,
+            end_pos,
+            std::f32::consts::PI / 12.0,
+            false,
+            true,
+        )
+        .expect("Should allow projection");
+
+        if reverse {
+            curve_gen::reverse_g_points_vec(&mut g_points_vec);
+        }
+        let (g_points_vec, _start_dir) = curve_gen::guide_points_and_direction(g_points_vec);
+
+        // let mut nodes = vec![LNodeBuilder::new(start_pos, start_dir, end_type)];
+        let mut nodes = VecDeque::new();
+        let mut segments = vec![];
+        g_points_vec.into_iter().for_each(|(g_points, node_dir)| {
+            let node_pos = g_points[g_points.len() - 1];
+            // TODO fix 0.05, and figure out what to do with it.
+            let spine_points = g_points.get_spine_points(0.05);
+            nodes.push_back(New(LNodeBuilder::new(node_pos, node_dir, end_type)));
+            segments.push(LSegmentBuilder::new(segment_type, g_points, spine_points));
+        });
+        if reverse {
+            nodes.push_back(start_node)
+        } else {
+            nodes.push_front(start_node)
+        }
+        let nodes: Vec<LNodeBuilderType> = nodes.into_iter().map(|n| n).collect();
+        Self::new(nodes, segments, reverse)
     }
 
     /// Generates a circle curved road. This differs from gen_cc in that positions are fixed and
@@ -119,8 +169,45 @@ impl LRoadBuilder {
         start_pos: Vec3,
         start_type: NodeType,
         end_node: SnapConfig,
+        segment_type: SegmentType,
     ) -> Result<Self, RoadGenErr> {
-        todo!()
+        let reverse = end_node.get_side() == Side::In;
+        let mut end_dir = end_node.get_dir();
+        if !reverse {
+            end_dir *= -1.0;
+        }
+        let curve = curve_gen::three_quarter_circle_curve(
+            end_node.get_pos(),
+            end_dir,
+            start_pos,
+            0.0,
+            false,
+            false,
+        )
+        .ok_or(RoadGenErr::CCSFailed)?;
+
+        let mut g_points_vec = curve;
+        if !reverse {
+            curve_gen::reverse_g_points_vec(&mut g_points_vec);
+        }
+
+        let (g_points_vec, _start_dir) = curve_gen::guide_points_and_direction(g_points_vec);
+        let mut nodes = VecDeque::new();
+        let mut segments = vec![];
+        g_points_vec.into_iter().for_each(|(g_points, node_dir)| {
+            let node_pos = g_points[g_points.len() - 1];
+            // TODO fix 0.05, and figure out what to do with it.
+            let spine_points = g_points.get_spine_points(0.05);
+            nodes.push_back(New(LNodeBuilder::new(node_pos, node_dir, start_type)));
+            segments.push(LSegmentBuilder::new(segment_type, g_points, spine_points));
+        });
+        if reverse {
+            nodes.push_back(Old(end_node))
+        } else {
+            nodes.push_front(Old(end_node))
+        }
+        let nodes: Vec<LNodeBuilderType> = nodes.into_iter().map(|n| n).collect();
+        Result::Ok(Self::new(nodes, segments, reverse))
     }
 
     /// Attempts a double snap between the given positions and directions. If double snap fails, an
@@ -130,12 +217,12 @@ impl LRoadBuilder {
     }
 }
 
-fn get_start_end(start: Vec3, end: Vec3, side: Side) -> (Vec3, Vec3, bool) {
-    match side {
-        Side::In => (end, start, true),
-        Side::Out => (start, end, false),
-    }
-}
+// fn get_start_end(start: Vec3, end: Vec3, side: Side) -> (Vec3, Vec3, bool) {
+//     match side {
+//         Side::In => (end, start, true),
+//         Side::Out => (start, end, false),
+//     }
+// }
 
 fn proj_straight_too_short(start_pos: Vec3, pref_pos: Vec3, proj_dir: Vec3) -> Vec3 {
     if (pref_pos - start_pos).length() < ROAD_MIN_LENGTH {

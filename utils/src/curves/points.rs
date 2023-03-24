@@ -85,6 +85,16 @@ impl GuidePoints {
         v * self.len() as f32
     }
 
+    pub fn get_spine_points(&self, dt: f32) -> SpinePoints {
+        let mut spine_points = SpinePoints::empty();
+        let mut t = 0.0;
+        for _ in 0..((1. / t) as u32) {
+            spine_points.push(self.calc_bezier_pos(t));
+            t += dt;
+        }
+        spine_points
+    }
+
     pub fn is_inside(&self, ground_pos: Vec3, width: f32) -> bool {
         let direct_dist = (self[self.len() - 1] - self[0]).length_squared();
 
