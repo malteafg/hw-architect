@@ -22,4 +22,8 @@ impl RoadMesh {
             lane_indices: Vec::new(),
         }
     }
+
+    pub fn size(&self) -> (usize, usize) {
+        (self.vertices.len(), self.lane_vertices.len())
+    }
 }

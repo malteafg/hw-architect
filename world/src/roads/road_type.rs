@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 /// TODO: add euler spirals.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum CurveType {
-    #[default]
     Straight,
+    #[default]
     Curved,
 }
 

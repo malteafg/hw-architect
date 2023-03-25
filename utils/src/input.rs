@@ -25,7 +25,7 @@ pub enum Action {
     CameraRotateLeft,
     CameraRotateRight,
     CameraReturn,
-    CycleRoadType,
+    CycleCurveType,
     ToggleSnapping,
     CycleLaneWidth,
     EnterBulldoze,

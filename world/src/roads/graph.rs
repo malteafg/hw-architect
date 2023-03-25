@@ -122,7 +122,6 @@ impl RoadGraph {
                         // generate new node
                         self.forward_refs.insert(node_id, Vec::new());
                         self.backward_refs.insert(node_id, Vec::new());
-
                         use super::LaneMapConfig::*;
                         let lane_map_config = if i == 0 {
                             Out {
@@ -134,8 +133,8 @@ impl RoadGraph {
                             }
                         } else {
                             Sym {
-                                incoming: segment_ids[i],
-                                outgoing: segment_ids[i + 1],
+                                incoming: segment_ids[i - 1],
+                                outgoing: segment_ids[i],
                             }
                         };
 
@@ -156,7 +155,6 @@ impl RoadGraph {
             })
             .collect();
 
-        dbg!(segment_builders.clone());
         segment_builders
             .into_iter()
             .enumerate()

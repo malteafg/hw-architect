@@ -352,3 +352,41 @@ pub fn combine_road_meshes(meshes: Vec<RoadMesh>) -> RoadMesh {
     }
     road_mesh
 }
+
+pub fn combine_road_meshes_bad(meshes: Vec<RoadMesh>) -> RoadMesh {
+    let mut indices_count = 0;
+    let mut road_mesh: RoadMesh = RoadMesh::default();
+
+    for mesh in meshes.iter() {
+        let mesh = mesh.clone();
+        road_mesh.vertices.append(&mut mesh.vertices.clone());
+        road_mesh.indices.append(
+            &mut mesh
+                .indices
+                .clone()
+                .into_iter()
+                .map(|i| i + indices_count)
+                .collect(),
+        );
+        indices_count += mesh.vertices.len() as u32;
+    }
+
+    indices_count = 0;
+    for mesh in meshes.iter() {
+        let mesh = mesh.clone();
+        road_mesh
+            .lane_vertices
+            .append(&mut mesh.lane_vertices.clone());
+        road_mesh.lane_indices.append(
+            &mut mesh
+                .lane_indices
+                .clone()
+                .into_iter()
+                .map(|i| i + indices_count)
+                .collect(),
+        );
+        indices_count += mesh.lane_vertices.len() as u32;
+    }
+
+    road_mesh
+}

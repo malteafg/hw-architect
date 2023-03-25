@@ -13,7 +13,7 @@ camera_rotate_right:
   - l
 camera_return:
   - space
-cycle_road_type:
+cycle_curve_type:
   - m
 toggle_snapping:
   - t

@@ -22,6 +22,10 @@ pub enum LNodeBuilderType {
 }
 
 impl LNodeBuilderType {
+    pub fn new(pos: Vec3, dir: Vec3, node_type: NodeType) -> Self {
+        New(LNodeBuilder::new(pos, dir, node_type))
+    }
+
     fn get_pos_and_dir(&self) -> (Vec3, Vec3) {
         match self {
             New(node_builder) => (node_builder.get_pos(), node_builder.get_dir()),
@@ -62,15 +66,7 @@ impl LRoadBuilder {
     }
 
     pub fn gen_stub(pos: Vec3, dir: Vec3, node_type: NodeType) -> Self {
-        Self::gen_sfd(
-            pos,
-            node_type,
-            pos + dir,
-            node_type,
-            SegmentType {
-                curve_type: super::CurveType::Straight,
-            },
-        )
+        Self::gen_sfd(pos, node_type, pos + dir, node_type)
     }
 
     /// Generates a straight free direction road. This is a straight segment from one position to
@@ -80,7 +76,6 @@ impl LRoadBuilder {
         first_type: NodeType,
         last_pos: Vec3,
         last_type: NodeType,
-        segment_type: SegmentType,
     ) -> Self {
         let dir = (last_pos - first_pos).normalize_else();
         let end_pos = proj_straight_too_short(first_pos, last_pos, dir);
@@ -91,7 +86,9 @@ impl LRoadBuilder {
         ];
         let segments = vec![LSegmentBuilder::new(
             first_type.compute_width(),
-            segment_type,
+            SegmentType {
+                curve_type: super::CurveType::Straight,
+            },
             GuidePoints::from_two_points(first_pos, end_pos),
         )];
 
@@ -136,12 +133,7 @@ impl LRoadBuilder {
 
     /// Generates a circle curved road. The circle curve starts from start_pos and start_dir, and
     /// then end_pos is projected to smallest curvature and 270 degrees.
-    pub fn gen_cc(
-        first_node: LNodeBuilderType,
-        last_pos: Vec3,
-        last_type: NodeType,
-        segment_type: SegmentType,
-    ) -> Self {
+    pub fn gen_cc(first_node: LNodeBuilderType, last_pos: Vec3, last_type: NodeType) -> Self {
         let (start_pos, start_dir, reverse) = match &first_node {
             New(node_builder) => (node_builder.get_pos(), node_builder.get_dir(), false),
             Old(snap_config) => (
@@ -151,8 +143,12 @@ impl LRoadBuilder {
             ),
         };
 
-        // Not sure why this line was here
-        // let end_pos = proj_too_small(start_pos, end_pos, start_dir);
+        let last_pos = if (last_pos - start_pos).length() < ROAD_MIN_LENGTH {
+            start_pos
+                + (last_pos - start_pos).try_normalize().unwrap_or(start_dir) * ROAD_MIN_LENGTH
+        } else {
+            last_pos
+        };
         let mut g_points_vec = curve_gen::three_quarter_circle_curve(
             start_pos,
             start_dir,
@@ -163,28 +159,30 @@ impl LRoadBuilder {
         )
         .expect("Should allow projection");
 
-        if reverse {
-            curve_gen::reverse_g_points_vec(&mut g_points_vec);
-        }
+        // if reverse {
+        //     curve_gen::reverse_g_points_vec(&mut g_points_vec);
+        // }
         let (g_points_vec, _start_dir) = curve_gen::guide_points_and_direction(g_points_vec);
 
-        // let mut nodes = vec![LNodeBuilder::new(start_pos, start_dir, end_type)];
         let mut nodes = VecDeque::new();
+        nodes.push_back(first_node);
         let mut segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, node_dir)| {
             let node_pos = g_points[g_points.len() - 1];
             nodes.push_back(New(LNodeBuilder::new(node_pos, node_dir, last_type)));
             segments.push(LSegmentBuilder::new(
                 last_type.compute_width(),
-                segment_type,
+                SegmentType {
+                    curve_type: super::CurveType::Curved,
+                },
                 g_points,
             ));
         });
-        if reverse {
-            nodes.push_back(first_node)
-        } else {
-            nodes.push_front(first_node)
-        }
+        // if reverse {
+        //     nodes.push_back(first_node)
+        // } else {
+        //     nodes.push_front(first_node)
+        // }
         let nodes: Vec<LNodeBuilderType> = nodes.into_iter().map(|n| n).collect();
         Self::new(nodes, segments, reverse)
     }
