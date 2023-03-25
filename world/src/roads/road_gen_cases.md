@@ -83,6 +83,8 @@ DS: Snap, NoSel, Sel
 
 Small stub that comes from snapping in select pos mode is not a road gen
 
+Maybe GuidePoints should be generic over CurveType.
+
 
 reverse in road generator should mean that segments and nodes should be reversed when built
 

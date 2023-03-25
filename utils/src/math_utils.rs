@@ -4,6 +4,8 @@
 use glam::*;
 use std::f32::consts::PI;
 
+use crate::consts::DEFAULT_DIR;
+
 /// Defines utility functions intended for vector types
 pub trait VecUtils {
     fn proj(self, target: Self) -> Self;
@@ -16,6 +18,7 @@ pub trait VecUtils {
     fn side(self, other: Self) -> f32;
     fn right_hand(self) -> Self;
     fn left_hand(self) -> Self;
+    fn normalize_else(self) -> Self;
 }
 
 impl VecUtils for Vec3 {
@@ -56,6 +59,10 @@ impl VecUtils for Vec3 {
 
     fn right_hand(self) -> Self {
         Self::new(-self.z, self.y, self.x)
+    }
+
+    fn normalize_else(self) -> Self {
+        self.try_normalize().unwrap_or(DEFAULT_DIR)
     }
 }
 

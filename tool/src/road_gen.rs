@@ -1,2 +1,1 @@
-pub mod generator;
-mod mesh_gen;
+pub mod mesh_gen;

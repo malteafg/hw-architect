@@ -11,9 +11,23 @@ use glam::*;
 const VERTEX_DENSITY: f32 = 0.05;
 const CUT_LENGTH: f32 = 5.0;
 
-/// Generates a straight mesh beteen the given positions, and returns the mesh together with the
+/// Generates a simple mesh where the node ends have the same node type.
+pub fn generate_simple_mesh(g_points: &GuidePoints, node_type: NodeType) -> RoadMesh {
+    // TODO check the results of this num_of_cuts
+    let num_of_cuts = (VERTEX_DENSITY * (1000.0 + g_points.dist())) as u32;
+    let (spine_points, spine_dirs) = curve_gen::spine_points_and_dir(
+        &g_points,
+        1.0 / (num_of_cuts as f32 - 1.0),
+        CUT_LENGTH,
+        num_of_cuts,
+    );
+
+    generate_road_mesh_with_lanes(spine_points.clone(), spine_dirs, node_type)
+}
+
+/// Generates a straight mesh between the given positions, and returns the mesh together with the
 /// uniformly spaced spine points.
-pub fn generate_straight_mesh(
+pub fn _generate_straight_mesh(
     start_pos: Vec3,
     end_pos: Vec3,
     node_type: NodeType,
@@ -34,7 +48,7 @@ pub fn generate_straight_mesh(
 
 /// Generates a circular mesh from the given guide points and positions and returns the mesh
 /// together with the uniformly spaced spine_points.
-pub fn generate_circular_mesh(
+pub fn _generate_circular_mesh(
     start_pos: Vec3,
     end_pos: Vec3,
     node_type: NodeType,
@@ -305,4 +319,36 @@ fn generate_markings_cut(pos: Vec3, dir: Vec3, node_type: NodeType) -> Vec<[f32;
     vertices.push(pos.into());
 
     vertices
+}
+
+// iterate over road_meshes and return vec of RoadVertex
+// in the future separate road_meshes into "chunks"
+pub fn combine_road_meshes(meshes: Vec<RoadMesh>) -> RoadMesh {
+    let mut road_mesh: RoadMesh = RoadMesh::default();
+
+    let mut indices_count = 0;
+    let mut lane_indices_count = 0;
+
+    for mut mesh in meshes.into_iter() {
+        road_mesh.vertices.append(&mut mesh.vertices);
+        road_mesh.indices.append(
+            &mut mesh
+                .indices
+                .into_iter()
+                .map(|i| i + indices_count)
+                .collect(),
+        );
+        indices_count += mesh.vertices.len() as u32;
+
+        road_mesh.lane_vertices.append(&mut mesh.lane_vertices);
+        road_mesh.lane_indices.append(
+            &mut mesh
+                .lane_indices
+                .into_iter()
+                .map(|i| i + lane_indices_count)
+                .collect(),
+        );
+        lane_indices_count += mesh.lane_vertices.len() as u32;
+    }
+    road_mesh
 }

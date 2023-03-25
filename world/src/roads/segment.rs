@@ -28,6 +28,10 @@ impl LSegmentBuilder {
         }
     }
 
+    pub fn get_guide_points(&self) -> &GuidePoints {
+        &self.guide_points
+    }
+
     pub fn build(self, width: f32, from_node: NodeId, to_node: NodeId) -> LSegment {
         LSegment::new(
             width,

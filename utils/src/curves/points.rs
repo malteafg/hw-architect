@@ -44,6 +44,16 @@ impl GuidePoints {
         GuidePoints(vec![])
     }
 
+    /// Computes and returns the summed distance from the path starting in the first point to the
+    /// last point, visiting all points.
+    pub fn dist(&self) -> f32 {
+        let mut sum = 0.0;
+        for i in 0..self.len() - 1 {
+            sum += (self[i] - self[i + 1]).length()
+        }
+        sum
+    }
+
     pub fn calc_bezier_pos(&self, t: f32) -> Vec3 {
         let mut v = Vec3::new(0.0, 0.0, 0.0);
         let mut r = (1.0 - t).powi(self.len() as i32 - 1);
