@@ -202,6 +202,12 @@ impl ConstructTool {
             .selected_road
             .node_type
             .no_lanes = no_lanes;
+        self.show_snappable_nodes();
+        if let SelNode { .. } = self.mode {
+            self.reset();
+        } else {
+            self.check_snapping();
+        }
     }
 
     /// Switches the curve type in use.
@@ -244,6 +250,7 @@ impl ConstructTool {
         if !curr {
             self.check_snapping();
             self.show_snappable_nodes();
+            dbg!(self.state_handle.borrow().road_state.snapping);
             return;
         }
         // Turn snapping off
@@ -256,18 +263,18 @@ impl ConstructTool {
     }
 
     fn cycle_lane_width(&mut self, scroll_state: utils::input::ScrollState) {
-        // cycle_selection::scroll_mut(
-        //     &mut self
-        //         .state_handle
-        //         .borrow_mut()
-        //         .road_state
-        //         .selected_road
-        //         .node_type
-        //         .lane_width,
-        //     scroll_state,
-        // );
-        // self.reset(Mode::SelectPos);
-        // dbg!(self.get_sel_road_type().node_type.lane_width);
+        cycle_selection::scroll_mut(
+            &mut self
+                .state_handle
+                .borrow_mut()
+                .road_state
+                .selected_road
+                .node_type
+                .lane_width,
+            scroll_state,
+        );
+        self.reset();
+        dbg!(self.get_sel_road_type().node_type.lane_width);
     }
 
     // #############################################################################################
@@ -356,6 +363,8 @@ impl ConstructTool {
             road_builder,
         }
     }
+
+    /// Generates a cc curve and sets the mode to CurveEnd.
     fn update_to_cc_curve_end(&mut self, pos: Vec3, dir: Vec3, init_node_type: NodeType) {
         let last_pos = self.ground_pos;
         let road_builder = LRoadBuilder::gen_cc(
@@ -372,6 +381,7 @@ impl ConstructTool {
         }
     }
 
+    /// Generates a cc curve and sets the mode to SelNode.
     fn update_to_cc_sel_node(&mut self, snap_config: SnapConfig) {
         let last_pos = self.ground_pos;
         let road_builder = LRoadBuilder::gen_cc(
