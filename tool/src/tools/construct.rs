@@ -14,8 +14,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-const DEFAULT_DIR: Vec3 = Vec3::new(1.0, 0.0, 0.0);
-
 /// Defines the mode of the construct tool. At any time can the user snap to a node, which will
 /// result in a change in the generated node. Data is small so clone is fine.
 #[derive(Default)]
@@ -76,8 +74,8 @@ impl ToolStrategy for ConstructTool {
     }
 
     fn left_click(&mut self) {
-        let prev_mode = std::mem::take(&mut self.mode);
-        match prev_mode {
+        // TODO remove clones()
+        match &self.mode {
             SelectPos => {
                 if let Some(snapped_node) = self.snapped_node.clone() {
                     self.select_node(snapped_node);
@@ -100,23 +98,23 @@ impl ToolStrategy for ConstructTool {
             SelectDir {
                 pos, road_builder, ..
             } => match self.get_sel_road_type().segment_type.curve_type {
-                CurveType::Straight => self.build_road(road_builder),
+                CurveType::Straight => self.build_road(road_builder.clone()),
                 CurveType::Curved => {
                     if self.snapped_node.is_some() {
-                        self.build_road(road_builder)
+                        self.build_road(road_builder.clone())
                     } else {
-                        let dir = (pos - self.ground_pos).normalize_else();
+                        let dir = (*pos - self.ground_pos).normalize_else();
                         self.mode = CurveEnd {
-                            pos,
+                            pos: *pos,
                             dir,
                             init_node_type: self.get_sel_road_type().node_type,
-                            road_builder,
+                            road_builder: road_builder.clone(),
                         };
                     }
                 }
             },
-            CurveEnd { road_builder, .. } => self.build_road(road_builder),
-            SelNode { road_builder, .. } => self.build_road(road_builder),
+            CurveEnd { road_builder, .. } => self.build_road(road_builder.clone()),
+            SelNode { road_builder, .. } => self.build_road(road_builder.clone()),
         }
         self.show_snappable_nodes();
     }
@@ -398,7 +396,7 @@ impl ConstructTool {
     }
 
     /// Returns the optionally selected node.
-    fn get_selected_node(&self) -> Option<SnapConfig> {
+    fn _get_selected_node(&self) -> Option<SnapConfig> {
         match &self.mode {
             SelectPos | SelectDir { .. } | CurveEnd { .. } => None,
             SelNode { snap, .. } => Some(snap.clone()),

@@ -15,7 +15,7 @@ use lanes::LaneMap;
 // #################################################################################################
 // Definitions for others to construct an LNode
 // #################################################################################################
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct LNodeBuilder {
     pos: Vec3,
     dir: Vec3,

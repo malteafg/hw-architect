@@ -15,6 +15,7 @@ pub enum RoadGenErr {
     DoubleSnapFailed,
 }
 
+#[derive(Debug, Clone)]
 pub enum LNodeBuilderType {
     New(LNodeBuilder),
     Old(SnapConfig),
@@ -34,6 +35,7 @@ impl LNodeBuilderType {
 /// Nodes and segments are generated in the direction that the car drives.
 /// This should always only be able to generate a valid road.
 /// There is always one more node than segment.
+#[derive(Debug, Clone)]
 pub struct LRoadBuilder {
     nodes: Vec<LNodeBuilderType>,
     segments: Vec<LSegmentBuilder>,
