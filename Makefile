@@ -6,6 +6,9 @@ run:
 build:
 	cargo build
 
+debug:
+	RUST_BACKTRACE=1 cargo run
+
 clean:
 	cargo clean
 

@@ -92,7 +92,7 @@ impl RoadGraph {
     pub fn add_road(
         &mut self,
         road: LRoadBuilder,
-        node_type: NodeType,
+        sel_node_type: NodeType,
     ) -> (Option<SnapConfig>, Vec<SegmentId>) {
         let (node_builders, segment_builders, reverse) = road.consume();
         let num_nodes = node_builders.len();
@@ -156,12 +156,12 @@ impl RoadGraph {
             })
             .collect();
 
-        let segment_width = node_type.lane_width.getf32() * node_type.no_lanes as f32;
+        dbg!(segment_builders.clone());
         segment_builders
             .into_iter()
             .enumerate()
             .for_each(|(i, segment_builder)| {
-                let segment = segment_builder.build(segment_width, node_ids[i], node_ids[i + 1]);
+                let segment = segment_builder.build(node_ids[i], node_ids[i + 1]);
                 let id = segment_ids[i];
                 self.segment_map.insert(id, segment);
             });
@@ -185,7 +185,7 @@ impl RoadGraph {
         let new_snap_id = node_ids[if reverse { 0 } else { node_ids.len() - 1 }];
         let new_snap = self
             .get_node(new_snap_id)
-            .construct_snap_configs(node_type, new_snap_id)
+            .construct_snap_configs(sel_node_type, new_snap_id)
             .get(0)
             .cloned();
 

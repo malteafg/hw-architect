@@ -10,21 +10,17 @@ use serde::{Deserialize, Serialize};
 // #################################################################################################
 #[derive(Debug, Clone)]
 pub struct LSegmentBuilder {
+    width: f32,
     segment_type: SegmentType,
     guide_points: GuidePoints,
-    spine_points: SpinePoints,
 }
 
 impl LSegmentBuilder {
-    pub fn new(
-        segment_type: SegmentType,
-        guide_points: GuidePoints,
-        spine_points: SpinePoints,
-    ) -> Self {
+    pub fn new(width: f32, segment_type: SegmentType, guide_points: GuidePoints) -> Self {
         LSegmentBuilder {
+            width,
             segment_type,
             guide_points,
-            spine_points,
         }
     }
 
@@ -32,12 +28,14 @@ impl LSegmentBuilder {
         &self.guide_points
     }
 
-    pub fn build(self, width: f32, from_node: NodeId, to_node: NodeId) -> LSegment {
+    pub fn build(self, from_node: NodeId, to_node: NodeId) -> LSegment {
+        // TODO fix 0.05, and figure out what to do with it.
+        let spine_points = self.guide_points.get_spine_points(0.05);
         LSegment::new(
-            width,
+            self.width,
             self.segment_type,
             self.guide_points,
-            self.spine_points,
+            spine_points,
             from_node,
             to_node,
         )

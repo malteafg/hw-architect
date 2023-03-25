@@ -40,6 +40,15 @@ impl GuidePoints {
         GuidePoints(vec)
     }
 
+    /// # Panics
+    /// Panics if the points are the same.
+    pub fn from_two_points(p1: Vec3, p2: Vec3) -> Self {
+        let dir = (p2 - p1).normalize();
+        let dist = (p2 - p1).length();
+        let dist_dir = dir * (dist / 3.);
+        GuidePoints::from_vec(vec![p1, p1 + dist_dir, p1 + (2. * dist_dir), p2])
+    }
+
     pub fn empty() -> Self {
         GuidePoints(vec![])
     }
@@ -98,7 +107,7 @@ impl GuidePoints {
     pub fn get_spine_points(&self, dt: f32) -> SpinePoints {
         let mut spine_points = SpinePoints::empty();
         let mut t = 0.0;
-        for _ in 0..((1. / t) as u32) {
+        for _ in 0..((1. / dt) as u32) {
             spine_points.push(self.calc_bezier_pos(t));
             t += dt;
         }

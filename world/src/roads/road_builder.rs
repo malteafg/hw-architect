@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use super::{LNodeBuilder, LSegmentBuilder, NodeType, SegmentType, Side, SnapConfig};
 
 use utils::consts::ROAD_MIN_LENGTH;
-use utils::curves::{curve_gen, GuidePoints, SpinePoints};
+use utils::curves::{curve_gen, GuidePoints};
 use utils::VecUtils;
 
 use glam::Vec3;
@@ -61,6 +61,18 @@ impl LRoadBuilder {
         &self.segments
     }
 
+    pub fn gen_stub(pos: Vec3, dir: Vec3, node_type: NodeType) -> Self {
+        Self::gen_sfd(
+            pos,
+            node_type,
+            pos + dir,
+            node_type,
+            SegmentType {
+                curve_type: super::CurveType::Straight,
+            },
+        )
+    }
+
     /// Generates a straight free direction road. This is a straight segment from one position to
     /// another. If the segment generated is too short, it will be extended to the minimum length.
     pub fn gen_sfd(
@@ -78,9 +90,9 @@ impl LRoadBuilder {
             New(LNodeBuilder::new(end_pos, dir, last_type)),
         ];
         let segments = vec![LSegmentBuilder::new(
+            first_type.compute_width(),
             segment_type,
-            GuidePoints::from_vec(vec![first_pos, end_pos]),
-            SpinePoints::from_vec(vec![first_pos, end_pos]),
+            GuidePoints::from_two_points(first_pos, end_pos),
         )];
 
         // TODO fix such that it does not set false, or maybe remove reverse from LRoadBuilder
@@ -89,27 +101,22 @@ impl LRoadBuilder {
 
     /// Generates a straight locked direction road. Then end_pos is projected unto the line defined
     /// by the start_node.
-    pub fn gen_sld(
-        first_node: SnapConfig,
-        last_pos: Vec3,
-        last_type: NodeType,
-        segment_type: SegmentType,
-    ) -> Self {
-        let start_pos = first_node.get_pos();
-        let start_dir = first_node.get_dir();
-        let actual_dir = (last_pos - start_pos).normalize();
-        let proj_pos = if actual_dir.dot(start_dir) / start_dir.length() > ROAD_MIN_LENGTH {
+    pub fn gen_sld(first_node: SnapConfig, last_pos: Vec3, last_type: NodeType) -> Self {
+        let first_pos = first_node.get_pos();
+        let first_dir = first_node.get_dir();
+        let first_to_last = last_pos - first_pos;
+        let proj_pos = if first_to_last.dot(first_dir) / first_dir.length() > ROAD_MIN_LENGTH {
             // The projection will yield a long enough segment
-            actual_dir.proj(start_dir) + start_pos
+            first_to_last.proj(first_dir) + first_pos
         } else {
             // The projection will be to short and therefore we set proj_pos to min road length
-            start_pos + start_dir * ROAD_MIN_LENGTH
+            first_pos + first_dir * ROAD_MIN_LENGTH
         };
 
         let side = first_node.get_side();
         let mut nodes = vec![
             Old(first_node),
-            New(LNodeBuilder::new(proj_pos, start_dir, last_type)),
+            New(LNodeBuilder::new(proj_pos, first_dir, last_type)),
         ];
         let mut reverse = false;
         if let Side::In = side {
@@ -117,9 +124,11 @@ impl LRoadBuilder {
             nodes.reverse();
         };
         let segments = vec![LSegmentBuilder::new(
-            segment_type,
-            GuidePoints::from_vec(vec![start_pos, last_pos]),
-            SpinePoints::from_vec(vec![start_pos, last_pos]),
+            last_type.compute_width(),
+            SegmentType {
+                curve_type: super::CurveType::Straight,
+            },
+            GuidePoints::from_two_points(first_pos, proj_pos),
         )];
 
         Self::new(nodes, segments, reverse)
@@ -164,10 +173,12 @@ impl LRoadBuilder {
         let mut segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, node_dir)| {
             let node_pos = g_points[g_points.len() - 1];
-            // TODO fix 0.05, and figure out what to do with it.
-            let spine_points = g_points.get_spine_points(0.05);
             nodes.push_back(New(LNodeBuilder::new(node_pos, node_dir, last_type)));
-            segments.push(LSegmentBuilder::new(segment_type, g_points, spine_points));
+            segments.push(LSegmentBuilder::new(
+                last_type.compute_width(),
+                segment_type,
+                g_points,
+            ));
         });
         if reverse {
             nodes.push_back(first_node)
@@ -211,10 +222,12 @@ impl LRoadBuilder {
         let mut segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, node_dir)| {
             let node_pos = g_points[g_points.len() - 1];
-            // TODO fix 0.05, and figure out what to do with it.
-            let spine_points = g_points.get_spine_points(0.05);
             nodes.push_back(New(LNodeBuilder::new(node_pos, node_dir, first_type)));
-            segments.push(LSegmentBuilder::new(segment_type, g_points, spine_points));
+            segments.push(LSegmentBuilder::new(
+                first_type.compute_width(),
+                segment_type,
+                g_points,
+            ));
         });
         if reverse {
             nodes.push_back(Old(last_node))
@@ -273,10 +286,12 @@ impl LRoadBuilder {
         let mut segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
             let end_pos = g_points[g_points.len() - 1];
-            // TODO fix 0.05, and figure out what to do with it.
-            let spine_points = g_points.get_spine_points(0.05);
             nodes.push(New(LNodeBuilder::new(end_pos, end_dir, node_type)));
-            segments.push(LSegmentBuilder::new(segment_type, g_points, spine_points));
+            segments.push(LSegmentBuilder::new(
+                node_type.compute_width(),
+                segment_type,
+                g_points,
+            ));
         });
         nodes.pop();
         nodes.push(end_node);
