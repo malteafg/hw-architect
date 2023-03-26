@@ -5,7 +5,8 @@ use crate::tool_state::{SelectedRoad, ToolState};
 
 use utils::{input, VecUtils};
 use world::roads::{
-    CurveType, LNodeBuilderType, LRoadBuilder, LaneWidth, NodeType, SegmentType, Side, SnapConfig,
+    CurveType, LNodeBuilder, LNodeBuilderType, LRoadBuilder, LaneWidth, NodeType, SegmentType,
+    Side, SnapConfig,
 };
 use world::{RoadManipulator, World};
 
@@ -324,16 +325,8 @@ impl ConstructTool {
 
     /// Invoked when a snapped node becomes selected.
     fn select_node(&mut self, snap_config: SnapConfig) {
-        let reverse = snap_config.get_side() == Side::In;
-        self.update_to_sld(snap_config, reverse);
-    }
-
-    /// Returns the optionally selected node.
-    fn _get_selected_node(&self) -> Option<SnapConfig> {
-        match &self.mode {
-            SelectPos | SelectDir { .. } | CurveEnd { .. } => None,
-            SelNode { snap_config, .. } => Some(snap_config.clone()),
-        }
+        self.update_to_sld(snap_config);
+        self.show_snappable_nodes();
     }
 
     /// Constructs the road that is being generated.
@@ -391,8 +384,8 @@ impl ConstructTool {
     }
 
     /// Generates and sld and sets the mode to SelNode.
-    /// reverse parameter is necessary for when selecting and snapping nodes, see try_select_dir.
-    fn update_to_sld(&mut self, snap_config: SnapConfig, reverse: bool) {
+    fn update_to_sld(&mut self, snap_config: SnapConfig) {
+        let reverse = snap_config.get_side() == Side::In;
         let road_builder = LRoadBuilder::gen_sld(
             snap_config.clone(),
             self.ground_pos,
@@ -459,9 +452,7 @@ impl ConstructTool {
                 ..
             } => self.update_to_cc_curve_end(*pos, *dir, *init_node_type),
             SelNode { snap_config, .. } => match self.get_sel_curve_type() {
-                CurveType::Straight => {
-                    self.update_to_sld(snap_config.clone(), self.compute_reverse())
-                }
+                CurveType::Straight => self.update_to_sld(snap_config.clone()),
                 CurveType::Curved => self.update_to_cc_sel_node(snap_config.clone()),
             },
         };
@@ -513,7 +504,57 @@ impl ConstructTool {
                     return;
                 }
             }
-            _ => {}
+            CurveEnd {
+                pos,
+                dir,
+                init_node_type,
+                ..
+            } => {
+                // attempt a ds snap
+                for snap_config in snap_configs.into_iter() {
+                    let reverse = snap_config.get_side() == Side::Out;
+                    let attempt = LRoadBuilder::gen_ds(
+                        LNodeBuilderType::New(LNodeBuilder::new(*pos, *dir, *init_node_type)),
+                        snap_config.clone(),
+                        reverse,
+                    );
+                    let Ok(road_builder) = attempt else {
+                        // report to user?
+                        continue;
+                    };
+                    self.update_road_tool_mesh(&road_builder);
+                    self.snapped_node = Some(snap_config);
+                    self.mode = CurveEnd {
+                        pos: *pos,
+                        dir: *dir,
+                        init_node_type: *init_node_type,
+                        road_builder,
+                    };
+                    return;
+                }
+            }
+            SelNode { snap_config, .. } => {
+                // attempt a ds snap
+                for new_snap_config in snap_configs.into_iter() {
+                    let reverse = self.compute_reverse();
+                    let attempt = LRoadBuilder::gen_ds(
+                        LNodeBuilderType::Old(snap_config.clone()),
+                        new_snap_config.clone(),
+                        reverse,
+                    );
+                    let Ok(road_builder) = attempt else {
+                        // report to user?
+                        continue;
+                    };
+                    self.update_road_tool_mesh(&road_builder);
+                    self.snapped_node = Some(new_snap_config);
+                    self.mode = SelNode {
+                        snap_config: snap_config.clone(),
+                        road_builder,
+                    };
+                    return;
+                }
+            }
         }
         self.snapped_node = None;
         self.update_no_snap();
@@ -521,25 +562,33 @@ impl ConstructTool {
 
     /// Checks if there is a node that we should snap to, and in that case it snaps to that node.
     fn check_snapping(&mut self) {
-        let node_snap_configs = if self.state_handle.borrow().road_state.snapping {
-            // TODO add functionality to report why a node cannot be snapped to.
-            self.world
-                .get_road_graph()
-                .get_snap_configs_closest_node(self.ground_pos, self.get_sel_road_type().node_type)
-        } else {
-            None
-        };
+        // TODO add functionality to report why a node cannot be snapped to.
+        if !self.state_handle.borrow().road_state.snapping {
+            self.update_no_snap();
+            return;
+        }
 
-        let Some((_snap_id, snap_configs)) = node_snap_configs else {
+        // Get available snaps
+        let node_snap_configs = self
+            .world
+            .get_road_graph()
+            .get_snap_configs_closest_node(self.ground_pos, self.get_sel_road_type().node_type);
+
+        let Some((_snap_id, mut snap_configs)) = node_snap_configs else {
             self.update_no_snap();
             return
         };
 
+        if let SelNode { snap_config, .. } = &self.mode {
+            snap_configs.retain(|s| s.get_side() != snap_config.get_side());
+        }
+
         if snap_configs.is_empty() {
             self.update_no_snap();
-        } else {
-            self.update_snap(snap_configs);
+            return;
         }
+
+        self.update_snap(snap_configs);
     }
 
     // #############################################################################################

@@ -1,4 +1,4 @@
-use super::{LNodeBuilder, LSegmentBuilder, NodeType, SegmentType, Side, SnapConfig};
+use super::{LNodeBuilder, LSegmentBuilder, NodeType, SegmentType, SnapConfig};
 
 use utils::consts::ROAD_MIN_LENGTH;
 use utils::curves::{curve_gen, GuidePoints};
@@ -286,33 +286,31 @@ impl LRoadBuilder {
     /// Attempts a double snap between the given positions and directions. If double snap fails, an
     /// error is returned.
     pub fn gen_ds(
-        first_node: LNodeBuilderType,
+        mut first_node: LNodeBuilderType,
         last_node: SnapConfig,
-        segment_type: SegmentType,
+        reverse: bool,
     ) -> Result<Self, RoadGenErr> {
         let node_type = last_node.get_node_type();
-        let (start_node, (start_pos, start_dir), end_node, (end_pos, end_dir), reverse) =
-            if last_node.get_side() == Side::In {
-                let start_pos_and_dir = first_node.get_pos_and_dir();
-                let end_pos_and_dir = last_node.get_pos_and_dir();
-                (
-                    first_node,
-                    start_pos_and_dir,
-                    Old(last_node),
-                    end_pos_and_dir,
-                    false,
-                )
-            } else {
-                let start_pos_and_dir = first_node.get_pos_and_dir();
-                let end_pos_and_dir = last_node.get_pos_and_dir();
-                (
-                    Old(last_node),
-                    end_pos_and_dir,
-                    first_node,
-                    start_pos_and_dir,
-                    true,
-                )
-            };
+        let (start_node, (start_pos, start_dir), end_node, (end_pos, end_dir)) = if reverse {
+            flip_dir_single(&mut first_node);
+            let start_pos_and_dir = first_node.get_pos_and_dir();
+            let end_pos_and_dir = last_node.get_pos_and_dir();
+            (
+                Old(last_node),
+                end_pos_and_dir,
+                first_node,
+                start_pos_and_dir,
+            )
+        } else {
+            let start_pos_and_dir = first_node.get_pos_and_dir();
+            let end_pos_and_dir = last_node.get_pos_and_dir();
+            (
+                first_node,
+                start_pos_and_dir,
+                Old(last_node),
+                end_pos_and_dir,
+            )
+        };
 
         let snap_case = curve_gen::double_snap_curve_case(
             start_pos,
@@ -327,19 +325,26 @@ impl LRoadBuilder {
             curve_gen::guide_points_and_direction(curve_gen::match_double_snap_curve_case(
                 start_pos, start_dir, end_pos, end_dir, snap_case,
             ));
+
         let mut nodes = vec![start_node];
-        let mut segments = vec![];
-        g_points_vec.into_iter().for_each(|(g_points, end_dir)| {
-            let end_pos = g_points[g_points.len() - 1];
-            nodes.push(New(LNodeBuilder::new(end_pos, end_dir, node_type)));
-            segments.push(LSegmentBuilder::new(
-                node_type.compute_width(),
-                segment_type,
-                g_points,
-            ));
+        g_points_vec.iter().for_each(|(g_points, dir)| {
+            let pos = g_points[g_points.len() - 1];
+            nodes.push(New(LNodeBuilder::new(pos, *dir, node_type)));
         });
         nodes.pop();
         nodes.push(end_node);
+
+        let mut segments = vec![];
+        g_points_vec.into_iter().for_each(|(g_points, _)| {
+            segments.push(LSegmentBuilder::new(
+                node_type.compute_width(),
+                SegmentType {
+                    curve_type: super::CurveType::Curved,
+                },
+                g_points,
+            ));
+        });
+
         Result::Ok(Self::new(nodes, segments, reverse))
     }
 }
