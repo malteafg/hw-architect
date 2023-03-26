@@ -53,7 +53,7 @@ pub trait GfxRoadData {
 
     /// Renders the positions for nodes given by markers. Pass an empty list to stop rendering node
     /// markers.
-    fn set_node_markers(&mut self, markers: Vec<[f32; 3]>);
+    fn set_node_markers(&mut self, markers: Vec<([f32; 3], [f32; 3])>);
 }
 
 /// This trait defines how tool is allowed to interact with the data associated with the camera,

@@ -5,7 +5,7 @@ use crate::tool_state::{SelectedRoad, ToolState};
 
 use utils::{input, VecUtils};
 use world::roads::{
-    CurveType, LNodeBuilderType, LRoadBuilder, LaneWidth, NodeType, SegmentType, SnapConfig,
+    CurveType, LNodeBuilderType, LRoadBuilder, LaneWidth, NodeType, SegmentType, Side, SnapConfig,
 };
 use world::{RoadManipulator, World};
 
@@ -221,6 +221,23 @@ impl ConstructTool {
             .node_type
     }
 
+    fn is_reverse(&self) -> bool {
+        self.state_handle.borrow().road_state.reverse
+    }
+
+    fn compute_reverse(&self) -> bool {
+        match &self.mode {
+            SelectPos | SelectDir { .. } | CurveEnd { .. } => {
+                if let Some(snap) = &self.snapped_node {
+                    snap.get_side() == Side::In
+                } else {
+                    self.is_reverse()
+                }
+            }
+            SelNode { snap_config, .. } => snap_config.get_side() == Side::In,
+        }
+    }
+
     // #############################################################################################
     // Tool State Changes
     // #############################################################################################
@@ -353,8 +370,13 @@ impl ConstructTool {
     /// This function will generate an sfd and set the mode to select dir. This can always be
     /// called when entering or updating select dir mode.
     fn update_to_select_dir(&mut self, first_pos: Vec3, init_node_type: NodeType) {
-        let road_builder =
-            LRoadBuilder::gen_sfd(first_pos, init_node_type, self.ground_pos, init_node_type);
+        let road_builder = LRoadBuilder::gen_sfd(
+            first_pos,
+            init_node_type,
+            self.ground_pos,
+            init_node_type,
+            self.compute_reverse(),
+        );
         self.update_road_tool_mesh(&road_builder);
         self.mode = SelectDir {
             pos: first_pos,
@@ -499,7 +521,10 @@ impl ConstructTool {
             .get_road_graph()
             .get_possible_snap_nodes(side, self.get_sel_road_type().node_type)
             .iter()
-            .map(|id| self.world.get_road_graph().get_node(*id).get_pos().into())
+            .map(|id| {
+                let node = self.world.get_road_graph().get_node(*id);
+                (node.get_pos().into(), node.get_dir().into())
+            })
             .collect();
 
         self.gfx_handle

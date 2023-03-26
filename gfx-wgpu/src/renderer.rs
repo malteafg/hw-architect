@@ -343,9 +343,13 @@ impl GfxState {
 
         timer.emit("obj_model");
 
-        let test_model = resources::load_simple_model("simple_test", &device).unwrap();
+        let _test_model = resources::load_simple_model("simple_test", &device).unwrap();
 
         timer.emit("test_model");
+
+        let arrow_model = resources::load_simple_model("arrow", &device).unwrap();
+
+        timer.emit("arrow_model");
 
         use primitives::Vertex;
         let light_render_pipeline = {
@@ -384,7 +388,7 @@ impl GfxState {
             shaders.remove(crate::shaders::ROAD).unwrap(),
             &camera_bind_group_layout,
             shaders.remove(crate::shaders::SIMPLE).unwrap(),
-            test_model,
+            arrow_model,
         );
 
         timer.emit("road_time");
@@ -553,7 +557,7 @@ impl gfx_api::GfxRoadData for GfxState {
         self.road_renderer.set_road_tool_mesh(road_mesh);
     }
 
-    fn set_node_markers(&mut self, markers: Vec<[f32; 3]>) {
+    fn set_node_markers(&mut self, markers: Vec<([f32; 3], [f32; 3])>) {
         self.road_renderer.set_node_markers(markers);
     }
 }

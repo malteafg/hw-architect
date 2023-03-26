@@ -309,11 +309,15 @@ impl gfx_api::GfxRoadData for RoadState {
         }
     }
 
-    fn set_node_markers(&mut self, markers: Vec<[f32; 3]>) {
+    fn set_node_markers(&mut self, markers: Vec<([f32; 3], [f32; 3])>) {
         self.num_markers = markers.len() as u32;
         let instance_data = markers
             .into_iter()
-            .map(|pos| Instance::new(Vec3::from_array(pos), glam::Quat::IDENTITY))
+            .map(|(pos, dir)| {
+                let dir = Vec3::from_array(dir);
+                let mat = Mat3::from_cols_array(&[dir.x, 0., dir.z, 0., 1., 0., -dir.z, 0., dir.x]);
+                Instance::new(Vec3::from_array(pos), glam::Quat::from_mat3(&mat))
+            })
             .collect::<Vec<_>>()
             .iter()
             .map(Instance::to_raw)

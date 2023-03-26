@@ -65,8 +65,8 @@ impl LRoadBuilder {
         &self.segments
     }
 
-    pub fn gen_stub(pos: Vec3, dir: Vec3, node_type: NodeType) -> Self {
-        Self::gen_sfd(pos, node_type, pos + dir, node_type)
+    pub fn gen_stub(pos: Vec3, dir: Vec3, node_type: NodeType, reverse: bool) -> Self {
+        Self::gen_sfd(pos, node_type, pos + dir, node_type, reverse)
     }
 
     /// Generates a straight free direction road. This is a straight segment from one position to
@@ -76,7 +76,13 @@ impl LRoadBuilder {
         first_type: NodeType,
         last_pos: Vec3,
         last_type: NodeType,
+        reverse: bool,
     ) -> Self {
+        let (first_pos, first_type, last_pos, last_type) = if reverse {
+            (last_pos, last_type, first_pos, first_type)
+        } else {
+            (first_pos, first_type, last_pos, last_type)
+        };
         let dir = (last_pos - first_pos).normalize_else();
         let end_pos = proj_straight_too_short(first_pos, last_pos, dir);
 
