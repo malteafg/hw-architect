@@ -164,7 +164,7 @@ impl LRoadBuilder {
     /// Generates a circle curved road. The circle curve starts from start_pos and start_dir, and
     /// then end_pos is projected to smallest curvature and 270 degrees.
     pub fn gen_cc(
-        mut first_node: LNodeBuilderType,
+        first_node: LNodeBuilderType,
         last_pos: Vec3,
         last_type: NodeType,
         reverse: bool,
@@ -212,7 +212,8 @@ impl LRoadBuilder {
 
         if reverse {
             nodes.push(first_node);
-            // TODO figure out why it is necessary to flip dir
+            // TODO figure out why it is necessary to flip dir. The guide points are reversed
+            // before calling guide_points_and_direction?
             flip_dir_on_new(&mut nodes);
         } else {
             let mut old_nodes = nodes;

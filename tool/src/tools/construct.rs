@@ -320,7 +320,8 @@ impl ConstructTool {
 
     /// Invoked when a snapped node becomes selected.
     fn select_node(&mut self, snap_config: SnapConfig) {
-        self.update_to_sld(snap_config)
+        let reverse = snap_config.get_side() == Side::In;
+        self.update_to_sld(snap_config, reverse);
     }
 
     /// Returns the optionally selected node.
@@ -386,12 +387,13 @@ impl ConstructTool {
     }
 
     /// Generates and sld and sets the mode to SelNode.
-    fn update_to_sld(&mut self, snap_config: SnapConfig) {
+    /// reverse parameter is necessary for when selecting and snapping nodes, see try_select_dir.
+    fn update_to_sld(&mut self, snap_config: SnapConfig, reverse: bool) {
         let road_builder = LRoadBuilder::gen_sld(
             snap_config.clone(),
             self.ground_pos,
             snap_config.get_node_type(),
-            self.compute_reverse(),
+            reverse,
         );
         self.update_road_tool_mesh(&road_builder);
         self.mode = SelNode {
@@ -453,7 +455,9 @@ impl ConstructTool {
                 ..
             } => self.update_to_cc_curve_end(*pos, *dir, *init_node_type),
             SelNode { snap_config, .. } => match self.get_sel_curve_type() {
-                CurveType::Straight => self.update_to_sld(snap_config.clone()),
+                CurveType::Straight => {
+                    self.update_to_sld(snap_config.clone(), self.compute_reverse())
+                }
                 CurveType::Curved => self.update_to_cc_sel_node(snap_config.clone()),
             },
         };
@@ -463,19 +467,23 @@ impl ConstructTool {
     // Snapping
     // #############################################################################################
     /// Updates the construct tool with the snap configs from the snapped node. If no snaps fit,
-    /// then update_no_snap is called.
-    fn update_snap(&mut self, _snap_configs: Vec<SnapConfig>) {
+    /// then update_no_snap is called. This function is only called when there is at least one
+    /// snap.
+    fn update_snap(&mut self, snap_configs: Vec<SnapConfig>) {
         match self.mode {
             SelectPos => {
-                // // Snap does not have to satisfy any curvature constraints.
-                // let snap_config = snap_configs.into_iter().nth(0).unwrap();
-                // let pos = snap_config.get_pos();
-                // let dir = snap_config.get_dir();
-                // let node_type = snap_config.get_node_type();
+                // Snap does not have to satisfy any curvature constraints.
+                let snap_config = snap_configs.into_iter().nth(0).unwrap();
+                let pos = snap_config.get_pos();
+                let dir = snap_config.get_dir();
+                let node_type = snap_config.get_node_type();
+                let reverse = snap_config.get_side() == Side::In;
 
-                // let road_builder = LRoadBuilder::gen_stub(pos, dir, node_type);
-                // self.update_road_tool_mesh(&road_builder);
-                // self.snapped_node = Some(snap_config);
+                let road_builder =
+                    LRoadBuilder::gen_stub(pos, dir.flip(reverse), node_type, reverse);
+                self.update_road_tool_mesh(&road_builder);
+                self.snapped_node = Some(snap_config);
+                return;
             }
             _ => {}
         }
