@@ -124,8 +124,12 @@ impl ToolStrategy for ConstructTool {
             } => match self.get_sel_curve_type() {
                 CurveType::Straight => self.build_road(road_builder),
                 CurveType::Curved => {
-                    let dir = (self.ground_pos - pos).normalize_else();
-                    self.update_to_cc_curve_end(pos, dir, init_node_type)
+                    if self.snapped_node.is_some() {
+                        self.build_road(road_builder)
+                    } else {
+                        let dir = (self.ground_pos - pos).normalize_else();
+                        self.update_to_cc_curve_end(pos, dir, init_node_type)
+                    }
                 }
             },
             CurveEnd { road_builder, .. } => self.build_road(road_builder),
@@ -229,7 +233,7 @@ impl ConstructTool {
         match &self.mode {
             SelectPos | SelectDir { .. } | CurveEnd { .. } => {
                 if let Some(snap) = &self.snapped_node {
-                    snap.get_side() == Side::In
+                    snap.get_side() == Side::Out
                 } else {
                     self.is_reverse()
                 }
@@ -470,7 +474,7 @@ impl ConstructTool {
     /// then update_no_snap is called. This function is only called when there is at least one
     /// snap.
     fn update_snap(&mut self, snap_configs: Vec<SnapConfig>) {
-        match self.mode {
+        match &self.mode {
             SelectPos => {
                 // Snap does not have to satisfy any curvature constraints.
                 let snap_config = snap_configs.into_iter().nth(0).unwrap();
@@ -484,6 +488,30 @@ impl ConstructTool {
                 self.update_road_tool_mesh(&road_builder);
                 self.snapped_node = Some(snap_config);
                 return;
+            }
+            SelectDir {
+                pos,
+                init_node_type,
+                ..
+            } => {
+                // attempt a ccs snap
+                for snap_config in snap_configs.into_iter() {
+                    let reverse = snap_config.get_side() == Side::Out;
+                    let attempt =
+                        LRoadBuilder::gen_ccs(*pos, *init_node_type, snap_config.clone(), reverse);
+                    let Ok(road_builder) = attempt else {
+                        // report to user?
+                        continue;
+                    };
+                    self.update_road_tool_mesh(&road_builder);
+                    self.snapped_node = Some(snap_config);
+                    self.mode = SelectDir {
+                        pos: *pos,
+                        init_node_type: *init_node_type,
+                        road_builder,
+                    };
+                    return;
+                }
             }
             _ => {}
         }

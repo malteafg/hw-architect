@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 use super::{LNodeBuilder, LSegmentBuilder, NodeType, SegmentType, Side, SnapConfig};
 
 use utils::consts::ROAD_MIN_LENGTH;
@@ -194,13 +192,26 @@ impl LRoadBuilder {
             g_points_vec.reverse()
         }
 
-        let (g_points_vec, _start_dir) = curve_gen::guide_points_and_direction(g_points_vec);
+        let (g_points_vec, _) = curve_gen::guide_points_and_direction(g_points_vec);
 
         let mut nodes = vec![];
+        if reverse {
+            g_points_vec.iter().for_each(|(g_points, node_dir)| {
+                let node_pos = g_points[g_points.len() - 1];
+                nodes.push(New(LNodeBuilder::new(node_pos, *node_dir, last_type)));
+            });
+            nodes.push(first_node);
+            flip_dir_on_new(&mut nodes);
+        } else {
+            nodes.push(first_node);
+            g_points_vec.iter().for_each(|(g_points, node_dir)| {
+                let node_pos = g_points[g_points.len() - 1];
+                nodes.push(New(LNodeBuilder::new(node_pos, *node_dir, last_type)));
+            });
+        }
+
         let mut segments = vec![];
-        g_points_vec.into_iter().for_each(|(g_points, node_dir)| {
-            let node_pos = g_points[g_points.len() - 1];
-            nodes.push(New(LNodeBuilder::new(node_pos, node_dir, last_type)));
+        g_points_vec.into_iter().for_each(|(g_points, _)| {
             segments.push(LSegmentBuilder::new(
                 last_type.compute_width(),
                 SegmentType {
@@ -209,17 +220,6 @@ impl LRoadBuilder {
                 g_points,
             ));
         });
-
-        if reverse {
-            nodes.push(first_node);
-            // TODO figure out why it is necessary to flip dir. The guide points are reversed
-            // before calling guide_points_and_direction?
-            flip_dir_on_new(&mut nodes);
-        } else {
-            let mut old_nodes = nodes;
-            nodes = vec![first_node];
-            nodes.append(&mut old_nodes);
-        }
 
         let nodes: Vec<LNodeBuilderType> = nodes.into_iter().map(|n| n).collect();
         Self::new(nodes, segments, reverse)
@@ -231,14 +231,10 @@ impl LRoadBuilder {
         first_pos: Vec3,
         first_type: NodeType,
         last_node: SnapConfig,
-        segment_type: SegmentType,
+        reverse: bool,
     ) -> Result<Self, RoadGenErr> {
-        let reverse = last_node.get_side() == Side::Out;
-        let mut end_dir = last_node.get_dir();
-        if !reverse {
-            end_dir *= -1.0;
-        }
-        let curve = curve_gen::three_quarter_circle_curve(
+        let end_dir = last_node.get_dir().flip(!reverse);
+        let mut g_points_vec = curve_gen::three_quarter_circle_curve(
             last_node.get_pos(),
             end_dir,
             first_pos,
@@ -248,28 +244,41 @@ impl LRoadBuilder {
         )
         .ok_or(RoadGenErr::CCSFailed)?;
 
-        let mut g_points_vec = curve;
         if !reverse {
             curve_gen::reverse_g_points_vec(&mut g_points_vec);
         }
 
-        let (g_points_vec, _start_dir) = curve_gen::guide_points_and_direction(g_points_vec);
-        let mut nodes = VecDeque::new();
+        let (g_points_vec, first_dir) = curve_gen::guide_points_and_direction(g_points_vec);
+
+        let mut nodes = vec![];
+        if reverse {
+            nodes.push(Old(last_node));
+            for i in 0..g_points_vec.len() {
+                let (g_points, node_dir) = &g_points_vec[i];
+                let node_pos = g_points[g_points.len() - 1];
+                nodes.push(New(LNodeBuilder::new(node_pos, *node_dir, first_type)));
+            }
+        } else {
+            nodes.push(New(LNodeBuilder::new(first_pos, first_dir, first_type)));
+            for i in 1..g_points_vec.len() {
+                let (g_points, node_dir) = &g_points_vec[i];
+                let node_pos = g_points[g_points.len() - 1];
+                nodes.push(New(LNodeBuilder::new(node_pos, *node_dir, first_type)));
+            }
+            nodes.push(Old(last_node));
+        }
+
         let mut segments = vec![];
-        g_points_vec.into_iter().for_each(|(g_points, node_dir)| {
-            let node_pos = g_points[g_points.len() - 1];
-            nodes.push_back(New(LNodeBuilder::new(node_pos, node_dir, first_type)));
+        g_points_vec.into_iter().for_each(|(g_points, _)| {
             segments.push(LSegmentBuilder::new(
                 first_type.compute_width(),
-                segment_type,
+                SegmentType {
+                    curve_type: super::CurveType::Curved,
+                },
                 g_points,
             ));
         });
-        if reverse {
-            nodes.push_back(Old(last_node))
-        } else {
-            nodes.push_front(Old(last_node))
-        }
+
         let nodes: Vec<LNodeBuilderType> = nodes.into_iter().map(|n| n).collect();
         Result::Ok(Self::new(nodes, segments, reverse))
     }
