@@ -8,3 +8,4 @@ pub const DEFAULT_DIR: Vec3 = Vec3::new(1.0, 0.0, 0.0);
 
 pub const VERTEX_DENSITY: f32 = 0.05;
 pub const CUT_LENGTH: f32 = 5.0;
+pub const MAX_NO_LANES: u8 = 6;

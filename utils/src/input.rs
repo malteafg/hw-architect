@@ -25,18 +25,18 @@ pub enum Action {
     CameraRotateLeft,
     CameraRotateRight,
     CameraReturn,
-    CycleCurveType,
+
     ToggleSnapping,
+    ToggleReverse,
+
+    CycleCurveType,
     CycleLaneWidth,
+    CycleNoLanes,
+
     EnterBulldoze,
     EnterConstruct,
     EnterTreePlopper,
-    OneLane,
-    TwoLane,
-    ThreeLane,
-    FourLane,
-    FiveLane,
-    SixLane,
+
     Exit,
     Esc,
 }

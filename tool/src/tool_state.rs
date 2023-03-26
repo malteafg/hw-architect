@@ -9,6 +9,7 @@ pub struct ToolState {
 pub struct RoadState {
     pub selected_road: SelectedRoad,
     pub snapping: bool,
+    pub reverse: bool,
 }
 
 impl Default for RoadState {
@@ -16,6 +17,7 @@ impl Default for RoadState {
         Self {
             selected_road: SelectedRoad::default(),
             snapping: true,
+            reverse: false,
         }
     }
 }

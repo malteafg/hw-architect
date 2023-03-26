@@ -3,9 +3,10 @@ use crate::cycle_selection;
 use crate::road_gen::mesh_gen;
 use crate::tool_state::{SelectedRoad, ToolState};
 
-use utils::consts::DEFAULT_DIR;
 use utils::{input, VecUtils};
-use world::roads::{CurveType, LNodeBuilderType, LRoadBuilder, NodeType, SegmentType, SnapConfig};
+use world::roads::{
+    CurveType, LNodeBuilderType, LRoadBuilder, LaneWidth, NodeType, SegmentType, SnapConfig,
+};
 use world::{RoadManipulator, World};
 
 use gfx_api::{GfxSuper, RoadMesh};
@@ -62,14 +63,46 @@ impl ToolStrategy for ConstructTool {
         use input::KeyState::*;
         match key {
             (ToggleSnapping, Press) => self.toggle_snapping(),
-            (CycleCurveType, Scroll(scroll_state)) => self.cycle_curve_type(scroll_state),
-            (CycleLaneWidth, Scroll(scroll_state)) => self.cycle_lane_width(scroll_state),
-            (OneLane, Press) => self.set_lane_no(1),
-            (TwoLane, Press) => self.set_lane_no(2),
-            (ThreeLane, Press) => self.set_lane_no(3),
-            (FourLane, Press) => self.set_lane_no(4),
-            (FiveLane, Press) => self.set_lane_no(5),
-            (SixLane, Press) => self.set_lane_no(6),
+            (ToggleReverse, Press) => self.toggle_reverse(),
+            (CycleCurveType, Scroll(scroll_state)) => {
+                let new_curve_type = cycle_selection::scroll_mut(
+                    &mut self
+                        .state_handle
+                        .borrow_mut()
+                        .road_state
+                        .selected_road
+                        .segment_type
+                        .curve_type,
+                    scroll_state,
+                );
+                self.set_curve_type(new_curve_type);
+            }
+            (CycleLaneWidth, Scroll(scroll_state)) => {
+                let new_lane_width = cycle_selection::scroll_mut(
+                    &mut self
+                        .state_handle
+                        .borrow_mut()
+                        .road_state
+                        .selected_road
+                        .node_type
+                        .lane_width,
+                    scroll_state,
+                );
+                self.set_lane_width(new_lane_width);
+            }
+            (CycleNoLanes, Scroll(scroll_state)) => {
+                let new_no_lanes = cycle_selection::scroll_mut(
+                    &mut self
+                        .state_handle
+                        .borrow_mut()
+                        .road_state
+                        .selected_road
+                        .node_type
+                        .no_lanes,
+                    scroll_state,
+                );
+                self.set_no_lanes(new_no_lanes);
+            }
             _ => {}
         }
     }
@@ -172,7 +205,7 @@ impl ConstructTool {
             .curve_type
     }
 
-    fn get_sel_segment_type(&self) -> SegmentType {
+    fn _get_sel_segment_type(&self) -> SegmentType {
         self.state_handle
             .borrow()
             .road_state
@@ -191,57 +224,6 @@ impl ConstructTool {
     // #############################################################################################
     // Tool State Changes
     // #############################################################################################
-    /// Switches the selected number of lanes.
-    fn set_lane_no(&mut self, no_lanes: u8) {
-        if self.get_sel_road_type().node_type.no_lanes == no_lanes {
-            return;
-        };
-        self.state_handle
-            .borrow_mut()
-            .road_state
-            .selected_road
-            .node_type
-            .no_lanes = no_lanes;
-        self.show_snappable_nodes();
-        if let SelNode { .. } = self.mode {
-            self.reset();
-        } else {
-            self.check_snapping();
-        }
-    }
-
-    /// Switches the curve type in use.
-    fn cycle_curve_type(&mut self, scroll_state: utils::input::ScrollState) {
-        let new_curve_type = cycle_selection::scroll_mut(
-            &mut self
-                .state_handle
-                .borrow_mut()
-                .road_state
-                .selected_road
-                .segment_type
-                .curve_type,
-            scroll_state,
-        );
-        match new_curve_type {
-            CurveType::Straight => match &self.mode {
-                SelectPos | SelectDir { .. } => {}
-                CurveEnd {
-                    pos,
-                    init_node_type,
-                    ..
-                } => {
-                    self.update_to_select_dir(*pos, *init_node_type);
-                }
-                SelNode { .. } => self.update_no_snap(),
-            },
-            CurveType::Curved => match &self.mode {
-                SelectPos | SelectDir { .. } => {}
-                CurveEnd { .. } | SelNode { .. } => self.update_no_snap(),
-            },
-        };
-        dbg!(new_curve_type);
-    }
-
     /// Toggles snapping.
     fn toggle_snapping(&mut self) {
         let curr = self.state_handle.borrow().road_state.snapping;
@@ -262,19 +244,50 @@ impl ConstructTool {
         dbg!(self.state_handle.borrow().road_state.snapping);
     }
 
-    fn cycle_lane_width(&mut self, scroll_state: utils::input::ScrollState) {
-        cycle_selection::scroll_mut(
-            &mut self
-                .state_handle
-                .borrow_mut()
-                .road_state
-                .selected_road
-                .node_type
-                .lane_width,
-            scroll_state,
-        );
+    /// Toggles reverse.
+    fn toggle_reverse(&mut self) {
+        let curr = self.state_handle.borrow().road_state.reverse;
+        self.state_handle.borrow_mut().road_state.reverse = !curr;
+        dbg!(self.state_handle.borrow().road_state.reverse);
+    }
+
+    /// Sets the curve type in use.
+    fn set_curve_type(&mut self, new_curve_type: CurveType) {
+        match new_curve_type {
+            CurveType::Straight => match &self.mode {
+                SelectPos | SelectDir { .. } => {}
+                CurveEnd {
+                    pos,
+                    init_node_type,
+                    ..
+                } => {
+                    self.update_to_select_dir(*pos, *init_node_type);
+                }
+                SelNode { .. } => self.update_no_snap(),
+            },
+            CurveType::Curved => match &self.mode {
+                SelectPos | SelectDir { .. } => {}
+                CurveEnd { .. } | SelNode { .. } => self.update_no_snap(),
+            },
+        };
+        dbg!(new_curve_type);
+    }
+
+    /// Sets the lane width in use.
+    fn set_lane_width(&mut self, _new_lane_width: LaneWidth) {
         self.reset();
         dbg!(self.get_sel_road_type().node_type.lane_width);
+    }
+
+    /// Sets the selected number of lanes.
+    fn set_no_lanes(&mut self, _no_lanes: u8) {
+        dbg!(self.get_sel_road_type().node_type.no_lanes);
+        self.show_snappable_nodes();
+        if let SelNode { .. } = self.mode {
+            self.reset();
+        } else {
+            self.check_snapping();
+        }
     }
 
     // #############################################################################################
@@ -426,7 +439,7 @@ impl ConstructTool {
     // #############################################################################################
     /// Updates the construct tool with the snap configs from the snapped node. If no snaps fit,
     /// then update_no_snap is called.
-    fn update_snap(&mut self, snap_configs: Vec<SnapConfig>) {
+    fn update_snap(&mut self, _snap_configs: Vec<SnapConfig>) {
         match self.mode {
             SelectPos => {
                 // // Snap does not have to satisfy any curvature constraints.

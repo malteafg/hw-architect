@@ -56,7 +56,7 @@ impl InputHandler {
         use Action::*;
         if let Some(action) = self.pressed_keys.last() {
             match action {
-                CycleLaneWidth | CycleCurveType => {
+                CycleCurveType | CycleLaneWidth | CycleNoLanes => {
                     let state = if scroll < 0.0 {
                         KeyState::Scroll(ScrollState::Up)
                     } else {

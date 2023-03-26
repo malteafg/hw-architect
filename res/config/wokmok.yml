@@ -13,30 +13,25 @@ camera_rotate_right:
   - l
 camera_return:
   - space
+
+toggle_snapping:
+  - "1"
+toggle_reverse:
+  - "2"
+
 cycle_curve_type:
   - m
-toggle_snapping:
-  - t
 cycle_lane_width:
   - g
+cycle_no_lanes:
+  - t
+
 enter_bulldoze:
   - j
 enter_construct:
   - d
 enter_tree_plopper:
   - w
-one_lane:
-  - "1"
-two_lane:
-  - "2"
-three_lane:
-  - "3"
-four_lane:
-  - "4"
-five_lane:
-  - "5"
-six_lane:
-  - "6"
 # exit:
 #   - esc
 esc:

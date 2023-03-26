@@ -1,4 +1,4 @@
-use utils::input::ScrollState;
+use utils::{consts, input::ScrollState};
 
 pub trait CycleSelection {
     fn prev(&self) -> Self;
@@ -49,5 +49,22 @@ impl CycleSelection for world::roads::CurveType {
             Self::Straight => Self::Curved,
             Self::Curved => Self::Straight,
         }
+    }
+}
+
+/// This implementation is for no lanes.
+impl CycleSelection for u8 {
+    fn prev(&self) -> Self {
+        if *self == 1 {
+            return consts::MAX_NO_LANES;
+        }
+        *self - 1
+    }
+
+    fn next(&self) -> Self {
+        if *self == consts::MAX_NO_LANES {
+            return 1;
+        }
+        *self + 1
     }
 }
