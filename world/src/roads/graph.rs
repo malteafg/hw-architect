@@ -180,6 +180,7 @@ impl RoadGraph {
             }
         });
 
+        // compute the new node that the tool can snap to, if any.
         let new_snap_id = node_ids[if reverse { 0 } else { node_ids.len() - 1 }];
         let new_snap = self
             .get_node(new_snap_id)
@@ -330,7 +331,7 @@ impl RoadGraph {
     pub fn debug_segment_from_pos(&self, pos: Vec3) {
         if let Some(id) = self.get_segment_inside(pos) {
             dbg!("Segment: {} ----------------------", id);
-            dbg!(self.segment_map.get(&id));
+            dbg!(id);
         }
     }
 }

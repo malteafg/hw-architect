@@ -26,11 +26,29 @@ impl LNodeBuilderType {
         New(LNodeBuilder::new(pos, dir, node_type))
     }
 
+    fn get_pos(&self) -> Vec3 {
+        match self {
+            New(node_builder) => node_builder.get_pos(),
+            Old(snap_config) => snap_config.get_pos(),
+        }
+    }
+
     fn get_pos_and_dir(&self) -> (Vec3, Vec3) {
         match self {
             New(node_builder) => (node_builder.get_pos(), node_builder.get_dir()),
             Old(snap_config) => (snap_config.get_pos(), snap_config.get_dir()),
         }
+    }
+}
+
+fn flip_dir_on_new(nodes: &mut [LNodeBuilderType]) {
+    nodes.iter_mut().for_each(|n| flip_dir_single(n));
+}
+
+fn flip_dir_single(node: &mut LNodeBuilderType) {
+    match node {
+        New(node_builder) => node_builder.flip_dir(),
+        _ => {}
     }
 }
 
@@ -78,18 +96,19 @@ impl LRoadBuilder {
         last_type: NodeType,
         reverse: bool,
     ) -> Self {
-        let (first_pos, first_type, last_pos, last_type) = if reverse {
-            (last_pos, last_type, first_pos, first_type)
-        } else {
-            (first_pos, first_type, last_pos, last_type)
-        };
         let dir = (last_pos - first_pos).normalize_else();
         let end_pos = proj_straight_too_short(first_pos, last_pos, dir);
 
-        let nodes = vec![
+        let mut nodes = vec![
             New(LNodeBuilder::new(first_pos, dir, first_type)),
             New(LNodeBuilder::new(end_pos, dir, last_type)),
         ];
+
+        if reverse {
+            nodes.reverse();
+            flip_dir_on_new(&mut nodes);
+        }
+
         let segments = vec![LSegmentBuilder::new(
             first_type.compute_width(),
             SegmentType {
@@ -99,14 +118,19 @@ impl LRoadBuilder {
         )];
 
         // TODO fix such that it does not set false, or maybe remove reverse from LRoadBuilder
-        Self::new(nodes, segments, false)
+        Self::new(nodes, segments, reverse)
     }
 
     /// Generates a straight locked direction road. Then end_pos is projected unto the line defined
     /// by the start_node.
-    pub fn gen_sld(first_node: SnapConfig, last_pos: Vec3, last_type: NodeType) -> Self {
+    pub fn gen_sld(
+        first_node: SnapConfig,
+        last_pos: Vec3,
+        last_type: NodeType,
+        reverse: bool,
+    ) -> Self {
         let first_pos = first_node.get_pos();
-        let first_dir = first_node.get_dir();
+        let first_dir = first_node.get_dir().flip(reverse);
         let first_to_last = last_pos - first_pos;
         let proj_pos = if first_to_last.dot(first_dir) / first_dir.length() > ROAD_MIN_LENGTH {
             // The projection will yield a long enough segment
@@ -116,22 +140,22 @@ impl LRoadBuilder {
             first_pos + first_dir * ROAD_MIN_LENGTH
         };
 
-        let side = first_node.get_side();
         let mut nodes = vec![
             Old(first_node),
             New(LNodeBuilder::new(proj_pos, first_dir, last_type)),
         ];
-        let mut reverse = false;
-        if let Side::In = side {
-            reverse = true;
+
+        if reverse {
             nodes.reverse();
-        };
+            flip_dir_on_new(&mut nodes);
+        }
+
         let segments = vec![LSegmentBuilder::new(
             last_type.compute_width(),
             SegmentType {
                 curve_type: super::CurveType::Straight,
             },
-            GuidePoints::from_two_points(first_pos, proj_pos),
+            GuidePoints::from_two_points(nodes[0].get_pos(), nodes[1].get_pos()),
         )];
 
         Self::new(nodes, segments, reverse)
@@ -139,14 +163,15 @@ impl LRoadBuilder {
 
     /// Generates a circle curved road. The circle curve starts from start_pos and start_dir, and
     /// then end_pos is projected to smallest curvature and 270 degrees.
-    pub fn gen_cc(first_node: LNodeBuilderType, last_pos: Vec3, last_type: NodeType) -> Self {
-        let (start_pos, start_dir, reverse) = match &first_node {
-            New(node_builder) => (node_builder.get_pos(), node_builder.get_dir(), false),
-            Old(snap_config) => (
-                snap_config.get_pos(),
-                snap_config.get_dir(),
-                Side::In == snap_config.get_side(),
-            ),
+    pub fn gen_cc(
+        mut first_node: LNodeBuilderType,
+        last_pos: Vec3,
+        last_type: NodeType,
+        reverse: bool,
+    ) -> Self {
+        let (start_pos, start_dir) = match &first_node {
+            New(node_builder) => (node_builder.get_pos(), node_builder.get_dir()),
+            Old(snap_config) => (snap_config.get_pos(), snap_config.get_dir().flip(reverse)),
         };
 
         let last_pos = if (last_pos - start_pos).length() < ROAD_MIN_LENGTH {
@@ -165,17 +190,17 @@ impl LRoadBuilder {
         )
         .expect("Should allow projection");
 
-        // if reverse {
-        //     curve_gen::reverse_g_points_vec(&mut g_points_vec);
-        // }
+        if reverse {
+            g_points_vec.reverse()
+        }
+
         let (g_points_vec, _start_dir) = curve_gen::guide_points_and_direction(g_points_vec);
 
-        let mut nodes = VecDeque::new();
-        nodes.push_back(first_node);
+        let mut nodes = vec![];
         let mut segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, node_dir)| {
             let node_pos = g_points[g_points.len() - 1];
-            nodes.push_back(New(LNodeBuilder::new(node_pos, node_dir, last_type)));
+            nodes.push(New(LNodeBuilder::new(node_pos, node_dir, last_type)));
             segments.push(LSegmentBuilder::new(
                 last_type.compute_width(),
                 SegmentType {
@@ -184,11 +209,17 @@ impl LRoadBuilder {
                 g_points,
             ));
         });
-        // if reverse {
-        //     nodes.push_back(first_node)
-        // } else {
-        //     nodes.push_front(first_node)
-        // }
+
+        if reverse {
+            nodes.push(first_node);
+            // TODO figure out why it is necessary to flip dir
+            flip_dir_on_new(&mut nodes);
+        } else {
+            let mut old_nodes = nodes;
+            nodes = vec![first_node];
+            nodes.append(&mut old_nodes);
+        }
+
         let nodes: Vec<LNodeBuilderType> = nodes.into_iter().map(|n| n).collect();
         Self::new(nodes, segments, reverse)
     }

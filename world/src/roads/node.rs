@@ -57,6 +57,10 @@ impl LNodeBuilder {
     pub fn get_node_type(&self) -> NodeType {
         self.node_type
     }
+
+    pub fn flip_dir(&mut self) {
+        self.dir *= -1.
+    }
 }
 
 /// Specifies the configuration of segments when a new node is created.

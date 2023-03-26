@@ -19,6 +19,7 @@ pub trait VecUtils {
     fn right_hand(self) -> Self;
     fn left_hand(self) -> Self;
     fn normalize_else(self) -> Self;
+    fn flip(self, flip: bool) -> Self;
 }
 
 impl VecUtils for Vec3 {
@@ -63,6 +64,14 @@ impl VecUtils for Vec3 {
 
     fn normalize_else(self) -> Self {
         self.try_normalize().unwrap_or(DEFAULT_DIR)
+    }
+
+    fn flip(self, flip: bool) -> Self {
+        if flip {
+            self * -1.
+        } else {
+            self
+        }
     }
 }
 

@@ -140,10 +140,10 @@ impl ToolStrategy for ConstructTool {
                 {
                     self.world
                         .get_road_graph()
-                        .debug_segment_from_pos(self.ground_pos);
+                        .debug_node_from_pos(self.ground_pos);
                     self.world
                         .get_road_graph()
-                        .debug_node_from_pos(self.ground_pos);
+                        .debug_segment_from_pos(self.ground_pos);
                 }
             }
             SelectDir { .. } => self.reset(),
@@ -391,6 +391,7 @@ impl ConstructTool {
             snap_config.clone(),
             self.ground_pos,
             snap_config.get_node_type(),
+            self.compute_reverse(),
         );
         self.update_road_tool_mesh(&road_builder);
         self.mode = SelNode {
@@ -406,6 +407,7 @@ impl ConstructTool {
             LNodeBuilderType::new(pos, dir, init_node_type),
             last_pos,
             self.get_sel_node_type(),
+            self.compute_reverse(),
         );
         self.update_road_tool_mesh(&road_builder);
         self.mode = CurveEnd {
@@ -423,6 +425,7 @@ impl ConstructTool {
             LNodeBuilderType::Old(snap_config.clone()),
             last_pos,
             self.get_sel_node_type(),
+            self.compute_reverse(),
         );
         self.update_road_tool_mesh(&road_builder);
         self.mode = SelNode {
