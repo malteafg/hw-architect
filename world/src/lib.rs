@@ -6,9 +6,15 @@
 pub mod nature;
 pub mod roads;
 
-use nature::TreeMap;
-use roads::RoadGraph;
+mod api;
+pub use api::{RoadManipulator, TreeManipulator};
 
+use nature::{Tree, TreeMap};
+use roads::{LRoadBuilder, NodeType, RoadGraph, Side, SnapConfig};
+
+use utils::id::{NodeId, SegmentId, TreeId};
+
+use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default)]
@@ -23,32 +29,64 @@ impl World {
     }
 }
 
-pub trait RoadManipulator {
-    fn get_road_graph(&self) -> &RoadGraph;
-    fn mut_road_graph(&mut self) -> &mut RoadGraph;
-}
-
-pub trait TreeManipulator {
-    fn get_tree_map(&self) -> &TreeMap;
-    fn mut_tree_map(&mut self) -> &mut TreeMap;
-}
-
-impl RoadManipulator for World {
-    fn get_road_graph(&self) -> &RoadGraph {
-        &self.road_graph
+impl api::RoadManipulator for World {
+    fn get_node_pos(&self, node: NodeId) -> Vec3 {
+        self.road_graph.get_node_pos(node)
     }
 
-    fn mut_road_graph(&mut self) -> &mut RoadGraph {
-        &mut self.road_graph
+    fn get_node_dir(&self, node: NodeId) -> Vec3 {
+        self.road_graph.get_node_dir(node)
+    }
+
+    fn get_node_positions(&self) -> Vec<Vec3> {
+        self.road_graph.get_node_positions()
+    }
+    fn get_segment_inside(&self, pos: Vec3) -> Option<SegmentId> {
+        self.road_graph.get_segment_inside(pos)
+    }
+
+    fn add_road(
+        &mut self,
+        road: LRoadBuilder,
+        sel_node_type: NodeType,
+    ) -> (Option<SnapConfig>, Vec<SegmentId>) {
+        self.road_graph.add_road(road, sel_node_type)
+    }
+    fn remove_segment(&mut self, segment_id: SegmentId) -> bool {
+        self.road_graph.remove_segment(segment_id)
+    }
+
+    fn get_possible_snap_nodes(&self, side: Option<Side>, node_type: NodeType) -> Vec<NodeId> {
+        self.road_graph.get_possible_snap_nodes(side, node_type)
+    }
+    fn get_snap_configs_closest_node(
+        &self,
+        ground_pos: Vec3,
+        node_type: NodeType,
+    ) -> Option<(NodeId, Vec<SnapConfig>)> {
+        self.road_graph
+            .get_snap_configs_closest_node(ground_pos, node_type)
+    }
+
+    fn debug_node_from_pos(&self, pos: Vec3) {
+        self.road_graph.debug_node_from_pos(pos)
+    }
+
+    fn debug_segment_from_pos(&self, pos: Vec3) {
+        self.road_graph.debug_segment_from_pos(pos)
     }
 }
 
-impl TreeManipulator for World {
-    fn get_tree_map(&self) -> &TreeMap {
-        &self.tree_map
+impl api::TreeManipulator for World {
+    fn add_tree(&mut self, tree: Tree, id: TreeId) {
+        self.tree_map.add_tree(tree, id)
     }
 
-    fn mut_tree_map(&mut self) -> &mut TreeMap {
-        &mut self.tree_map
+    fn remove_tree(&mut self, pos: Vec3) {
+        self.tree_map.remove_tree(pos)
+    }
+
+    fn get_trees(&self, id: TreeId) -> &Vec<Tree> {
+        self.tree_map.get_trees(id)
     }
 }

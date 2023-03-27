@@ -323,7 +323,7 @@ fn generate_markings_cut(pos: Vec3, dir: Vec3, node_type: NodeType) -> Vec<[f32;
 
 // iterate over road_meshes and return vec of RoadVertex
 // in the future separate road_meshes into "chunks"
-pub fn combine_road_meshes(meshes: Vec<RoadMesh>) -> RoadMesh {
+pub fn _combine_road_meshes(meshes: Vec<RoadMesh>) -> RoadMesh {
     let mut road_mesh: RoadMesh = RoadMesh::default();
 
     let mut indices_count = 0;

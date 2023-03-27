@@ -11,6 +11,7 @@ pub enum RoadGenErr {
     Placeholder,
     CCSFailed,
     DoubleSnapFailed,
+    Collision,
 }
 
 #[derive(Debug, Clone)]

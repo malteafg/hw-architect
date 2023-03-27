@@ -57,14 +57,10 @@ impl RoadGraph {
             .expect("Node does not exist in node map")
     }
 
-    pub fn get_node(&self, node: NodeId) -> &LNode {
+    fn get_node(&self, node: NodeId) -> &LNode {
         self.node_map
             .get(&node)
             .expect("Node does not exist in node map")
-    }
-
-    pub fn get_node_positions(&self) -> Vec<Vec3> {
-        self.node_map.iter().map(|(_, n)| n.get_pos()).collect()
     }
 
     fn _get_segment_mut(&mut self, segment: SegmentId) -> &mut LSegment {
@@ -79,17 +75,36 @@ impl RoadGraph {
             .expect("Segment does not exist in segment map")
     }
 
-    pub fn get_segment_inside(&self, ground_pos: Vec3) -> Option<SegmentId> {
+    fn remove_node(&mut self, node_id: NodeId) {
+        self.node_map.remove(&node_id);
+        self.forward_refs.remove(&node_id);
+        self.backward_refs.remove(&node_id);
+    }
+}
+
+impl crate::RoadManipulator for RoadGraph {
+    fn get_node_pos(&self, node: NodeId) -> Vec3 {
+        self.get_node(node).get_pos()
+    }
+
+    fn get_node_dir(&self, node: NodeId) -> Vec3 {
+        self.get_node(node).get_dir()
+    }
+
+    fn get_node_positions(&self) -> Vec<Vec3> {
+        self.node_map.iter().map(|(_, n)| n.get_pos()).collect()
+    }
+
+    fn get_segment_inside(&self, pos: Vec3) -> Option<SegmentId> {
         for (id, s) in self.segment_map.iter() {
-            if s.get_guide_points().is_inside(ground_pos, s.get_width()) {
+            if s.get_guide_points().is_inside(pos, s.get_width()) {
                 return Some(*id);
             }
         }
         None
     }
 
-    /// The node_type parameter is temporary until implementation of transition segments.
-    pub fn add_road(
+    fn add_road(
         &mut self,
         road: LRoadBuilder,
         sel_node_type: NodeType,
@@ -197,14 +212,7 @@ impl RoadGraph {
         (new_snap, segment_ids)
     }
 
-    fn remove_node(&mut self, node_id: NodeId) {
-        self.node_map.remove(&node_id);
-        self.forward_refs.remove(&node_id);
-        self.backward_refs.remove(&node_id);
-    }
-
-    /// The return bool signals whether the segment was allowed to be removed or not.
-    pub fn remove_segment(&mut self, segment_id: SegmentId) -> bool {
+    fn remove_segment(&mut self, segment_id: SegmentId) -> bool {
         // check if deletion is valid
         let segment = self.get_segment(segment_id).clone();
         let from_node = self.get_node(segment.get_from_node());
@@ -248,9 +256,7 @@ impl RoadGraph {
         true
     }
 
-    /// Returns a list of node id's that have an open slot for the selected road type to snap to.
-    /// If reverse parameter is set to {`None`}, then no direction is checked when matching nodes.
-    pub fn get_possible_snap_nodes(&self, side: Option<Side>, node_type: NodeType) -> Vec<NodeId> {
+    fn get_possible_snap_nodes(&self, side: Option<Side>, node_type: NodeType) -> Vec<NodeId> {
         self.node_map
             .iter()
             .filter(|(&id, n)| {
@@ -269,9 +275,7 @@ impl RoadGraph {
             .collect()
     }
 
-    /// If no node is within range of pos, then this function returns {`None`}. Otherwise it
-    /// returns the closest node to pos, and all its possible {`SnapConfig`}'s.
-    pub fn get_snap_configs_closest_node(
+    fn get_snap_configs_closest_node(
         &self,
         ground_pos: Vec3,
         node_type: NodeType,
@@ -306,7 +310,7 @@ impl RoadGraph {
     }
 
     #[cfg(debug_assertions)]
-    pub fn debug_node_from_pos(&self, pos: Vec3) {
+    fn debug_node_from_pos(&self, pos: Vec3) {
         let mut closest_node = None;
         for (id, n) in self.node_map.iter() {
             let dist = (n.get_pos() - pos).length();
@@ -328,7 +332,7 @@ impl RoadGraph {
     }
 
     #[cfg(debug_assertions)]
-    pub fn debug_segment_from_pos(&self, pos: Vec3) {
+    fn debug_segment_from_pos(&self, pos: Vec3) {
         if let Some(id) = self.get_segment_inside(pos) {
             dbg!("Segment: {} ----------------------", id);
             dbg!(id);

@@ -1,4 +1,4 @@
-use utils::id::{IdManager, TreeId};
+use utils::id::TreeId;
 
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
@@ -49,8 +49,10 @@ impl TreeMap {
     pub fn new() -> Self {
         Self::default()
     }
+}
 
-    pub fn add_tree(&mut self, tree: Tree, id: TreeId) {
+impl crate::TreeManipulator for TreeMap {
+    fn add_tree(&mut self, tree: Tree, id: TreeId) {
         if !self.tree_map.contains_key(&id) {
             self.tree_map.insert(id, Vec::new());
         }
@@ -63,12 +65,12 @@ impl TreeMap {
         tree_vec.push(tree);
     }
 
-    pub fn _remove_tree(&mut self, pos: Vec3) {
+    fn remove_tree(&mut self, _pos: Vec3) {
         // TODO find nearest tree and remove it?
         // Take in an area range or circle range?
     }
 
-    pub fn get_trees(&self, id: TreeId) -> &Vec<Tree> {
+    fn get_trees(&self, id: TreeId) -> &Vec<Tree> {
         &self.tree_map.get(&id).unwrap()
     }
 }

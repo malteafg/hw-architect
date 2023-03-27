@@ -1,5 +1,5 @@
 use super::ToolStrategy;
-use crate::tool_state::ToolState;
+// use crate::tool_state::ToolState;
 
 use utils::id::TreeId;
 use world::nature::Tree;
@@ -26,11 +26,9 @@ impl ToolStrategy for TreePlopperTool {
 
     fn left_click(&mut self) {
         self.world
-            .mut_tree_map()
             .add_tree(Tree::new(self.ground_pos), self.tree_id);
         let raw_trees: Vec<_> = self
             .world
-            .get_tree_map()
             .get_trees(self.tree_id)
             .iter()
             .map(|t| (t.get_pos().into(), t.get_yrot()))

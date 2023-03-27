@@ -20,12 +20,9 @@ impl ToolStrategy for BulldozeTool {
     fn process_keyboard(&mut self, _key: input::KeyAction) {}
 
     fn left_click(&mut self) {
-        let segment_id = self
-            .world
-            .get_road_graph()
-            .get_segment_inside(self.ground_pos);
+        let segment_id = self.world.get_segment_inside(self.ground_pos);
         if let Some(id) = segment_id {
-            if self.world.mut_road_graph().remove_segment(id) {
+            if self.world.remove_segment(id) {
                 self.gfx_handle.borrow_mut().remove_road_meshes(vec![id])
             }
         }
@@ -57,10 +54,7 @@ impl BulldozeTool {
     }
 
     fn check_segment(&mut self) {
-        let segment_id = self
-            .world
-            .get_road_graph()
-            .get_segment_inside(self.ground_pos);
+        let segment_id = self.world.get_segment_inside(self.ground_pos);
         if let Some(id) = segment_id {
             self.gfx_handle.borrow_mut().mark_road_segments(vec![id]);
             return;

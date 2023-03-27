@@ -30,7 +30,7 @@ pub struct SelectedRoad {
 }
 
 impl SelectedRoad {
-    pub fn new(node_type: NodeType, segment_type: SegmentType) -> Self {
+    pub fn _new(node_type: NodeType, segment_type: SegmentType) -> Self {
         Self {
             node_type,
             segment_type,

@@ -143,12 +143,8 @@ impl ToolStrategy for ConstructTool {
             Mode::SelectPos => {
                 #[cfg(debug_assertions)]
                 {
-                    self.world
-                        .get_road_graph()
-                        .debug_node_from_pos(self.ground_pos);
-                    self.world
-                        .get_road_graph()
-                        .debug_segment_from_pos(self.ground_pos);
+                    self.world.debug_node_from_pos(self.ground_pos);
+                    self.world.debug_segment_from_pos(self.ground_pos);
                 }
             }
             SelectDir { .. } => self.reset(),
@@ -333,10 +329,7 @@ impl ConstructTool {
     fn build_road(&mut self, road_builder: LRoadBuilder) {
         let next_node_type = self.get_sel_node_type();
         let road_meshes = self.gen_road_mesh_from_builder(&road_builder, self.get_sel_node_type());
-        let (new_node, segment_ids) = self
-            .world
-            .mut_road_graph()
-            .add_road(road_builder, next_node_type);
+        let (new_node, segment_ids) = self.world.add_road(road_builder, next_node_type);
 
         let mut mesh_map = HashMap::new();
         for i in 0..segment_ids.len() {
@@ -571,7 +564,6 @@ impl ConstructTool {
         // Get available snaps
         let node_snap_configs = self
             .world
-            .get_road_graph()
             .get_snap_configs_closest_node(self.ground_pos, self.get_sel_road_type().node_type);
 
         let Some((_snap_id, mut snap_configs)) = node_snap_configs else {
@@ -606,12 +598,12 @@ impl ConstructTool {
         };
         let possible_snaps = self
             .world
-            .get_road_graph()
             .get_possible_snap_nodes(side, self.get_sel_road_type().node_type)
             .iter()
             .map(|id| {
-                let node = self.world.get_road_graph().get_node(*id);
-                (node.get_pos().into(), node.get_dir().into())
+                let pos = self.world.get_node_pos(*id);
+                let dir = self.world.get_node_dir(*id);
+                (pos.into(), dir.into())
             })
             .collect();
 

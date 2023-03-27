@@ -30,7 +30,7 @@ pub struct WorldTool {
     saved_tool: Option<Tool>,
 
     // only temporary
-    tree_id_manager: IdManager<TreeId>,
+    // tree_id_manager: IdManager<TreeId>,
     tree_id: TreeId,
 }
 
@@ -49,7 +49,7 @@ impl WorldTool {
             curr_tool_handle: start_tool,
             curr_tool: Tool::NoTool,
             saved_tool: None,
-            tree_id_manager,
+            // tree_id_manager,
             tree_id,
         };
         result.enter_construct_mode();
