@@ -83,21 +83,18 @@ impl RoadGraph {
 }
 
 impl crate::RoadManipulator for RoadGraph {
-    fn get_node_pos(&self, node: NodeId) -> Vec3 {
-        self.get_node(node).get_pos()
+    fn get_node_from_pos(&self, pos: Vec3) -> Option<NodeId> {
+        for (id, n) in self.node_map.iter() {
+            if n.contains_pos(pos) {
+                return Some(*id);
+            }
+        }
+        None
     }
 
-    fn get_node_dir(&self, node: NodeId) -> Vec3 {
-        self.get_node(node).get_dir()
-    }
-
-    fn get_node_positions(&self) -> Vec<Vec3> {
-        self.node_map.iter().map(|(_, n)| n.get_pos()).collect()
-    }
-
-    fn get_segment_inside(&self, pos: Vec3) -> Option<SegmentId> {
+    fn get_segment_from_pos(&self, pos: Vec3) -> Option<SegmentId> {
         for (id, s) in self.segment_map.iter() {
-            if s.get_guide_points().is_inside(pos, s.get_width()) {
+            if s.contains_pos(pos) {
                 return Some(*id);
             }
         }
@@ -117,7 +114,7 @@ impl crate::RoadManipulator for RoadGraph {
             .into_iter()
             .map(|n| match n {
                 new @ LNodeBuilderType::New(_) => (self.node_id_manager.gen(), new),
-                LNodeBuilderType::Old(snap) => (snap.get_id(), LNodeBuilderType::Old(snap)),
+                LNodeBuilderType::Old(snap) => (snap.id(), LNodeBuilderType::Old(snap)),
             })
             .collect();
 
@@ -158,7 +155,7 @@ impl crate::RoadManipulator for RoadGraph {
                     }
                     LNodeBuilderType::Old(snap_config) => {
                         // update existing node
-                        let segment_id = match snap_config.get_side() {
+                        let segment_id = match snap_config.side() {
                             Side::Out => segment_ids[0],
                             Side::In => segment_ids[segment_ids.len() - 1],
                         };
@@ -256,7 +253,11 @@ impl crate::RoadManipulator for RoadGraph {
         true
     }
 
-    fn get_possible_snap_nodes(&self, side: Option<Side>, node_type: NodeType) -> Vec<NodeId> {
+    fn get_possible_snap_nodes(
+        &self,
+        side: Option<Side>,
+        node_type: NodeType,
+    ) -> Vec<(NodeId, Vec3, Vec3)> {
         self.node_map
             .iter()
             .filter(|(&id, n)| {
@@ -267,11 +268,11 @@ impl crate::RoadManipulator for RoadGraph {
                     return false
                 };
                 if let Some(side) = side {
-                    return side != snap_config.get_side();
+                    return side != snap_config.side();
                 };
                 true
             })
-            .map(|(&id, _)| id)
+            .map(|(&id, n)| (id, n.pos(), n.dir()))
             .collect()
     }
 
@@ -286,7 +287,7 @@ impl crate::RoadManipulator for RoadGraph {
             if !n.can_add_some_segment() {
                 continue;
             }
-            let dist = (n.get_pos() - ground_pos).length();
+            let dist = (n.pos() - ground_pos).length();
             if let Some((_, old_dist)) = closest_node {
                 if old_dist < dist {
                     continue;
@@ -300,9 +301,9 @@ impl crate::RoadManipulator for RoadGraph {
             let n = self.get_node(*id);
             let mut snap_configs = n.construct_snap_configs(node_type, *id);
             snap_configs.sort_by(|a, b| {
-                (a.get_pos() - ground_pos)
+                (a.pos() - ground_pos)
                     .length()
-                    .partial_cmp(&(b.get_pos() - ground_pos).length())
+                    .partial_cmp(&(b.pos() - ground_pos).length())
                     .unwrap()
             });
             (*id, snap_configs)
@@ -310,32 +311,29 @@ impl crate::RoadManipulator for RoadGraph {
     }
 
     #[cfg(debug_assertions)]
-    fn debug_node_from_pos(&self, pos: Vec3) {
-        let mut closest_node = None;
-        for (id, n) in self.node_map.iter() {
-            let dist = (n.get_pos() - pos).length();
-            if let Some((_, old_dist)) = closest_node {
-                if old_dist < dist {
-                    continue;
-                }
-            }
-            if dist < n.no_lanes() as f32 * n.get_lane_width() {
-                closest_node = Some((id, dist));
-            }
-        }
-        if let Some(id) = closest_node.map(|(id, _)| *id) {
-            dbg!("Node: {} -------------------------", id);
-            dbg!(self.node_map.get(&id));
-            dbg!(self.forward_refs.get(&id));
-            dbg!(self.backward_refs.get(&id));
-        }
+    fn debug_node(&self, id: NodeId) {
+        // let mut closest_node = None;
+        // for (id, n) in self.node_map.iter() {
+        //     let dist = (n.pos() - pos).length();
+        //     if let Some((_, old_dist)) = closest_node {
+        //         if old_dist < dist {
+        //             continue;
+        //         }
+        //     }
+        //     if dist < n.no_lanes() as f32 * n.lane_width() {
+        //         closest_node = Some((id, dist));
+        //     }
+        // }
+
+        dbg!("Node: {} -------------------------", id);
+        dbg!(self.node_map.get(&id));
+        dbg!(self.forward_refs.get(&id));
+        dbg!(self.backward_refs.get(&id));
     }
 
     #[cfg(debug_assertions)]
-    fn debug_segment_from_pos(&self, pos: Vec3) {
-        if let Some(id) = self.get_segment_inside(pos) {
-            dbg!("Segment: {} ----------------------", id);
-            dbg!(id);
-        }
+    fn debug_segment(&self, id: SegmentId) {
+        dbg!("Segment: {} ----------------------", id);
+        dbg!(id);
     }
 }

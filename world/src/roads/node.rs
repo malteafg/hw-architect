@@ -46,15 +46,15 @@ impl LNodeBuilder {
         LNode::new(self.pos, self.dir, self.node_type, mode)
     }
 
-    pub fn get_pos(&self) -> Vec3 {
+    pub fn pos(&self) -> Vec3 {
         self.pos
     }
 
-    pub fn get_dir(&self) -> Vec3 {
+    pub fn dir(&self) -> Vec3 {
         self.dir
     }
 
-    pub fn get_node_type(&self) -> NodeType {
+    pub fn node_type(&self) -> NodeType {
         self.node_type
     }
 
@@ -137,11 +137,11 @@ impl LNode {
         }
     }
 
-    pub fn get_pos(&self) -> Vec3 {
+    pub fn pos(&self) -> Vec3 {
         self.pos
     }
 
-    pub fn get_dir(&self) -> Vec3 {
+    pub fn dir(&self) -> Vec3 {
         self.dir
     }
 
@@ -151,8 +151,16 @@ impl LNode {
         self.node_type.no_lanes
     }
 
-    pub fn get_lane_width(&self) -> f32 {
+    pub fn lane_width(&self) -> f32 {
         self.node_type.lane_width.getf32()
+    }
+
+    fn width(&self) -> f32 {
+        self.lane_width() * self.no_lanes() as f32
+    }
+
+    pub fn contains_pos(&self, pos: Vec3) -> bool {
+        (self.pos - pos).length() < self.width()
     }
 
     /// Returns true if the given segment_id is part of this node.
@@ -244,15 +252,15 @@ impl LNode {
                     // We need to be asymmetric in the opposite direction.
 
                     // Computes the correct snap range for the old main segment.
-                    let no_negatives = snap_config.get_snap_range().get_no_negatives();
+                    let no_negatives = snap_config.get_snap_range().no_negatives();
                     let mut new_snap_range = SnapRange::new(self_no_lanes);
                     new_snap_range.shift(no_negatives as i8);
 
                     let mut attached_segments = LaneMap::empty(snap_no_lanes);
                     attached_segments.add_segment(*main_segment, self.node_type, new_snap_range);
 
-                    self.pos = snap_config.get_pos();
-                    self.node_type = snap_config.get_node_type();
+                    self.pos = snap_config.pos();
+                    self.node_type = snap_config.node_type();
                     self.mode = Asym {
                         main_segment: segment_id,
                         main_side: main_side.switch(),
@@ -262,7 +270,7 @@ impl LNode {
                     let mut attached_segments = LaneMap::empty(self_no_lanes);
                     attached_segments.add_segment(
                         segment_id,
-                        snap_config.get_node_type(),
+                        snap_config.node_type(),
                         snap_config.consume_snap_range(),
                     );
 
@@ -285,7 +293,7 @@ impl LNode {
 
                 attached_segments.add_segment(
                     segment_id,
-                    snap_config.get_node_type(),
+                    snap_config.node_type(),
                     snap_config.consume_snap_range(),
                 )
             }
@@ -296,9 +304,9 @@ impl LNode {
                 #[cfg(debug_assertions)]
                 assert!(self_no_lanes <= snap_no_lanes);
 
-                self.pos = snap_config.get_pos();
-                self.node_type = snap_config.get_node_type();
-                attached_segments.shift(snap_config.get_snap_range().get_no_negatives() as i8);
+                self.pos = snap_config.pos();
+                self.node_type = snap_config.node_type();
+                attached_segments.shift(snap_config.get_snap_range().no_negatives() as i8);
                 attached_segments.update_no_lanes(snap_no_lanes);
                 self.mode = Asym {
                     main_segment: segment_id,
@@ -318,7 +326,7 @@ impl LNode {
 
         let self_no_lanes = self.no_lanes();
 
-        let lane_width_dir = self.dir.right_hand() * self.get_lane_width();
+        let lane_width_dir = self.dir.right_hand() * self.lane_width();
         match &mut self.mode {
             Basic { main_segment, .. } => {
                 #[cfg(debug_assertions)]
@@ -484,7 +492,7 @@ impl LNode {
             return vec![];
         }
 
-        let lane_width_dir = self.dir.right_hand() * self.get_lane_width();
+        let lane_width_dir = self.dir.right_hand() * self.lane_width();
         let snap_no_lanes = node_type.no_lanes;
 
         let (snap_ranges_with_pos, side): (Vec<(SnapRange, Vec3)>, Side) = match &self.mode {

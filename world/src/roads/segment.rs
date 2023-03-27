@@ -3,6 +3,8 @@ use utils::curves::{GuidePoints, SpinePoints};
 
 use utils::id::NodeId;
 
+use glam::Vec3;
+
 use serde::{Deserialize, Serialize};
 
 // #################################################################################################
@@ -24,7 +26,7 @@ impl LSegmentBuilder {
         }
     }
 
-    pub fn get_guide_points(&self) -> &GuidePoints {
+    pub fn guide_points(&self) -> &GuidePoints {
         &self.guide_points
     }
 
@@ -78,19 +80,19 @@ impl LSegment {
         }
     }
 
-    pub fn get_width(&self) -> f32 {
+    pub fn width(&self) -> f32 {
         self.width
     }
 
-    pub fn get_type(&self) -> SegmentType {
+    pub fn segment_type(&self) -> SegmentType {
         self.segment_type
     }
 
-    pub fn get_guide_points(&self) -> &GuidePoints {
+    pub fn guide_points(&self) -> &GuidePoints {
         &self.guide_points
     }
 
-    pub fn get_spine_points(&self) -> &SpinePoints {
+    pub fn spine_points(&self) -> &SpinePoints {
         &self.spine_points
     }
 
@@ -100,5 +102,9 @@ impl LSegment {
 
     pub fn get_to_node(&self) -> NodeId {
         self.to_node
+    }
+
+    pub fn contains_pos(&self, pos: Vec3) -> bool {
+        self.guide_points().is_inside(pos, self.width())
     }
 }

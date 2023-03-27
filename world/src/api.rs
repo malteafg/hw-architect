@@ -7,11 +7,11 @@ use crate::{
     roads::{LRoadBuilder, NodeType, Side, SnapConfig},
 };
 
+pub trait WorldManipulator: RoadManipulator + TreeManipulator {}
+
 pub trait RoadManipulator {
-    fn get_node_pos(&self, node: NodeId) -> Vec3;
-    fn get_node_dir(&self, node: NodeId) -> Vec3;
-    fn get_node_positions(&self) -> Vec<Vec3>;
-    fn get_segment_inside(&self, pos: Vec3) -> Option<SegmentId>;
+    fn get_node_from_pos(&self, pos: Vec3) -> Option<NodeId>;
+    fn get_segment_from_pos(&self, pos: Vec3) -> Option<SegmentId>;
 
     /// The node_type parameter is temporary until implementation of transition segments.
     fn add_road(
@@ -19,12 +19,19 @@ pub trait RoadManipulator {
         road: LRoadBuilder,
         sel_node_type: NodeType,
     ) -> (Option<SnapConfig>, Vec<SegmentId>);
+
     /// The return bool signals whether the segment was allowed to be removed or not.
     fn remove_segment(&mut self, segment_id: SegmentId) -> bool;
 
-    /// Returns a list of node id's that have an open slot for the selected road type to snap to.
+    /// Returns a list of node id's that have an open slot for the selected road type to snap to
+    /// together with that nodes pos and dir.
     /// If reverse parameter is set to {`None`}, then no direction is checked when matching nodes.
-    fn get_possible_snap_nodes(&self, side: Option<Side>, node_type: NodeType) -> Vec<NodeId>;
+    fn get_possible_snap_nodes(
+        &self,
+        side: Option<Side>,
+        node_type: NodeType,
+    ) -> Vec<(NodeId, Vec3, Vec3)>;
+
     /// If no node is within range of pos, then this function returns {`None`}. Otherwise it
     /// returns the closest node to pos, and all its possible {`SnapConfig`}'s.
     fn get_snap_configs_closest_node(
@@ -33,8 +40,10 @@ pub trait RoadManipulator {
         node_type: NodeType,
     ) -> Option<(NodeId, Vec<SnapConfig>)>;
 
-    fn debug_node_from_pos(&self, pos: Vec3);
-    fn debug_segment_from_pos(&self, pos: Vec3);
+    #[cfg(debug_assertions)]
+    fn debug_node(&self, id: NodeId);
+    #[cfg(debug_assertions)]
+    fn debug_segment(&self, id: SegmentId);
 }
 
 pub trait TreeManipulator {

@@ -27,15 +27,15 @@ impl LNodeBuilderType {
 
     fn get_pos(&self) -> Vec3 {
         match self {
-            New(node_builder) => node_builder.get_pos(),
-            Old(snap_config) => snap_config.get_pos(),
+            New(node_builder) => node_builder.pos(),
+            Old(snap_config) => snap_config.pos(),
         }
     }
 
     fn get_pos_and_dir(&self) -> (Vec3, Vec3) {
         match self {
-            New(node_builder) => (node_builder.get_pos(), node_builder.get_dir()),
-            Old(snap_config) => (snap_config.get_pos(), snap_config.get_dir()),
+            New(node_builder) => (node_builder.pos(), node_builder.dir()),
+            Old(snap_config) => (snap_config.pos(), snap_config.dir()),
         }
     }
 }
@@ -128,8 +128,8 @@ impl LRoadBuilder {
         last_type: NodeType,
         reverse: bool,
     ) -> Self {
-        let first_pos = first_node.get_pos();
-        let first_dir = first_node.get_dir().flip(reverse);
+        let first_pos = first_node.pos();
+        let first_dir = first_node.dir().flip(reverse);
         let first_to_last = last_pos - first_pos;
         let proj_pos = if first_to_last.dot(first_dir) / first_dir.length() > ROAD_MIN_LENGTH {
             // The projection will yield a long enough segment
@@ -169,8 +169,8 @@ impl LRoadBuilder {
         reverse: bool,
     ) -> Self {
         let (start_pos, start_dir) = match &first_node {
-            New(node_builder) => (node_builder.get_pos(), node_builder.get_dir()),
-            Old(snap_config) => (snap_config.get_pos(), snap_config.get_dir().flip(reverse)),
+            New(node_builder) => (node_builder.pos(), node_builder.dir()),
+            Old(snap_config) => (snap_config.pos(), snap_config.dir().flip(reverse)),
         };
 
         let last_pos = if (last_pos - start_pos).length() < ROAD_MIN_LENGTH {
@@ -234,9 +234,9 @@ impl LRoadBuilder {
         last_node: SnapConfig,
         reverse: bool,
     ) -> Result<Self, RoadGenErr> {
-        let end_dir = last_node.get_dir().flip(!reverse);
+        let end_dir = last_node.dir().flip(!reverse);
         let mut g_points_vec = curve_gen::three_quarter_circle_curve(
-            last_node.get_pos(),
+            last_node.pos(),
             end_dir,
             first_pos,
             0.0,
@@ -291,11 +291,11 @@ impl LRoadBuilder {
         last_node: SnapConfig,
         reverse: bool,
     ) -> Result<Self, RoadGenErr> {
-        let node_type = last_node.get_node_type();
+        let node_type = last_node.node_type();
         let (start_node, (start_pos, start_dir), end_node, (end_pos, end_dir)) = if reverse {
             flip_dir_single(&mut first_node);
             let start_pos_and_dir = first_node.get_pos_and_dir();
-            let end_pos_and_dir = last_node.get_pos_and_dir();
+            let end_pos_and_dir = last_node.pos_and_dir();
             (
                 Old(last_node),
                 end_pos_and_dir,
@@ -304,7 +304,7 @@ impl LRoadBuilder {
             )
         } else {
             let start_pos_and_dir = first_node.get_pos_and_dir();
-            let end_pos_and_dir = last_node.get_pos_and_dir();
+            let end_pos_and_dir = last_node.pos_and_dir();
             (
                 first_node,
                 start_pos_and_dir,

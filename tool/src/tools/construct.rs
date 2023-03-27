@@ -143,8 +143,11 @@ impl ToolStrategy for ConstructTool {
             Mode::SelectPos => {
                 #[cfg(debug_assertions)]
                 {
-                    self.world.debug_node_from_pos(self.ground_pos);
-                    self.world.debug_segment_from_pos(self.ground_pos);
+                    if let Some(id) = self.world.get_node_from_pos(self.ground_pos) {
+                        self.world.debug_node(id);
+                    } else if let Some(id) = self.world.get_segment_from_pos(self.ground_pos) {
+                        self.world.debug_segment(id);
+                    }
                 }
             }
             SelectDir { .. } => self.reset(),
@@ -230,12 +233,12 @@ impl ConstructTool {
         match &self.mode {
             SelectPos | SelectDir { .. } | CurveEnd { .. } => {
                 if let Some(snap) = &self.snapped_node {
-                    snap.get_side() == Side::Out
+                    snap.side() == Side::Out
                 } else {
                     self.is_reverse()
                 }
             }
-            SelNode { snap_config, .. } => snap_config.get_side() == Side::In,
+            SelNode { snap_config, .. } => snap_config.side() == Side::In,
         }
     }
 
@@ -378,11 +381,11 @@ impl ConstructTool {
 
     /// Generates and sld and sets the mode to SelNode.
     fn update_to_sld(&mut self, snap_config: SnapConfig) {
-        let reverse = snap_config.get_side() == Side::In;
+        let reverse = snap_config.side() == Side::In;
         let road_builder = LRoadBuilder::gen_sld(
             snap_config.clone(),
             self.ground_pos,
-            snap_config.get_node_type(),
+            snap_config.node_type(),
             reverse,
         );
         self.update_road_tool_mesh(&road_builder);
@@ -462,10 +465,10 @@ impl ConstructTool {
             SelectPos => {
                 // Snap does not have to satisfy any curvature constraints.
                 let snap_config = snap_configs.into_iter().nth(0).unwrap();
-                let pos = snap_config.get_pos();
-                let dir = snap_config.get_dir();
-                let node_type = snap_config.get_node_type();
-                let reverse = snap_config.get_side() == Side::In;
+                let pos = snap_config.pos();
+                let dir = snap_config.dir();
+                let node_type = snap_config.node_type();
+                let reverse = snap_config.side() == Side::In;
 
                 let road_builder =
                     LRoadBuilder::gen_stub(pos, dir.flip(reverse), node_type, reverse);
@@ -480,7 +483,7 @@ impl ConstructTool {
             } => {
                 // attempt a ccs snap
                 for snap_config in snap_configs.into_iter() {
-                    let reverse = snap_config.get_side() == Side::Out;
+                    let reverse = snap_config.side() == Side::Out;
                     let attempt =
                         LRoadBuilder::gen_ccs(*pos, *init_node_type, snap_config.clone(), reverse);
                     let Ok(road_builder) = attempt else {
@@ -505,7 +508,7 @@ impl ConstructTool {
             } => {
                 // attempt a ds snap
                 for snap_config in snap_configs.into_iter() {
-                    let reverse = snap_config.get_side() == Side::Out;
+                    let reverse = snap_config.side() == Side::Out;
                     let attempt = LRoadBuilder::gen_ds(
                         LNodeBuilderType::New(LNodeBuilder::new(*pos, *dir, *init_node_type)),
                         snap_config.clone(),
@@ -572,7 +575,7 @@ impl ConstructTool {
         };
 
         if let SelNode { snap_config, .. } = &self.mode {
-            snap_configs.retain(|s| s.get_side() != snap_config.get_side());
+            snap_configs.retain(|s| s.side() != snap_config.side());
         }
 
         if snap_configs.is_empty() {
@@ -592,7 +595,7 @@ impl ConstructTool {
             return;
         }
         let side = if let SelNode { snap_config, .. } = &self.mode {
-            Some(snap_config.get_side())
+            Some(snap_config.side())
         } else {
             None
         };
@@ -600,11 +603,7 @@ impl ConstructTool {
             .world
             .get_possible_snap_nodes(side, self.get_sel_road_type().node_type)
             .iter()
-            .map(|id| {
-                let pos = self.world.get_node_pos(*id);
-                let dir = self.world.get_node_dir(*id);
-                (pos.into(), dir.into())
-            })
+            .map(|(_id, pos, dir)| (<[f32; 3]>::from(*pos), <[f32; 3]>::from(*dir)))
             .collect();
 
         self.gfx_handle
@@ -620,7 +619,7 @@ impl ConstructTool {
         road_builder
             .get_segments()
             .iter()
-            .map(|s| mesh_gen::generate_simple_mesh(s.get_guide_points(), node_type))
+            .map(|s| mesh_gen::generate_simple_mesh(s.guide_points(), node_type))
             .collect::<Vec<RoadMesh>>()
     }
 

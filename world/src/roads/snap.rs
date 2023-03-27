@@ -57,7 +57,7 @@ impl SnapRange {
         self[0]
     }
 
-    pub fn get_no_negatives(&self) -> u8 {
+    pub fn no_negatives(&self) -> u8 {
         let mut result = 0;
         for i in self.iter() {
             if *i < 0 {
@@ -108,23 +108,23 @@ impl SnapConfig {
         }
     }
 
-    pub fn get_id(&self) -> NodeId {
+    pub fn id(&self) -> NodeId {
         self.node_id
     }
 
-    pub fn get_node_type(&self) -> NodeType {
+    pub fn node_type(&self) -> NodeType {
         self.node_type
     }
 
-    pub fn get_pos(&self) -> Vec3 {
+    pub fn pos(&self) -> Vec3 {
         self.pos
     }
 
-    pub fn get_dir(&self) -> Vec3 {
+    pub fn dir(&self) -> Vec3 {
         self.dir
     }
 
-    pub fn get_pos_and_dir(&self) -> (Vec3, Vec3) {
+    pub fn pos_and_dir(&self) -> (Vec3, Vec3) {
         (self.pos, self.dir)
     }
 
@@ -136,7 +136,7 @@ impl SnapConfig {
         self.snap_range
     }
 
-    pub fn get_side(&self) -> Side {
+    pub fn side(&self) -> Side {
         self.side
     }
 

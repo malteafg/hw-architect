@@ -7,7 +7,7 @@ pub mod nature;
 pub mod roads;
 
 mod api;
-pub use api::{RoadManipulator, TreeManipulator};
+pub use api::{RoadManipulator, TreeManipulator, WorldManipulator};
 
 use nature::{Tree, TreeMap};
 use roads::{LRoadBuilder, NodeType, RoadGraph, Side, SnapConfig};
@@ -30,19 +30,12 @@ impl World {
 }
 
 impl api::RoadManipulator for World {
-    fn get_node_pos(&self, node: NodeId) -> Vec3 {
-        self.road_graph.get_node_pos(node)
+    fn get_node_from_pos(&self, pos: Vec3) -> Option<NodeId> {
+        self.road_graph.get_node_from_pos(pos)
     }
 
-    fn get_node_dir(&self, node: NodeId) -> Vec3 {
-        self.road_graph.get_node_dir(node)
-    }
-
-    fn get_node_positions(&self) -> Vec<Vec3> {
-        self.road_graph.get_node_positions()
-    }
-    fn get_segment_inside(&self, pos: Vec3) -> Option<SegmentId> {
-        self.road_graph.get_segment_inside(pos)
+    fn get_segment_from_pos(&self, pos: Vec3) -> Option<SegmentId> {
+        self.road_graph.get_segment_from_pos(pos)
     }
 
     fn add_road(
@@ -52,13 +45,19 @@ impl api::RoadManipulator for World {
     ) -> (Option<SnapConfig>, Vec<SegmentId>) {
         self.road_graph.add_road(road, sel_node_type)
     }
+
     fn remove_segment(&mut self, segment_id: SegmentId) -> bool {
         self.road_graph.remove_segment(segment_id)
     }
 
-    fn get_possible_snap_nodes(&self, side: Option<Side>, node_type: NodeType) -> Vec<NodeId> {
+    fn get_possible_snap_nodes(
+        &self,
+        side: Option<Side>,
+        node_type: NodeType,
+    ) -> Vec<(NodeId, Vec3, Vec3)> {
         self.road_graph.get_possible_snap_nodes(side, node_type)
     }
+
     fn get_snap_configs_closest_node(
         &self,
         ground_pos: Vec3,
@@ -68,12 +67,12 @@ impl api::RoadManipulator for World {
             .get_snap_configs_closest_node(ground_pos, node_type)
     }
 
-    fn debug_node_from_pos(&self, pos: Vec3) {
-        self.road_graph.debug_node_from_pos(pos)
+    fn debug_node(&self, id: NodeId) {
+        self.road_graph.debug_node(id)
     }
 
-    fn debug_segment_from_pos(&self, pos: Vec3) {
-        self.road_graph.debug_segment_from_pos(pos)
+    fn debug_segment(&self, id: SegmentId) {
+        self.road_graph.debug_segment(id)
     }
 }
 
