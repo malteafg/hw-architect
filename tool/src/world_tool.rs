@@ -1,7 +1,6 @@
 use gfx_api::GfxSuper;
 use std::cell::RefCell;
 use std::rc::Rc;
-use utils::id::{IdManager, TreeId};
 use utils::input;
 use world::WorldManipulator;
 
@@ -28,20 +27,12 @@ pub struct WorldTool {
     curr_tool_handle: Box<dyn ToolStrategy>,
     curr_tool: Tool,
     saved_tool: Option<Tool>,
-
-    // only temporary
-    // tree_id_manager: IdManager<TreeId>,
-    tree_id: TreeId,
 }
 
 impl WorldTool {
     pub fn new(gfx_handle: Rc<RefCell<dyn GfxSuper>>, world: Box<dyn WorldManipulator>) -> Self {
         let start_tool = Box::new(NoTool::new(world));
         let state = Rc::new(RefCell::new(ToolState::default()));
-
-        let mut tree_id_manager = IdManager::new();
-        let tree_id = tree_id_manager.gen();
-
         let mut result = WorldTool {
             gfx_handle,
             state,
@@ -49,8 +40,6 @@ impl WorldTool {
             curr_tool_handle: start_tool,
             curr_tool: Tool::NoTool,
             saved_tool: None,
-            // tree_id_manager,
-            tree_id,
         };
         result.enter_construct_mode();
         result
@@ -94,7 +83,6 @@ impl WorldTool {
             tool_gfx_handle,
             world,
             self.ground_pos,
-            self.tree_id,
         ));
     }
 

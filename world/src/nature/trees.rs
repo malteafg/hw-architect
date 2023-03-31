@@ -1,10 +1,10 @@
-use utils::id::TreeId;
+use utils::id::{IdManager, TreeId};
 
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
 use rand::Rng;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct Tree {
@@ -30,39 +30,43 @@ impl Tree {
     }
 }
 
+/// The u128 represents a hash of a tree model. For now it is not used as there is only one tree
+/// model.
+pub type TreeMap = BTreeMap<u128, HashMap<TreeId, Tree>>;
+
 #[derive(Serialize, Deserialize)]
-pub struct TreeMap {
-    tree_map: HashMap<TreeId, Vec<Tree>>,
-    // id_manager: IdManager<TreeId>,
+pub struct Trees {
+    tree_map: TreeMap,
+    id_manager: IdManager<TreeId>,
 }
 
-impl Default for TreeMap {
+impl Default for Trees {
     fn default() -> Self {
         Self {
-            tree_map: HashMap::new(),
-            // id_manager: IdManager::new(),
+            tree_map: BTreeMap::new(),
+            id_manager: IdManager::new(),
         }
     }
 }
 
-impl TreeMap {
+impl Trees {
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl crate::TreeManipulator for TreeMap {
-    fn add_tree(&mut self, tree: Tree, id: TreeId) {
-        if !self.tree_map.contains_key(&id) {
-            self.tree_map.insert(id, Vec::new());
-        }
+impl crate::TreeManipulator for Trees {
+    fn add_tree(&mut self, tree: Tree, model_id: u128) {
+        let tree_id = self.id_manager.gen();
 
-        let Some(tree_vec) = self.tree_map.get_mut(&id) else {
-            // Maybe see hashmap .try_insert() to get rid of this?
-            unreachable!()
+        let Some(model_map) = self.tree_map.get_mut(&model_id) else {
+            let mut new_model_map = HashMap::new();
+            new_model_map.insert(tree_id, tree);
+            self.tree_map.insert(model_id, HashMap::new());
+            return;
         };
 
-        tree_vec.push(tree);
+        model_map.insert(tree_id, tree);
     }
 
     fn remove_tree(&mut self, _pos: Vec3) {
@@ -70,7 +74,7 @@ impl crate::TreeManipulator for TreeMap {
         // Take in an area range or circle range?
     }
 
-    fn get_trees(&self, id: TreeId) -> &Vec<Tree> {
-        &self.tree_map.get(&id).unwrap()
+    fn get_trees(&self) -> &TreeMap {
+        &self.tree_map
     }
 }

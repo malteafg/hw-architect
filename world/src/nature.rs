@@ -1,3 +1,3 @@
 mod trees;
 
-pub use trees::{Tree, TreeMap};
+pub use trees::{Tree, TreeMap, Trees};

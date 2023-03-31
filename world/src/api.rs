@@ -1,18 +1,15 @@
-use utils::id::{NodeId, SegmentId, TreeId};
+use utils::id::{NodeId, SegmentId};
 
 use glam::Vec3;
 
 use crate::{
-    nature::Tree,
+    nature::{Tree, TreeMap},
     roads::{LRoadBuilder, NodeType, Side, SnapConfig},
 };
 
-pub trait WorldManipulator: RoadManipulator + TreeManipulator {}
+pub trait WorldManipulator: RoadManipulator + TreeManipulator + IdGetter {}
 
 pub trait RoadManipulator {
-    fn get_node_from_pos(&self, pos: Vec3) -> Option<NodeId>;
-    fn get_segment_from_pos(&self, pos: Vec3) -> Option<SegmentId>;
-
     /// The node_type parameter is temporary until implementation of transition segments.
     fn add_road(
         &mut self,
@@ -47,7 +44,13 @@ pub trait RoadManipulator {
 }
 
 pub trait TreeManipulator {
-    fn add_tree(&mut self, tree: Tree, id: TreeId);
+    fn add_tree(&mut self, tree: Tree, model_id: u128);
     fn remove_tree(&mut self, pos: Vec3);
-    fn get_trees(&self, id: TreeId) -> &Vec<Tree>;
+    fn get_trees(&self) -> &TreeMap;
+}
+
+pub trait IdGetter {
+    fn get_node_from_pos(&self, pos: Vec3) -> Option<NodeId>;
+    fn get_segment_from_pos(&self, pos: Vec3) -> Option<SegmentId>;
+    fn get_tree_from_pos(&self, pos: Vec3) -> Option<SegmentId>;
 }

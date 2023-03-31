@@ -80,10 +80,8 @@ impl RoadGraph {
         self.forward_refs.remove(&node_id);
         self.backward_refs.remove(&node_id);
     }
-}
 
-impl crate::RoadManipulator for RoadGraph {
-    fn get_node_from_pos(&self, pos: Vec3) -> Option<NodeId> {
+    pub fn get_node_from_pos(&self, pos: Vec3) -> Option<NodeId> {
         for (id, n) in self.node_map.iter() {
             if n.contains_pos(pos) {
                 return Some(*id);
@@ -92,7 +90,7 @@ impl crate::RoadManipulator for RoadGraph {
         None
     }
 
-    fn get_segment_from_pos(&self, pos: Vec3) -> Option<SegmentId> {
+    pub fn get_segment_from_pos(&self, pos: Vec3) -> Option<SegmentId> {
         for (id, s) in self.segment_map.iter() {
             if s.contains_pos(pos) {
                 return Some(*id);
@@ -100,7 +98,9 @@ impl crate::RoadManipulator for RoadGraph {
         }
         None
     }
+}
 
+impl crate::RoadManipulator for RoadGraph {
     fn add_road(
         &mut self,
         road: LRoadBuilder,

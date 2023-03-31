@@ -1,7 +1,6 @@
 use super::ToolStrategy;
 // use crate::tool_state::ToolState;
 
-use utils::id::TreeId;
 use world::nature::Tree;
 use world::WorldManipulator;
 
@@ -12,13 +11,16 @@ use glam::Vec3;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+/// For now we only have one model, but change this in the future and not use const. Maybe compute
+/// hash of models.
+const TREE_MODEL_ID: u128 = 0;
+
 pub struct TreePlopperTool {
     // gfx_handle: Rc<RefCell<dyn GfxTreeData>>,
     gfx_handle: Rc<RefCell<dyn GfxSuper>>,
     world: Box<dyn WorldManipulator>,
 
     ground_pos: Vec3,
-    tree_id: TreeId,
 }
 
 impl ToolStrategy for TreePlopperTool {
@@ -26,12 +28,16 @@ impl ToolStrategy for TreePlopperTool {
 
     fn left_click(&mut self) {
         self.world
-            .add_tree(Tree::new(self.ground_pos), self.tree_id);
+            .add_tree(Tree::new(self.ground_pos), TREE_MODEL_ID);
         let raw_trees: Vec<_> = self
             .world
-            .get_trees(self.tree_id)
+            .get_trees()
             .iter()
-            .map(|t| (t.get_pos().into(), t.get_yrot()))
+            .flat_map(|(_model_id, model_map)| {
+                model_map
+                    .iter()
+                    .map(|(_id, tree)| (tree.get_pos().into(), tree.get_yrot()))
+            })
             .collect();
         self.gfx_handle.borrow_mut().set_trees(raw_trees);
     }
@@ -52,13 +58,11 @@ impl TreePlopperTool {
         gfx_handle: Rc<RefCell<dyn GfxSuper>>,
         world: Box<dyn WorldManipulator>,
         ground_pos: Vec3,
-        tree_id: TreeId,
     ) -> Self {
         Self {
             gfx_handle,
             world,
             ground_pos,
-            tree_id,
         }
     }
 }
