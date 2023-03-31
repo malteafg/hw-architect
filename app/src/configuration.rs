@@ -22,6 +22,7 @@ use yaml_rust::{Yaml, YamlLoader};
 ///
 /// Mac: /Users/Alice/Library/Application Support/com.simaflux.hw-architect/config.yml
 fn load_user_config_to_yaml(file: &str) -> anyhow::Result<Yaml> {
+    dbg!("loading user config");
     ProjectDirs::from("com", "simaflux", "hw-architect")
         .and_then(|proj_dirs| {
             let config_dir = proj_dirs.config_dir();
@@ -39,6 +40,7 @@ fn load_user_config_to_yaml(file: &str) -> anyhow::Result<Yaml> {
 /// Returns the user config (dev config) stored at project_root/config.yml.
 #[cfg(debug_assertions)]
 fn load_dev_config_to_yaml(file: &str) -> anyhow::Result<Yaml> {
+    dbg!("loading dev config");
     let config_file = fs::read_to_string(file)?;
     let docs = YamlLoader::load_from_str(&config_file)?;
     if docs.is_empty() {
@@ -106,7 +108,11 @@ pub fn load_config() -> anyhow::Result<Config> {
     Ok(config)
 }
 
-type KeyConfig = BTreeMap<String, Vec<String>>;
+// type KeyConfig = BTreeMap<String, Vec<String>>;
+/// This type corresponds to the structure of the yaml files that define keybindings:
+/// TODO: Right now the inner BTreeMap always only has one element, so maybe come up with a better
+/// structure.
+type KeyLoaderConfig = BTreeMap<String, Vec<BTreeMap<String, Vec<String>>>>;
 
 /// Loads and returns the given keymap
 ///
@@ -120,37 +126,65 @@ pub fn load_key_map(key_map: String) -> anyhow::Result<input_handler::KeyMap> {
         dbg!(key_config_path.clone());
     }
     let key_config_file = loader::load_string(&key_config_path)?;
-    let key_config: KeyConfig = serde_yaml::from_str(&key_config_file)?;
+    let key_config: KeyLoaderConfig = serde_yaml::from_str(&key_config_file)?;
 
-    let key_map = key_config
-        .iter()
-        .map(|(action, keys)| {
-            let key_code = parse_key_code(&keys[0]).unwrap();
-            let mod_state = keys
-                .iter()
-                .fold(
-                    input::ModifierState::default(),
-                    |mod_state, key| match key.as_str() {
-                        "shift" => input::ModifierState {
-                            shift: true,
-                            ..mod_state
-                        },
-                        "ctrl" => input::ModifierState {
-                            ctrl: true,
-                            ..mod_state
-                        },
-                        "alt" => input::ModifierState {
-                            alt: true,
-                            ..mod_state
-                        },
-                        _ => mod_state,
-                    },
-                );
-            let action = input::Action::from_str(action).unwrap();
-            ((key_code, mod_state), action)
-        })
-        .collect();
-    Ok(key_map)
+    let mut group_maps: BTreeMap<String, input_handler::KeyMap> = BTreeMap::new();
+    for (group, key_maps) in key_config.into_iter() {
+        let mut group_map: input_handler::KeyMap = BTreeMap::new();
+        for key_map in key_maps.into_iter() {
+            // this loop is silly as there is only one entry in the map
+            for (action, keys) in key_map.into_iter() {
+                let key_code = parse_key_code(&keys[0]).unwrap();
+                let mod_state =
+                    keys.iter()
+                        .fold(
+                            input::ModifierState::default(),
+                            |mod_state, key| match key.as_str() {
+                                "shift" => input::ModifierState {
+                                    shift: true,
+                                    ..mod_state
+                                },
+                                "ctrl" => input::ModifierState {
+                                    ctrl: true,
+                                    ..mod_state
+                                },
+                                "alt" => input::ModifierState {
+                                    alt: true,
+                                    ..mod_state
+                                },
+                                _ => mod_state,
+                            },
+                        );
+                let action = input::Action::from_str(&action).unwrap();
+                group_map.insert((key_code, mod_state), vec![action]);
+            }
+        }
+        group_maps.insert(group, group_map);
+    }
+
+    // Merge group maps and check for conflicting keybindings
+    let mut general_key_bindings: input_handler::KeyMap = group_maps
+        .remove("general")
+        .ok_or(anyhow!("Could not find general key bindings"))?;
+
+    let mut final_key_map: input_handler::KeyMap = BTreeMap::new();
+    for (_, group_map) in group_maps.into_iter() {
+        for (key, mut action) in group_map.into_iter() {
+            if general_key_bindings.contains_key(&key) {
+                dbg!(key);
+                return Err(anyhow!("Duplicate key binding"));
+            }
+            let Some(actions) = final_key_map.get_mut(&key) else {
+                final_key_map.insert(key, action);
+                continue;
+            };
+            actions.append(&mut action);
+        }
+    }
+
+    // Add general_key_bindings to final_key_map
+    final_key_map.append(&mut general_key_bindings);
+    Ok(final_key_map)
 }
 
 /// Translates the keycode as it is written in the keymap config to a winit

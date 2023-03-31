@@ -7,11 +7,15 @@ use winit::dpi::PhysicalPosition;
 use winit::event::*;
 use winit::window::WindowId;
 
-pub type KeyMap = BTreeMap<(VirtualKeyCode, ModifierState), Action>;
+/// Represents which key combinations from the keyboard are associated with each of the
+/// hw-architect actions. Note that a keybinding can be associated to multiple actions, and the
+/// input handler will send out all actions once such a keybinding is pressed. It is the
+/// configuration loader's responsibility to make sure that no keybindings are conflicting.
+pub type KeyMap = BTreeMap<(VirtualKeyCode, ModifierState), Vec<Action>>;
 
 pub enum InputEvent {
     /// Signals a key event. The winit event should not be further processed.
-    KeyAction(KeyAction),
+    KeyActions(Vec<KeyAction>),
     /// Signals a mouse event. The winit event should not be further processed.
     MouseEvent(MouseEvent),
     /// Signals that the input system has used a given winit event and it should
@@ -35,8 +39,8 @@ pub struct InputHandler {
     /// Once a mouse button has been released, it is removed from the list.
     pressed_buttons: Vec<Mouse>,
     /// A set maintaining the key actions that are currently pressed. Scroll and repeat states are
-    /// only sent to the most recently pressed key.
-    pressed_keys: Vec<Action>,
+    /// only sent to the most recently pressed set of actions.
+    pressed_actions: Vec<Vec<Action>>,
 }
 
 impl InputHandler {
@@ -46,7 +50,7 @@ impl InputHandler {
             modifiers: ModifierState::default(),
             mouse_pos: MousePos { x: 0.0, y: 0.0 },
             pressed_buttons: Vec::new(),
-            pressed_keys: Vec::new(),
+            pressed_actions: Vec::new(),
         }
     }
 
@@ -54,20 +58,30 @@ impl InputHandler {
     /// sent instead of a mouse event.
     fn process_scrolling(&mut self, scroll: f32) -> InputEvent {
         use Action::*;
-        if let Some(action) = self.pressed_keys.last() {
-            match action {
+        let Some(pressed_actions) = self.pressed_actions.last() else {
+            return InputEvent::MouseEvent(MouseEvent::Scrolled(scroll));
+        };
+
+        let mut new_actions = vec![];
+        for pressed_action in pressed_actions {
+            match pressed_action {
                 CycleCurveType | CycleLaneWidth | CycleNoLanes => {
                     let state = if scroll < 0.0 {
                         KeyState::Scroll(ScrollState::Up)
                     } else {
                         KeyState::Scroll(ScrollState::Down)
                     };
-                    return InputEvent::KeyAction((*action, state));
+                    new_actions.push((*pressed_action, state))
                 }
                 _ => {}
             }
         }
-        InputEvent::MouseEvent(MouseEvent::Scrolled(scroll))
+
+        if new_actions.is_empty() {
+            InputEvent::MouseEvent(MouseEvent::Scrolled(scroll))
+        } else {
+            InputEvent::KeyActions(new_actions)
+        }
     }
 
     /// Processes mouse movement and returns either moved or dragged events.
@@ -86,7 +100,7 @@ impl InputHandler {
         }
     }
 
-    /// Processes mouse click and release events.
+    /// Processes mouse press and release events.
     fn process_mouse_press(&mut self, button: MouseButton, state: ElementState) -> InputEvent {
         let button = translate_button(button);
         match state {
@@ -104,20 +118,29 @@ impl InputHandler {
     /// Release states are only sent if the key pressed is the most recent key to have been pressed
     /// of those keys that are pressed.
     fn process_keyboard_input(&mut self, key: VirtualKeyCode, state: ElementState) -> InputEvent {
-        let action = self.key_map.get(&(key, self.modifiers));
-        let Some(action) = action else {
+        let actions = self.key_map.get(&(key, self.modifiers));
+        let Some(actions) = actions else {
             return InputEvent::Absorb;
         };
         if let ElementState::Released = state {
-            self.pressed_keys.retain(|a| a != action);
-            return InputEvent::KeyAction((*action, KeyState::Release));
+            self.pressed_actions.retain(|a| a != actions);
+            let new_actions = actions
+                .into_iter()
+                .map(|a| (*a, KeyState::Release))
+                .collect();
+            return InputEvent::KeyActions(new_actions);
         }
-        if !self.pressed_keys.contains(action) {
-            self.pressed_keys.push(*action);
-            return InputEvent::KeyAction((*action, KeyState::Press));
+        if !self.pressed_actions.contains(actions) {
+            self.pressed_actions.push(actions.clone());
+            let new_actions = actions.into_iter().map(|a| (*a, KeyState::Press)).collect();
+            return InputEvent::KeyActions(new_actions);
         }
-        if self.pressed_keys.last() == Some(action) {
-            return InputEvent::KeyAction((*action, KeyState::Repeat));
+        if self.pressed_actions.last() == Some(actions) {
+            let new_actions = actions
+                .into_iter()
+                .map(|a| (*a, KeyState::Repeat))
+                .collect();
+            return InputEvent::KeyActions(new_actions);
         }
         InputEvent::Absorb
     }

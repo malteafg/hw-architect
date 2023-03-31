@@ -60,10 +60,16 @@ pub async fn run() {
         use input::Action;
         use input_handler::InputEvent;
         match state.input_handler.process_input(&event, window.id()) {
-            InputEvent::KeyAction(a) => match a {
-                (Action::Exit, _) => *control_flow = ControlFlow::Exit,
-                _ => state.key_input(a),
-            },
+            InputEvent::KeyActions(actions) => {
+                if actions.contains(&(Action::Exit, input::KeyState::Press)) {
+                    *control_flow = ControlFlow::Exit
+                } else {
+                    for a in actions {
+                        // dbg!(a.clone());
+                        state.key_input(a);
+                    }
+                }
+            }
             InputEvent::MouseEvent(e) => state.mouse_input(e),
             InputEvent::Absorb => {}
             InputEvent::Proceed => match event {

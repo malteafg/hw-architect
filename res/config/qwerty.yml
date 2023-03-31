@@ -1,38 +1,44 @@
 ---
-camera_left:
-  - a
-camera_right:
-  - d
-camera_up:
-  - w
-camera_down:
-  - s
-camera_rotate_left:
-  - q
-camera_rotate_right:
-  - e
-camera_return:
-  - space
+general:
+  - camera_left:
+    - a
+  - camera_right:
+    - d
+  - camera_up:
+    - w
+  - camera_down:
+    - s
+  - camera_rotate_left:
+    - q
+  - camera_rotate_right:
+    - e
+  - camera_return:
+    - space
 
-toggle_snapping:
-  - "1"
-toggle_reverse:
-  - "2"
+  - enter_bulldoze:
+    - v
+  - enter_construct:
+    - c
+  - enter_tree_plopper:
+    - x
+  - esc:
+    - esc
 
-cycle_curve_type:
-  - r
-cycle_lane_width:
-  - g
-cycle_no_lanes:
-  - f
+construct:
+  - toggle_snapping:
+    - "1"
+  - toggle_reverse:
+    - "2"
 
-enter_bulldoze:
-  - v
-enter_construct:
-  - c
-enter_tree_plopper:
-  - x
-# exit:
-#   - esc
-esc:
-  - esc
+  - cycle_curve_type:
+    - r
+  - cycle_lane_width:
+    - g
+  - cycle_no_lanes:
+    - f
+
+bulldoze:
+  - toggle_bulldoze_roads:
+    - "1"
+  - toggle_bulldoze_trees:
+    - "2"

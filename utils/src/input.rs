@@ -2,7 +2,7 @@
 
 /// A state of the modifier keys, shift, ctrl and alt. Does not distinguish
 /// between right and left modifier keys.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy, Debug)]
 pub struct ModifierState {
     pub shift: bool,
     pub ctrl: bool,
@@ -32,6 +32,9 @@ pub enum Action {
     CycleCurveType,
     CycleLaneWidth,
     CycleNoLanes,
+
+    ToggleBulldozeRoads,
+    ToggleBulldozeTrees,
 
     EnterBulldoze,
     EnterConstruct,
