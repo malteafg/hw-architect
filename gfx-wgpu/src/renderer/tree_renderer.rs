@@ -1,15 +1,21 @@
 use crate::primitives;
 use crate::primitives::{DBuffer, Instance, InstanceRaw, Model};
 
+use utils::id::TreeId;
+
 use glam::*;
 
+use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
+
+pub type TreeMap = BTreeMap<u128, HashMap<TreeId, InstanceRaw>>;
 
 pub struct TreeState {
     device: Rc<wgpu::Device>,
     queue: Rc<wgpu::Queue>,
     tree_render_pipeline: wgpu::RenderPipeline,
-    num_trees: u32,
+    tree_map: TreeMap,
+    /// TODO in the future we need to have a buffer for every model probably.
     instance_buffer: DBuffer,
     tree_model: Model,
 }
@@ -54,60 +60,62 @@ impl TreeState {
             device,
             queue,
             tree_render_pipeline,
-            num_trees: 0,
+            tree_map: BTreeMap::new(),
             instance_buffer,
             tree_model,
         }
-
-        // result.add_instance(Vec3::new(1.0, 1.0, 0.0));
-        // result
     }
 
-    // fn add_instance(&mut self, position: Vec3) {
-    //     let rotation = if position == Vec3::ZERO {
-    //         Quat::from_axis_angle(Vec3::Z, 0.0)
-    //     } else {
-    //         Quat::from_axis_angle(position.normalize(), std::f32::consts::PI / 4.)
-    //     };
-    //     self.trees.push(Instance::new(position, rotation));
-    //     let instance_data = self.trees.iter().map(Instance::to_raw).collect::<Vec<_>>();
-    //     self.instance_buffer.write(
-    //         &self.queue,
-    //         &self.device,
-    //         &bytemuck::cast_slice(&instance_data),
-    //     );
-    // }
-
-    // fn _remove_instance(&mut self) {
-    //     if self.trees.len() != 0 {
-    //         self.trees.remove(0);
-    //         let instance_data = self.trees.iter().map(Instance::to_raw).collect::<Vec<_>>();
-    //         self.instance_buffer.write(
-    //             &self.queue,
-    //             &self.device,
-    //             &bytemuck::cast_slice(&instance_data),
-    //         );
-    //     }
-    // }
-}
-
-impl gfx_api::GfxTreeData for TreeState {
-    fn set_trees(&mut self, pos_with_yrot: Vec<([f32; 3], f32)>) {
-        self.num_trees = pos_with_yrot.len() as u32;
-        let instance_data = pos_with_yrot
-            .iter()
-            .map(|(pos, zrot)| {
-                Instance::to_raw(&Instance::new(
-                    Vec3::from_array(*pos),
-                    Quat::from_rotation_y(*zrot),
-                ))
-            })
-            .collect::<Vec<_>>();
+    fn write_to_buffer(&mut self) {
+        let instance_data: Vec<InstanceRaw> = self
+            .tree_map
+            .values()
+            .flat_map(|model_map| model_map.values().map(|t| *t))
+            .collect();
         self.instance_buffer.write(
             &self.queue,
             &self.device,
             &bytemuck::cast_slice(&instance_data),
         );
+    }
+
+    fn num_trees(&self) -> u32 {
+        self.tree_map.values().map(|m| m.len()).sum::<usize>() as u32
+    }
+}
+
+fn insert_trees(model_map: &mut HashMap<TreeId, InstanceRaw>, trees: Vec<(TreeId, [f32; 3], f32)>) {
+    for (id, pos, yrot) in trees.into_iter() {
+        model_map.insert(
+            id,
+            Instance::to_raw(&Instance::new(
+                Vec3::from_array(pos),
+                Quat::from_rotation_y(yrot),
+            )),
+        );
+    }
+}
+
+impl gfx_api::GfxTreeData for TreeState {
+    fn add_trees(&mut self, model_id: u128, trees: Vec<(TreeId, [f32; 3], f32)>) {
+        let Some(mut model_map) = self.tree_map.get_mut(&model_id) else {
+            let mut new_model_map = HashMap::new();
+            insert_trees(&mut new_model_map, trees);
+            self.tree_map.insert(model_id, new_model_map);
+            self.write_to_buffer();
+            return;
+        };
+        insert_trees(&mut model_map, trees);
+        self.write_to_buffer();
+    }
+
+    fn remove_tree(&mut self, tree_id: TreeId, _model_id: u128) {
+        for (_, model_map) in self.tree_map.iter_mut() {
+            if model_map.remove(&tree_id).is_some() {
+                self.write_to_buffer();
+                return;
+            }
+        }
     }
 }
 
@@ -139,7 +147,7 @@ where
         self.set_pipeline(&tree_state.tree_render_pipeline);
         self.draw_model_instanced(
             &tree_state.tree_model,
-            0..tree_state.num_trees,
+            0..tree_state.num_trees(),
             &camera_bind_group,
             &light_bind_group,
         );

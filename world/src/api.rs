@@ -1,4 +1,4 @@
-use utils::id::{NodeId, SegmentId};
+use utils::id::{NodeId, SegmentId, TreeId};
 
 use glam::Vec3;
 
@@ -45,12 +45,17 @@ pub trait RoadManipulator {
 
 pub trait TreeManipulator {
     fn add_tree(&mut self, tree: Tree, model_id: u128);
-    fn remove_tree(&mut self, pos: Vec3);
+    /// Returns the model_id of the tree that has been removed.
+    fn remove_tree(&mut self, tree_id: TreeId) -> u128;
+    /// Remove this and do something similar as for road segments.
     fn get_trees(&self) -> &TreeMap;
 }
 
 pub trait IdGetter {
+    /// Returns the first node found that contains the given position.
     fn get_node_from_pos(&self, pos: Vec3) -> Option<NodeId>;
+    /// Returns the first segment found that contains the given position.
     fn get_segment_from_pos(&self, pos: Vec3) -> Option<SegmentId>;
-    fn get_tree_from_pos(&self, pos: Vec3) -> Option<SegmentId>;
+    /// Returns the first tree found that contains the given position.
+    fn get_tree_from_pos(&self, pos: Vec3) -> Option<TreeId>;
 }

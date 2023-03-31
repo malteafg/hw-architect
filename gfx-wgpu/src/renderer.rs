@@ -6,7 +6,7 @@ mod tree_renderer;
 use crate::primitives;
 use crate::resources;
 
-use utils::id::SegmentId;
+use utils::id::{SegmentId, TreeId};
 use utils::Mat4Utils;
 
 use gfx_api::{GfxFrameError, RawCameraData};
@@ -634,7 +634,11 @@ impl gfx_api::GfxCameraData for GfxState {
 }
 
 impl gfx_api::GfxTreeData for GfxState {
-    fn set_trees(&mut self, pos_with_yrot: Vec<([f32; 3], f32)>) {
-        self.tree_renderer.set_trees(pos_with_yrot);
+    fn add_trees(&mut self, model_id: u128, trees: Vec<(TreeId, [f32; 3], f32)>) {
+        self.tree_renderer.add_trees(model_id, trees);
+    }
+
+    fn remove_tree(&mut self, tree_id: TreeId, model_id: u128) {
+        self.tree_renderer.remove_tree(tree_id, model_id);
     }
 }

@@ -12,7 +12,7 @@ pub use api::{RoadManipulator, TreeManipulator, WorldManipulator};
 use nature::{Tree, TreeMap, Trees};
 use roads::{LRoadBuilder, NodeType, RoadGraph, Side, SnapConfig};
 
-use utils::id::{NodeId, SegmentId};
+use utils::id::{NodeId, SegmentId, TreeId};
 
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Default)]
 pub struct World {
     road_graph: RoadGraph,
-    tree_map: Trees,
+    trees: Trees,
 }
 
 impl World {
@@ -72,15 +72,15 @@ impl api::RoadManipulator for World {
 
 impl api::TreeManipulator for World {
     fn add_tree(&mut self, tree: Tree, model_id: u128) {
-        self.tree_map.add_tree(tree, model_id)
+        self.trees.add_tree(tree, model_id)
     }
 
-    fn remove_tree(&mut self, pos: Vec3) {
-        self.tree_map.remove_tree(pos)
+    fn remove_tree(&mut self, tree_id: TreeId) -> u128 {
+        self.trees.remove_tree(tree_id)
     }
 
     fn get_trees(&self) -> &TreeMap {
-        self.tree_map.get_trees()
+        self.trees.get_trees()
     }
 }
 
@@ -93,7 +93,7 @@ impl api::IdGetter for World {
         self.road_graph.get_segment_from_pos(pos)
     }
 
-    fn get_tree_from_pos(&self, _pos: Vec3) -> Option<SegmentId> {
-        None
+    fn get_tree_from_pos(&self, pos: Vec3) -> Option<TreeId> {
+        self.trees.get_tree_from_pos(pos)
     }
 }

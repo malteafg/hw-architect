@@ -52,7 +52,12 @@ impl WorldTool {
         let tool_gfx_handle = Rc::clone(&self.gfx_handle);
 
         self.curr_tool = Tool::Bulldoze;
-        self.curr_tool_handle = Box::new(BulldozeTool::new(tool_gfx_handle, world, self.ground_pos))
+        self.curr_tool_handle = Box::new(BulldozeTool::new(
+            tool_gfx_handle,
+            world,
+            Rc::clone(&self.state),
+            self.ground_pos,
+        ))
     }
 
     fn enter_construct_mode(&mut self) {

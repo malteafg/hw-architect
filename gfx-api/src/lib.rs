@@ -9,7 +9,7 @@ pub use data::*;
 pub use error::*;
 
 use std::collections::HashMap;
-use utils::id::SegmentId;
+use utils::id::{SegmentId, TreeId};
 
 /// This trait defines all the behavior that a gpu backend must implement to render all of
 /// hw-architect.
@@ -69,6 +69,6 @@ pub trait GfxCameraData {
 
 /// This trait defines how tool is allowed to interact with the data associated with trees.
 pub trait GfxTreeData {
-    /// Sets the trees that should be rendered by the gpu.
-    fn set_trees(&mut self, pos_with_yrot: Vec<([f32; 3], f32)>);
+    fn add_trees(&mut self, model_id: u128, trees: Vec<(TreeId, [f32; 3], f32)>);
+    fn remove_tree(&mut self, tree_id: TreeId, model_id: u128);
 }

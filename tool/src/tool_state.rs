@@ -3,6 +3,22 @@ use world::roads::{NodeType, SegmentType};
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ToolState {
     pub road_state: RoadState,
+    pub bulldoze_state: BulldozeState,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct BulldozeState {
+    pub bulldoze_segments: bool,
+    pub bulldoze_trees: bool,
+}
+
+impl Default for BulldozeState {
+    fn default() -> Self {
+        Self {
+            bulldoze_segments: true,
+            bulldoze_trees: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

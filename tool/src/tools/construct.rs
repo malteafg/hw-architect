@@ -50,8 +50,8 @@ pub struct ConstructTool {
     // gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
     gfx_handle: Rc<RefCell<dyn GfxSuper>>,
     world: Box<dyn WorldManipulator>,
-
     state_handle: Rc<RefCell<ToolState>>,
+
     snapped_node: Option<SnapConfig>,
 
     ground_pos: Vec3,
@@ -176,7 +176,7 @@ impl ToolStrategy for ConstructTool {
 }
 
 impl ConstructTool {
-    pub(crate) fn new(
+    pub fn new(
         gfx_handle: Rc<RefCell<dyn GfxSuper>>,
         world: Box<dyn WorldManipulator>,
         state_handle: Rc<RefCell<ToolState>>,
