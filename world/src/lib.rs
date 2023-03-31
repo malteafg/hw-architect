@@ -29,6 +29,8 @@ impl World {
     }
 }
 
+impl api::WorldManipulator for World {}
+
 impl api::RoadManipulator for World {
     fn get_node_from_pos(&self, pos: Vec3) -> Option<NodeId> {
         self.road_graph.get_node_from_pos(pos)

@@ -8,7 +8,7 @@ use world::roads::{
     CurveType, LNodeBuilder, LNodeBuilderType, LRoadBuilder, LaneWidth, NodeType, SegmentType,
     Side, SnapConfig,
 };
-use world::{RoadManipulator, World};
+use world::WorldManipulator;
 
 use gfx_api::{GfxSuper, RoadMesh};
 use glam::*;
@@ -49,7 +49,7 @@ use Mode::*;
 pub struct ConstructTool {
     // gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
     gfx_handle: Rc<RefCell<dyn GfxSuper>>,
-    world: World,
+    world: Box<dyn WorldManipulator>,
 
     state_handle: Rc<RefCell<ToolState>>,
     snapped_node: Option<SnapConfig>,
@@ -166,7 +166,7 @@ impl ToolStrategy for ConstructTool {
     }
 
     /// Remove node markings from gpu, and remove the road tool mesh.
-    fn destroy(self: Box<Self>) -> World {
+    fn destroy(self: Box<Self>) -> Box<dyn WorldManipulator> {
         self.gfx_handle.borrow_mut().set_node_markers(vec![]);
         self.gfx_handle
             .borrow_mut()
@@ -178,7 +178,7 @@ impl ToolStrategy for ConstructTool {
 impl ConstructTool {
     pub(crate) fn new(
         gfx_handle: Rc<RefCell<dyn GfxSuper>>,
-        world: World,
+        world: Box<dyn WorldManipulator>,
         state_handle: Rc<RefCell<ToolState>>,
         ground_pos: Vec3,
     ) -> Self {

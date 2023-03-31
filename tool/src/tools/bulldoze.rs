@@ -1,7 +1,7 @@
 use super::ToolStrategy;
 
 use utils::input;
-use world::{RoadManipulator, World};
+use world::WorldManipulator;
 
 use gfx_api::GfxSuper;
 use glam::*;
@@ -12,7 +12,7 @@ use std::rc::Rc;
 pub struct BulldozeTool {
     // gfx_handle: Rc<RefCell<dyn GfxRoadData>>,
     gfx_handle: Rc<RefCell<dyn GfxSuper>>,
-    world: World,
+    world: Box<dyn WorldManipulator>,
     ground_pos: Vec3,
 }
 
@@ -36,14 +36,18 @@ impl ToolStrategy for BulldozeTool {
     }
 
     /// Unmark any marked segment.
-    fn destroy(self: Box<Self>) -> World {
+    fn destroy(self: Box<Self>) -> Box<dyn WorldManipulator> {
         self.gfx_handle.borrow_mut().mark_road_segments(vec![]);
         self.world
     }
 }
 
 impl BulldozeTool {
-    pub fn new(gfx_handle: Rc<RefCell<dyn GfxSuper>>, world: World, ground_pos: Vec3) -> Self {
+    pub fn new(
+        gfx_handle: Rc<RefCell<dyn GfxSuper>>,
+        world: Box<dyn WorldManipulator>,
+        ground_pos: Vec3,
+    ) -> Self {
         let mut tool = Self {
             gfx_handle,
             world,

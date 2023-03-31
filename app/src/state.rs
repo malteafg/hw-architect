@@ -40,7 +40,7 @@ impl State {
         let gfx_handle_tool = Rc::clone(&gfx_handle);
 
         let world = world::World::new();
-        let tool = WorldTool::new(gfx_handle_tool, world);
+        let tool = WorldTool::new(gfx_handle_tool, Box::new(world));
 
         Self {
             gfx_handle,

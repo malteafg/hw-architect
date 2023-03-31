@@ -3,7 +3,7 @@ use super::ToolStrategy;
 
 use utils::id::TreeId;
 use world::nature::Tree;
-use world::{TreeManipulator, World};
+use world::WorldManipulator;
 
 use gfx_api::GfxSuper;
 
@@ -15,7 +15,7 @@ use std::rc::Rc;
 pub struct TreePlopperTool {
     // gfx_handle: Rc<RefCell<dyn GfxTreeData>>,
     gfx_handle: Rc<RefCell<dyn GfxSuper>>,
-    world: World,
+    world: Box<dyn WorldManipulator>,
 
     ground_pos: Vec3,
     tree_id: TreeId,
@@ -42,7 +42,7 @@ impl ToolStrategy for TreePlopperTool {
         self.ground_pos = ground_pos;
     }
 
-    fn destroy(self: Box<Self>) -> world::World {
+    fn destroy(self: Box<Self>) -> Box<dyn WorldManipulator> {
         self.world
     }
 }
@@ -50,7 +50,7 @@ impl ToolStrategy for TreePlopperTool {
 impl TreePlopperTool {
     pub fn new(
         gfx_handle: Rc<RefCell<dyn GfxSuper>>,
-        world: World,
+        world: Box<dyn WorldManipulator>,
         ground_pos: Vec3,
         tree_id: TreeId,
     ) -> Self {

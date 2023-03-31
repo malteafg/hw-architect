@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use utils::id::{IdManager, TreeId};
 use utils::input;
-use world::World;
+use world::WorldManipulator;
 
 use crate::tool_state::ToolState;
 use crate::tools::{BulldozeTool, ConstructTool, ToolStrategy, TreePlopperTool};
@@ -35,7 +35,7 @@ pub struct WorldTool {
 }
 
 impl WorldTool {
-    pub fn new(gfx_handle: Rc<RefCell<dyn GfxSuper>>, world: World) -> Self {
+    pub fn new(gfx_handle: Rc<RefCell<dyn GfxSuper>>, world: Box<dyn WorldManipulator>) -> Self {
         let start_tool = Box::new(NoTool::new(world));
         let state = Rc::new(RefCell::new(ToolState::default()));
 
@@ -163,11 +163,11 @@ impl WorldTool {
 
 /// Used as the default tool, when no tool is used.
 struct NoTool {
-    world: World,
+    world: Box<dyn WorldManipulator>,
 }
 
 impl NoTool {
-    fn new(world: World) -> Self {
+    fn new(world: Box<dyn WorldManipulator>) -> Self {
         NoTool { world }
     }
 }
@@ -177,7 +177,7 @@ impl ToolStrategy for NoTool {
     fn left_click(&mut self) {}
     fn right_click(&mut self) {}
     fn update_ground_pos(&mut self, _ground_pos: glam::Vec3) {}
-    fn destroy(self: Box<Self>) -> World {
+    fn destroy(self: Box<Self>) -> Box<dyn WorldManipulator> {
         self.world
     }
 }
@@ -189,7 +189,7 @@ impl ToolStrategy for DummyTool {
     fn left_click(&mut self) {}
     fn right_click(&mut self) {}
     fn update_ground_pos(&mut self, _ground_pos: glam::Vec3) {}
-    fn destroy(self: Box<Self>) -> World {
+    fn destroy(self: Box<Self>) -> Box<dyn WorldManipulator> {
         todo!()
     }
 }
