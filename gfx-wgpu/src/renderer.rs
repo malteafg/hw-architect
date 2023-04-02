@@ -79,7 +79,6 @@ pub struct GfxState {
     camera_buffer: wgpu::Buffer,
     camera_bind_group: Rc<wgpu::BindGroup>,
 
-    obj_model: primitives::Model,
     light_uniform: LightUniform,
     light_buffer: wgpu::Buffer,
     light_bind_group: Rc<wgpu::BindGroup>,
@@ -89,6 +88,8 @@ pub struct GfxState {
     tree_renderer: tree_renderer::TreeState,
     simple_renderer: simple_renderer::SimpleRenderer,
     model_renderer: model_renderer::ModelRenderer,
+
+    obj_model: primitives::Model,
 }
 
 impl GfxState {
@@ -97,8 +98,6 @@ impl GfxState {
     where
         W: raw_window_handle::HasRawWindowHandle + raw_window_handle::HasRawDisplayHandle,
     {
-        let mut timer = utils::time::Timer::new();
-
         // instance is a handle to the GPU in use
         // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(wgpu::Backends::all());
@@ -147,8 +146,6 @@ impl GfxState {
             alpha_mode: wgpu::CompositeAlphaMode::Opaque,
         };
         surface.configure(&device, &config);
-
-        timer.emit("init_gfx_time");
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -268,29 +265,13 @@ impl GfxState {
 
         let depth_texture =
             primitives::Texture::create_depth_texture(&device, &config, "depth_texture");
-        timer.emit("setup_time");
 
-        // load shaders
-        let mut shaders = crate::shaders::load_shaders(&device);
-        timer.emit("shader_time");
-
-        // load models
-        let tree_model =
-            resources::load_model("tree_test", &device, &queue, &texture_bind_group_layout)
-                .unwrap();
-        timer.emit("tree_model");
+        // load everything
+        let (mut shaders, simple_models, models) =
+            resources::load_all(&device, &queue, &texture_bind_group_layout);
 
         let obj_model =
             resources::load_model("sphere", &device, &queue, &texture_bind_group_layout).unwrap();
-        timer.emit("obj_model");
-
-        let torus_model = resources::load_simple_model("torus", &device).unwrap();
-        timer.emit("torus_model");
-
-        let arrow_model = resources::load_simple_model("arrow", &device).unwrap();
-        timer.emit("arrow_model");
-
-        let sphere_model = resources::load_simple_model("sphere", &device).unwrap();
 
         use primitives::Vertex;
         let light_render_pipeline = create_render_pipeline(
@@ -299,21 +280,17 @@ impl GfxState {
             config.format,
             Some(primitives::Texture::DEPTH_FORMAT),
             &[primitives::ModelVertex::desc()],
-            shaders.remove(crate::shaders::LIGHT).unwrap(),
+            shaders.remove(resources::shaders::LIGHT).unwrap(),
             "light",
         );
-
-        timer.emit("light_time");
 
         let terrain_renderer = terrain_renderer::TerrainState::new(
             Rc::clone(&device),
             // Rc::clone(&queue),
             config.format,
-            shaders.remove(crate::shaders::TERRAIN).unwrap(),
+            shaders.remove(resources::shaders::TERRAIN).unwrap(),
             &camera_bind_group_layout,
         );
-
-        timer.emit("terrain_time");
 
         let color_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -334,41 +311,30 @@ impl GfxState {
             Rc::clone(&device),
             Rc::clone(&queue),
             config.format,
-            shaders.remove(crate::shaders::ROAD).unwrap(),
+            shaders.remove(resources::shaders::ROAD).unwrap(),
             Rc::clone(&camera_bind_group),
             &camera_bind_group_layout,
             &light_bind_group_layout,
         );
 
-        timer.emit("road_time");
-
         let tree_renderer = tree_renderer::TreeState::new(Rc::clone(&device), Rc::clone(&queue));
-
-        timer.emit("tree_time");
-
-        let mut simple_models = HashMap::new();
-        simple_models.insert(simple_renderer::TORUS_MODEL, torus_model);
-        simple_models.insert(simple_renderer::ARROW_MODEL, arrow_model);
-        simple_models.insert(simple_renderer::SPHERE_MODEL, sphere_model);
 
         let simple_renderer = simple_renderer::SimpleRenderer::new(
             Rc::clone(&device),
             Rc::clone(&queue),
             config.format,
             simple_models,
-            shaders.remove(crate::shaders::SIMPLE).unwrap(),
+            shaders.remove(resources::shaders::SIMPLE).unwrap(),
             Rc::clone(&camera_bind_group),
             &camera_bind_group_layout,
             &color_bind_group_layout,
         );
 
-        let mut models = HashMap::new();
-        models.insert(model_renderer::TREE_MODEL, tree_model);
         let model_renderer = model_renderer::ModelRenderer::new(
             Rc::clone(&device),
             config.format,
             models,
-            shaders.remove(crate::shaders::BASIC).unwrap(),
+            shaders.remove(resources::shaders::BASIC).unwrap(),
             &texture_bind_group_layout,
             &camera_bind_group_layout,
             &light_bind_group_layout,
@@ -387,7 +353,6 @@ impl GfxState {
             camera_buffer,
             camera_bind_group,
             depth_texture,
-            obj_model,
             light_uniform,
             light_buffer,
             light_bind_group,
@@ -398,6 +363,8 @@ impl GfxState {
             tree_renderer,
             simple_renderer,
             model_renderer,
+
+            obj_model,
         }
     }
 }

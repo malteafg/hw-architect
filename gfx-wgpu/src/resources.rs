@@ -1,10 +1,119 @@
-use crate::primitives;
+use crate::primitives::{self, Model, SimpleModel};
 
 use utils::loader;
 
 use wgpu::util::DeviceExt;
 
 use std::io::{BufReader, Cursor};
+
+use std::collections::HashMap;
+
+pub mod shaders {
+    use super::*;
+    pub type ShaderMap = HashMap<&'static str, wgpu::ShaderModule>;
+    pub const BASIC: &str = "shader";
+    pub const ROAD: &str = "road";
+    pub const TERRAIN: &str = "terrain";
+    pub const LIGHT: &str = "light";
+    pub const SIMPLE: &str = "simple";
+}
+use shaders::ShaderMap;
+
+pub mod simple_models {
+    use super::*;
+    pub type SimpleModelId = u128;
+    pub type SimpleModelMap = HashMap<SimpleModelId, SimpleModel>;
+    pub const TORUS_MODEL: SimpleModelId = 0;
+    pub const ARROW_MODEL: SimpleModelId = 1;
+    pub const SPHERE_MODEL: SimpleModelId = 2;
+}
+use simple_models::SimpleModelMap;
+
+pub mod models {
+    use super::*;
+    pub type ModelId = u128;
+    pub type ModelMap = HashMap<ModelId, Model>;
+    pub const TREE_MODEL: ModelId = 0;
+    // pub const SPEHRE_MODEL: ModelId = 1;
+}
+use models::ModelMap;
+
+pub fn load_all(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    texture_bind_group_layout: &wgpu::BindGroupLayout,
+) -> (ShaderMap, SimpleModelMap, ModelMap) {
+    (
+        load_shaders(device),
+        load_simple_models(device),
+        load_models(device, queue, texture_bind_group_layout),
+    )
+}
+
+fn load_simple_models(device: &wgpu::Device) -> SimpleModelMap {
+    let torus_model = load_simple_model("torus", &device).unwrap();
+    let arrow_model = load_simple_model("arrow", &device).unwrap();
+    let sphere_model = load_simple_model("sphere", &device).unwrap();
+
+    let mut simple_models = HashMap::new();
+    simple_models.insert(simple_models::TORUS_MODEL, torus_model);
+    simple_models.insert(simple_models::ARROW_MODEL, arrow_model);
+    simple_models.insert(simple_models::SPHERE_MODEL, sphere_model);
+    simple_models
+}
+
+fn load_models(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    texture_bind_group_layout: &wgpu::BindGroupLayout,
+) -> ModelMap {
+    let mut timer = utils::time::Timer::new();
+
+    let tree_model = load_model("tree_test", &device, &queue, &texture_bind_group_layout).unwrap();
+    timer.emit("tree_model");
+
+    let mut models = HashMap::new();
+    models.insert(models::TREE_MODEL, tree_model);
+
+    models
+}
+
+fn load_shaders(device: &wgpu::Device) -> ShaderMap {
+    let mut shaders = HashMap::new();
+
+    load_shader(
+        device,
+        &mut shaders,
+        shaders::BASIC,
+        wgpu::ShaderSource::Wgsl(include_str!("shaders/shader.wgsl").into()),
+    );
+    load_shader(
+        device,
+        &mut shaders,
+        shaders::ROAD,
+        wgpu::ShaderSource::Wgsl(include_str!("shaders/road.wgsl").into()),
+    );
+    load_shader(
+        device,
+        &mut shaders,
+        shaders::TERRAIN,
+        wgpu::ShaderSource::Wgsl(include_str!("shaders/terrain.wgsl").into()),
+    );
+    load_shader(
+        device,
+        &mut shaders,
+        shaders::LIGHT,
+        wgpu::ShaderSource::Wgsl(include_str!("shaders/light.wgsl").into()),
+    );
+    load_shader(
+        device,
+        &mut shaders,
+        shaders::SIMPLE,
+        wgpu::ShaderSource::Wgsl(include_str!("shaders/simple.wgsl").into()),
+    );
+
+    shaders
+}
 
 pub fn load_texture(
     file_name: &str,
@@ -240,4 +349,18 @@ pub fn load_simple_model(
         index_buffer,
         num_elements: obj_indices.len() as u32,
     })
+}
+
+fn load_shader(
+    device: &wgpu::Device,
+    shaders: &mut ShaderMap,
+    name: &'static str,
+    source: wgpu::ShaderSource,
+) {
+    let shader_name = format!("{}_shader", name);
+    let shader_desc = wgpu::ShaderModuleDescriptor {
+        label: Some(&shader_name),
+        source,
+    };
+    shaders.insert(name, device.create_shader_module(shader_desc));
 }

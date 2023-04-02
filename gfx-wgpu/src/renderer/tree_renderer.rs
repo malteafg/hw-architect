@@ -1,8 +1,7 @@
-use super::model_renderer;
 use super::model_renderer::{ModelRenderer, RenderModel};
-use super::simple_renderer;
 use super::simple_renderer::{RenderSimpleModel, SimpleRenderer};
 use crate::primitives::{DBuffer, Instance, InstanceRaw};
+use crate::resources;
 
 use utils::id::TreeId;
 
@@ -197,21 +196,21 @@ where
     ) {
         self.render_model(
             model_renderer,
-            model_renderer::TREE_MODEL,
+            resources::models::TREE_MODEL,
             &tree_state.tree_buffer,
             tree_state.num_trees(),
         );
 
         self.render_model(
             model_renderer,
-            model_renderer::TREE_MODEL,
+            resources::models::TREE_MODEL,
             &tree_state.tool_buffer,
             tree_state.num_markers,
         );
 
         self.render_simple_model(
             simple_renderer,
-            simple_renderer::TORUS_MODEL,
+            resources::simple_models::TORUS_MODEL,
             Vec4::new(1.0, 0.5, 0.2, 0.8),
             &tree_state.markers_buffer,
             tree_state.num_markers,

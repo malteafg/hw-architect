@@ -2,6 +2,7 @@ use crate::primitives;
 use crate::primitives::{DBuffer, Instance, VIBuffer};
 use crate::render_utils::create_color;
 use crate::renderer::simple_renderer::RenderSimpleModel;
+use crate::resources;
 
 use utils::id::SegmentId;
 
@@ -12,7 +13,7 @@ use glam::*;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::simple_renderer::{self, SimpleRenderer};
+use super::simple_renderer::SimpleRenderer;
 
 /// The information needed on gpu to render a set of road meshes.
 struct RoadBuffer {
@@ -351,7 +352,7 @@ where
 
         self.render_simple_model(
             simple_renderer,
-            simple_renderer::ARROW_MODEL,
+            resources::simple_models::ARROW_MODEL,
             Vec4::new(1.0, 0.2, 0.3, 0.9),
             &road_state.markers_buffer,
             road_state.num_markers,

@@ -1,17 +1,14 @@
-use crate::primitives::{DBuffer, DrawModel, InstanceRaw, Model, ModelVertex, Texture, Vertex};
+use crate::primitives::{DBuffer, DrawModel, InstanceRaw, ModelVertex, Texture, Vertex};
+use crate::resources::models::{ModelId, ModelMap};
 
-use std::collections::HashMap;
 use std::rc::Rc;
-
-pub type ModelId = u128;
-pub const TREE_MODEL: ModelId = 0;
 
 pub struct ModelRenderer {
     // device: Rc<wgpu::Device>,
     // queue: Rc<wgpu::Queue>,
     render_pipeline: wgpu::RenderPipeline,
 
-    models: HashMap<u128, Model>,
+    models: ModelMap,
 
     camera_bind_group: Rc<wgpu::BindGroup>,
     light_bind_group: Rc<wgpu::BindGroup>,
@@ -23,7 +20,7 @@ impl ModelRenderer {
         // queue: Rc<wgpu::Queue>,
         color_format: wgpu::TextureFormat,
 
-        models: HashMap<u128, Model>,
+        models: ModelMap,
         shader: wgpu::ShaderModule,
 
         texture_bind_group_layout: &wgpu::BindGroupLayout,

@@ -1,24 +1,19 @@
 use crate::primitives::{
-    DBuffer, DrawSimpleModel, InstanceRaw, SimpleModel, SimpleModelVertex, Texture, Vertex,
+    DBuffer, DrawSimpleModel, InstanceRaw, SimpleModelVertex, Texture, Vertex,
 };
 use crate::render_utils::*;
+use crate::resources::simple_models::{SimpleModelId, SimpleModelMap};
 
 use glam::Vec4;
 
-use std::collections::HashMap;
 use std::rc::Rc;
-
-pub type SimpleModelId = u128;
-pub const TORUS_MODEL: SimpleModelId = 0;
-pub const ARROW_MODEL: SimpleModelId = 1;
-pub const SPHERE_MODEL: SimpleModelId = 2;
 
 pub struct SimpleRenderer {
     // device: Rc<wgpu::Device>,
     queue: Rc<wgpu::Queue>,
     render_pipeline: wgpu::RenderPipeline,
 
-    models: HashMap<u128, SimpleModel>,
+    models: SimpleModelMap,
 
     camera_bind_group: Rc<wgpu::BindGroup>,
     color_bind_group: wgpu::BindGroup,
@@ -32,8 +27,7 @@ impl SimpleRenderer {
         queue: Rc<wgpu::Queue>,
         color_format: wgpu::TextureFormat,
 
-        models: HashMap<u128, SimpleModel>,
-
+        models: SimpleModelMap,
         shader: wgpu::ShaderModule,
 
         camera_bind_group: Rc<wgpu::BindGroup>,
