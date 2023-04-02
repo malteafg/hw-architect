@@ -43,7 +43,7 @@ impl core::ops::DerefMut for SnapRange {
 
 impl SnapRange {
     /// Returns a new snap range with `size` where indexes start at 0.
-    pub(super) fn new(size: u8) -> Self {
+    pub fn new(size: u8) -> Self {
         let mut snap_range = vec![];
         (0..size).for_each(|i| snap_range.push(i as i8));
         SnapRange(snap_range)
@@ -90,7 +90,7 @@ impl PartialEq for SnapConfig {
 }
 
 impl SnapConfig {
-    pub(super) fn new(
+    pub fn new(
         node_id: NodeId,
         node_type: NodeType,
         pos: Vec3,
@@ -128,11 +128,11 @@ impl SnapConfig {
         (self.pos, self.dir)
     }
 
-    pub(super) fn get_snap_range(&self) -> &SnapRange {
+    pub fn get_snap_range(&self) -> &SnapRange {
         &self.snap_range
     }
 
-    pub(super) fn consume_snap_range(self) -> SnapRange {
+    pub fn consume_snap_range(self) -> SnapRange {
         self.snap_range
     }
 

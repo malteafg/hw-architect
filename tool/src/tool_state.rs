@@ -1,4 +1,4 @@
-use world::roads::{NodeType, SegmentType};
+use world_api::{NodeType, SegmentType};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ToolState {

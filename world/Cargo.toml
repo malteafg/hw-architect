@@ -11,6 +11,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 utils = { path = "../utils" }
+world-api = { path = "../world-api" }
 
 anyhow = { workspace = true }
 serde = { workspace = true }

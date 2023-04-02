@@ -7,6 +7,7 @@ pub use construct::ConstructTool;
 pub use tree_plopper::TreePlopperTool;
 
 use utils::input;
+use world_api::WorldManipulator;
 
 pub trait ToolStrategy {
     // type InitParameters;
@@ -29,5 +30,5 @@ pub trait ToolStrategy {
 
     /// This function is used to reset whatever a tool has given to the gpu, such that the next
     /// tool can manipulate the graphics from scratch, as it desires.
-    fn destroy(self: Box<Self>) -> Box<dyn world::WorldManipulator>;
+    fn destroy(self: Box<Self>) -> Box<dyn WorldManipulator>;
 }

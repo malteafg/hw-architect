@@ -1,11 +1,17 @@
-use utils::id::{NodeId, SegmentId, TreeId};
+mod builder;
+mod road_builder;
+mod road_type;
+mod snap;
+mod tree;
+
+pub use builder::*;
+pub use road_builder::*;
+pub use road_type::*;
+pub use snap::*;
+pub use tree::*;
 
 use glam::Vec3;
-
-use crate::{
-    nature::{Tree, TreeMap},
-    roads::{LRoadBuilder, NodeType, Side, SnapConfig},
-};
+use utils::id::{NodeId, SegmentId, TreeId};
 
 pub trait WorldManipulator: RoadManipulator + TreeManipulator + IdGetter {}
 
@@ -44,11 +50,11 @@ pub trait RoadManipulator {
 }
 
 pub trait TreeManipulator {
-    fn add_tree(&mut self, tree: Tree, model_id: u128);
+    fn add_tree(&mut self, tree: Tree, model_id: u128) -> TreeId;
     /// Returns the model_id of the tree that has been removed.
     fn remove_tree(&mut self, tree_id: TreeId) -> u128;
     /// Remove this and do something similar as for road segments.
-    fn get_trees(&self) -> &TreeMap;
+    // fn get_trees(&self) -> &TreeMap;
     fn get_tree_pos(&self, id: TreeId) -> Vec3;
 }
 

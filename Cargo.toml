@@ -3,9 +3,10 @@ members = [
 "app",
 "gfx-api",
 "gfx-wgpu",
-"world",
 "tool",
 "utils",
+"world",
+"world-api",
 ]
 default-members = [
 "app",

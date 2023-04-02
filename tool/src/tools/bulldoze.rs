@@ -3,7 +3,7 @@ use crate::tool_state::ToolState;
 use super::ToolStrategy;
 
 use utils::input;
-use world::WorldManipulator;
+use world_api::WorldManipulator;
 
 use gfx_api::GfxSuper;
 use glam::*;

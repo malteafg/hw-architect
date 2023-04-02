@@ -6,11 +6,11 @@
 pub mod nature;
 pub mod roads;
 
-mod api;
-pub use api::{RoadManipulator, TreeManipulator, WorldManipulator};
+use world_api::{IdGetter, RoadManipulator, TreeManipulator, WorldManipulator};
+use world_api::{LRoadBuilder, NodeType, Side, SnapConfig, Tree};
 
-use nature::{Tree, TreeMap, Trees};
-use roads::{LRoadBuilder, NodeType, RoadGraph, Side, SnapConfig};
+use nature::Trees;
+use roads::RoadGraph;
 
 use utils::id::{NodeId, SegmentId, TreeId};
 
@@ -29,9 +29,9 @@ impl World {
     }
 }
 
-impl api::WorldManipulator for World {}
+impl WorldManipulator for World {}
 
-impl api::RoadManipulator for World {
+impl RoadManipulator for World {
     fn add_road(
         &mut self,
         road: LRoadBuilder,
@@ -70,8 +70,8 @@ impl api::RoadManipulator for World {
     }
 }
 
-impl api::TreeManipulator for World {
-    fn add_tree(&mut self, tree: Tree, model_id: u128) {
+impl TreeManipulator for World {
+    fn add_tree(&mut self, tree: Tree, model_id: u128) -> TreeId {
         self.trees.add_tree(tree, model_id)
     }
 
@@ -79,16 +79,16 @@ impl api::TreeManipulator for World {
         self.trees.remove_tree(tree_id)
     }
 
-    fn get_trees(&self) -> &TreeMap {
-        self.trees.get_trees()
-    }
+    // fn get_trees(&self) -> &TreeMap {
+    //     self.trees.get_trees()
+    // }
 
     fn get_tree_pos(&self, id: TreeId) -> Vec3 {
         self.trees.get_tree_pos(id)
     }
 }
 
-impl api::IdGetter for World {
+impl IdGetter for World {
     fn get_node_from_pos(&self, pos: Vec3) -> Option<NodeId> {
         self.road_graph.get_node_from_pos(pos)
     }

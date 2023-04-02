@@ -2,7 +2,7 @@ use gfx_api::GfxSuper;
 use std::cell::RefCell;
 use std::rc::Rc;
 use utils::input;
-use world::WorldManipulator;
+use world_api::WorldManipulator;
 
 use crate::tool_state::ToolState;
 use crate::tools::{BulldozeTool, ConstructTool, ToolStrategy, TreePlopperTool};

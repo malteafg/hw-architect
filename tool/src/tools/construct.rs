@@ -4,11 +4,11 @@ use crate::road_gen::mesh_gen;
 use crate::tool_state::{SelectedRoad, ToolState};
 
 use utils::{input, VecUtils};
-use world::roads::{
+use world_api::WorldManipulator;
+use world_api::{
     CurveType, LNodeBuilder, LNodeBuilderType, LRoadBuilder, LaneWidth, NodeType, SegmentType,
     Side, SnapConfig,
 };
-use world::WorldManipulator;
 
 use gfx_api::{GfxSuper, RoadMesh};
 use glam::*;

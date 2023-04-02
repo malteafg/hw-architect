@@ -1,48 +1,11 @@
-use super::SegmentType;
-use utils::curves::{GuidePoints, SpinePoints};
+use world_api::{LSegmentBuilder, SegmentType};
 
+use utils::curves::{GuidePoints, SpinePoints};
 use utils::id::NodeId;
 
 use glam::Vec3;
 
 use serde::{Deserialize, Serialize};
-
-// #################################################################################################
-// Definition for others to construct an LSegment
-// #################################################################################################
-#[derive(Debug, Clone)]
-pub struct LSegmentBuilder {
-    width: f32,
-    segment_type: SegmentType,
-    guide_points: GuidePoints,
-}
-
-impl LSegmentBuilder {
-    pub fn new(width: f32, segment_type: SegmentType, guide_points: GuidePoints) -> Self {
-        LSegmentBuilder {
-            width,
-            segment_type,
-            guide_points,
-        }
-    }
-
-    pub fn guide_points(&self) -> &GuidePoints {
-        &self.guide_points
-    }
-
-    pub fn build(self, from_node: NodeId, to_node: NodeId) -> LSegment {
-        // TODO fix 0.05, and figure out what to do with it.
-        let spine_points = self.guide_points.get_spine_points(0.05);
-        LSegment::new(
-            self.width,
-            self.segment_type,
-            self.guide_points,
-            spine_points,
-            from_node,
-            to_node,
-        )
-    }
-}
 
 // #################################################################################################
 // Implementation of LSegment
@@ -80,21 +43,35 @@ impl LSegment {
         }
     }
 
+    pub fn from_builder(builder: LSegmentBuilder, from_node: NodeId, to_node: NodeId) -> Self {
+        // TODO fix 0.05, and figure out what to do with it.
+        let (width, segment_type, guide_points) = builder.consume();
+        let spine_points = guide_points.get_spine_points(0.05);
+        Self::new(
+            width,
+            segment_type,
+            guide_points,
+            spine_points,
+            from_node,
+            to_node,
+        )
+    }
+
     pub fn width(&self) -> f32 {
         self.width
     }
 
-    pub fn segment_type(&self) -> SegmentType {
-        self.segment_type
-    }
+    // pub fn segment_type(&self) -> SegmentType {
+    //     self.segment_type
+    // }
 
     pub fn guide_points(&self) -> &GuidePoints {
         &self.guide_points
     }
 
-    pub fn spine_points(&self) -> &SpinePoints {
-        &self.spine_points
-    }
+    // pub fn spine_points(&self) -> &SpinePoints {
+    //     &self.spine_points
+    // }
 
     pub fn get_from_node(&self) -> NodeId {
         self.from_node

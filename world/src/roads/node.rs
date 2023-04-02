@@ -1,81 +1,15 @@
-use glam::*;
+use world_api::{LNodeBuilder, LaneMapConfig, NodeType, Side, SnapConfig, SnapRange};
+
 use utils::id::{NodeId, SegmentId};
 use utils::VecUtils;
 
-use std::mem;
-
-use super::snap::{SnapConfig, SnapRange};
-use super::{NodeType, Side};
-
+use glam::*;
 use serde::{Deserialize, Serialize};
+
+use std::mem;
 
 // Located at the bottom of this file.
 use lanes::LaneMap;
-
-// #################################################################################################
-// Definitions for others to construct an LNode
-// #################################################################################################
-#[derive(Debug, Clone, Copy)]
-pub struct LNodeBuilder {
-    pos: Vec3,
-    dir: Vec3,
-    node_type: NodeType,
-}
-
-impl LNodeBuilder {
-    pub fn new(pos: Vec3, dir: Vec3, node_type: NodeType) -> Self {
-        LNodeBuilder {
-            pos,
-            dir,
-            node_type,
-        }
-    }
-
-    pub fn build(self, lane_map: LaneMapConfig) -> LNode {
-        let mode = match lane_map {
-            LaneMapConfig::Sym { incoming, outgoing } => Mode::Sym { incoming, outgoing },
-            LaneMapConfig::In { incoming } => Mode::Basic {
-                main_segment: incoming,
-                main_side: Side::In,
-            },
-            LaneMapConfig::Out { outgoing } => Mode::Basic {
-                main_segment: outgoing,
-                main_side: Side::Out,
-            },
-        };
-        LNode::new(self.pos, self.dir, self.node_type, mode)
-    }
-
-    pub fn pos(&self) -> Vec3 {
-        self.pos
-    }
-
-    pub fn dir(&self) -> Vec3 {
-        self.dir
-    }
-
-    pub fn node_type(&self) -> NodeType {
-        self.node_type
-    }
-
-    pub fn flip_dir(&mut self) {
-        self.dir *= -1.
-    }
-}
-
-/// Specifies the configuration of segments when a new node is created.
-pub enum LaneMapConfig {
-    Sym {
-        incoming: SegmentId,
-        outgoing: SegmentId,
-    },
-    In {
-        incoming: SegmentId,
-    },
-    Out {
-        outgoing: SegmentId,
-    },
-}
 
 // #################################################################################################
 // Definitions of LNode itself
@@ -135,6 +69,22 @@ impl LNode {
             node_type,
             mode,
         }
+    }
+
+    pub fn from_builder(builder: LNodeBuilder, lane_map: LaneMapConfig) -> Self {
+        let mode = match lane_map {
+            LaneMapConfig::Sym { incoming, outgoing } => Mode::Sym { incoming, outgoing },
+            LaneMapConfig::In { incoming } => Mode::Basic {
+                main_segment: incoming,
+                main_side: Side::In,
+            },
+            LaneMapConfig::Out { outgoing } => Mode::Basic {
+                main_segment: outgoing,
+                main_side: Side::Out,
+            },
+        };
+        let (pos, dir, node_type) = builder.consume();
+        Self::new(pos, dir, node_type, mode)
     }
 
     pub fn pos(&self) -> Vec3 {

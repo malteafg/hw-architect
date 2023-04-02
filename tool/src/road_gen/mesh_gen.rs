@@ -3,7 +3,7 @@ use utils::curves::curve_gen;
 use utils::consts::{LANE_MARKINGS_WIDTH, ROAD_HEIGHT};
 use utils::curves::{GuidePoints, SpinePoints};
 use utils::VecUtils;
-use world::roads::NodeType;
+use world_api::NodeType;
 
 use gfx_api::RoadMesh;
 use glam::*;

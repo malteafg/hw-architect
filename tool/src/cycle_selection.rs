@@ -1,4 +1,5 @@
 use utils::{consts, input::ScrollState};
+use world_api::{CurveType, LaneWidth};
 
 pub trait CycleSelection {
     fn prev(&self) -> Self;
@@ -18,7 +19,7 @@ pub fn scroll_mut<A: CycleSelection + Copy>(elem: &mut A, scroll_state: ScrollSt
     }
 }
 
-impl CycleSelection for world::roads::LaneWidth {
+impl CycleSelection for LaneWidth {
     fn prev(&self) -> Self {
         match self {
             Self::Narrow => Self::Wide,
@@ -36,7 +37,7 @@ impl CycleSelection for world::roads::LaneWidth {
     }
 }
 
-impl CycleSelection for world::roads::CurveType {
+impl CycleSelection for CurveType {
     fn prev(&self) -> Self {
         match self {
             Self::Straight => Self::Curved,

@@ -1,5 +1,5 @@
 [package]
-name = "tool"
+name = "world-api"
 version = "0.1.0"
 edition = "2021"
 
@@ -11,11 +11,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 utils = { path = "../utils" }
-world-api = { path = "../world-api" }
-gfx-api = { path = "../gfx-api" }
-
-bytemuck = { workspace = true }
 
 anyhow = { workspace = true }
+serde = { workspace = true }
 
 glam = { workspace = true }
+rand = { workspace = true }

@@ -1,15 +1,14 @@
-use glam::*;
-use std::collections::HashMap;
+use super::node::LNode;
+use super::segment::LSegment;
+
+use world_api::{LNodeBuilderType, LRoadBuilder, LaneMapConfig, NodeType, Side, SnapConfig};
 
 use utils::id::{IdManager, NodeId, SegmentId};
 
-use super::node::LNode;
-use super::road_builder::{LNodeBuilderType, LRoadBuilder};
-use super::segment::LSegment;
-use super::snap::SnapConfig;
-use super::{NodeType, Side};
-
+use glam::*;
 use serde::{Deserialize, Serialize};
+
+use std::collections::HashMap;
 
 type LeadingPair = (NodeId, SegmentId);
 
@@ -134,7 +133,7 @@ impl crate::RoadManipulator for RoadGraph {
                         // generate new node
                         self.forward_refs.insert(node_id, Vec::new());
                         self.backward_refs.insert(node_id, Vec::new());
-                        use super::LaneMapConfig::*;
+                        use LaneMapConfig::*;
                         let lane_map_config = if i == 0 {
                             Out {
                                 outgoing: segment_ids[0],
@@ -151,7 +150,7 @@ impl crate::RoadManipulator for RoadGraph {
                         };
 
                         self.node_map
-                            .insert(node_id, node_builder.build(lane_map_config));
+                            .insert(node_id, LNode::from_builder(node_builder, lane_map_config));
                     }
                     LNodeBuilderType::Old(snap_config) => {
                         // update existing node
@@ -171,7 +170,7 @@ impl crate::RoadManipulator for RoadGraph {
             .into_iter()
             .enumerate()
             .for_each(|(i, segment_builder)| {
-                let segment = segment_builder.build(node_ids[i], node_ids[i + 1]);
+                let segment = LSegment::from_builder(segment_builder, node_ids[i], node_ids[i + 1]);
                 let id = segment_ids[i];
                 self.segment_map.insert(id, segment);
             });
