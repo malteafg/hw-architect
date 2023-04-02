@@ -44,9 +44,17 @@ impl ToolStrategy for TreePlopperTool {
 
     fn update_ground_pos(&mut self, ground_pos: glam::Vec3) {
         self.ground_pos = ground_pos;
+        self.gfx_handle
+            .borrow_mut()
+            .set_tree_tool(0, vec![ground_pos.to_array()]);
+        self.gfx_handle
+            .borrow_mut()
+            .set_tree_markers(vec![ground_pos.to_array()]);
     }
 
     fn destroy(self: Box<Self>) -> Box<dyn WorldManipulator> {
+        self.gfx_handle.borrow_mut().set_tree_tool(0, vec![]);
+        self.gfx_handle.borrow_mut().set_tree_markers(vec![]);
         self.world
     }
 }

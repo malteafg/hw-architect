@@ -12,18 +12,3 @@ pub struct RoadMesh {
     pub lane_vertices: Vec<[f32; 3]>,
     pub lane_indices: Vec<u32>,
 }
-
-impl RoadMesh {
-    pub fn empty() -> RoadMesh {
-        RoadMesh {
-            vertices: Vec::new(),
-            indices: Vec::new(),
-            lane_vertices: Vec::new(),
-            lane_indices: Vec::new(),
-        }
-    }
-
-    pub fn size(&self) -> (usize, usize) {
-        (self.vertices.len(), self.lane_vertices.len())
-    }
-}

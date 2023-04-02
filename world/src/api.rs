@@ -49,6 +49,7 @@ pub trait TreeManipulator {
     fn remove_tree(&mut self, tree_id: TreeId) -> u128;
     /// Remove this and do something similar as for road segments.
     fn get_trees(&self) -> &TreeMap;
+    fn get_tree_pos(&self, id: TreeId) -> Vec3;
 }
 
 pub trait IdGetter {

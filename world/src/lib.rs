@@ -82,6 +82,10 @@ impl api::TreeManipulator for World {
     fn get_trees(&self) -> &TreeMap {
         self.trees.get_trees()
     }
+
+    fn get_tree_pos(&self, id: TreeId) -> Vec3 {
+        self.trees.get_tree_pos(id)
+    }
 }
 
 impl api::IdGetter for World {

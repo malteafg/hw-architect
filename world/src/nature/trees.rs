@@ -67,6 +67,15 @@ impl Trees {
         }
         None
     }
+
+    fn get_tree(&self, id: &TreeId) -> &Tree {
+        for model_map in self.tree_map.values() {
+            if let Some(tree) = model_map.get(id) {
+                return tree;
+            }
+        }
+        panic!("treeid should be in tree map");
+    }
 }
 
 impl crate::TreeManipulator for Trees {
@@ -97,5 +106,9 @@ impl crate::TreeManipulator for Trees {
 
     fn get_trees(&self) -> &TreeMap {
         &self.tree_map
+    }
+
+    fn get_tree_pos(&self, id: TreeId) -> Vec3 {
+        self.get_tree(&id).pos()
     }
 }

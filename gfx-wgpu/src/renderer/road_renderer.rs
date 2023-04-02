@@ -1,5 +1,5 @@
 use crate::primitives;
-use crate::primitives::{DBuffer, Instance, InstanceRaw, VIBuffer};
+use crate::primitives::{DBuffer, Instance, VIBuffer};
 
 use utils::id::SegmentId;
 
@@ -14,17 +14,21 @@ use std::rc::Rc;
 pub struct RoadState {
     device: Rc<wgpu::Device>,
     queue: Rc<wgpu::Queue>,
+
     road_buffer: RoadBuffer,
     tool_buffer: RoadBuffer,
     marked_buffer: RoadBuffer,
+
     road_render_pipeline: wgpu::RenderPipeline,
-    road_meshes: HashMap<SegmentId, RoadMesh>,
-    marked_meshes: Vec<SegmentId>,
-    simple_render_pipeline: wgpu::RenderPipeline,
-    instance_buffer: DBuffer,
-    num_markers: u32,
+    simple_render_pipeline: Rc<wgpu::RenderPipeline>,
     simple_model: primitives::SimpleModel,
     simple_color: wgpu::BindGroup,
+
+    road_meshes: HashMap<SegmentId, RoadMesh>,
+    marked_meshes: Vec<SegmentId>,
+
+    markers_buffer: DBuffer,
+    num_markers: u32,
 }
 
 /// The information needed on gpu to render a set of road meshes.
@@ -119,6 +123,15 @@ fn create_color_group(
     }))
 }
 
+fn empty_road_mesh() -> RoadMesh {
+    RoadMesh {
+        vertices: Vec::new(),
+        indices: Vec::new(),
+        lane_vertices: Vec::new(),
+        lane_indices: Vec::new(),
+    }
+}
+
 impl RoadState {
     pub fn new(
         device: Rc<wgpu::Device>,
@@ -126,7 +139,7 @@ impl RoadState {
         color_format: wgpu::TextureFormat,
         road_shader: wgpu::ShaderModule,
         camera_bind_group_layout: &wgpu::BindGroupLayout,
-        simple_shader: wgpu::ShaderModule,
+        simple_render_pipeline: Rc<wgpu::RenderPipeline>,
         test_model: primitives::SimpleModel,
     ) -> Self {
         let road_color_bind_group_layout =
@@ -213,24 +226,7 @@ impl RoadState {
         //     &texture_bind_group_layout,
         // )
 
-        let instance_buffer = DBuffer::new("instance_buffer", wgpu::BufferUsages::VERTEX, &device);
-
-        let simple_render_pipeline = {
-            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("simple_pipeline_layout"),
-                bind_group_layouts: &[&camera_bind_group_layout, &road_color_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-            super::create_render_pipeline(
-                &device,
-                &layout,
-                color_format,
-                Some(primitives::Texture::DEPTH_FORMAT),
-                &[primitives::SimpleModelVertex::desc(), InstanceRaw::desc()],
-                simple_shader,
-                "simple_renderer",
-            )
-        };
+        let markers_buffer = DBuffer::new("markers_buffer", wgpu::BufferUsages::VERTEX, &device);
 
         let color_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("simple_color_buffer"),
@@ -256,7 +252,7 @@ impl RoadState {
             road_meshes: HashMap::new(),
             marked_meshes: Vec::new(),
             simple_render_pipeline,
-            instance_buffer,
+            markers_buffer,
             num_markers: 0,
             simple_model: test_model,
             simple_color,
@@ -304,9 +300,11 @@ impl gfx_api::GfxRoadData for RoadState {
 
     /// Updates the road tool buffer with the given mesh.
     fn set_road_tool_mesh(&mut self, mesh: Option<RoadMesh>) {
-        if let Some(mesh) = mesh {
-            self.tool_buffer.write(&self.queue, &self.device, mesh);
-        }
+        let Some(mesh) = mesh else {
+            self.tool_buffer.write(&self.queue, &self.device, empty_road_mesh());
+            return;
+        };
+        self.tool_buffer.write(&self.queue, &self.device, mesh);
     }
 
     fn set_node_markers(&mut self, markers: Vec<([f32; 3], [f32; 3])>) {
@@ -322,7 +320,7 @@ impl gfx_api::GfxRoadData for RoadState {
             .iter()
             .map(Instance::to_raw)
             .collect::<Vec<_>>();
-        self.instance_buffer.write(
+        self.markers_buffer.write(
             &self.queue,
             &self.device,
             &bytemuck::cast_slice(&instance_data),
@@ -405,7 +403,7 @@ where
         // );
 
         use primitives::DrawSimpleModel;
-        let Some(buffer_slice) = road_state.instance_buffer.get_buffer_slice() else {
+        let Some(buffer_slice) = road_state.markers_buffer.get_buffer_slice() else {
             return;
         };
         self.set_vertex_buffer(1, buffer_slice);

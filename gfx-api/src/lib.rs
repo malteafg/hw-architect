@@ -71,4 +71,7 @@ pub trait GfxCameraData {
 pub trait GfxTreeData {
     fn add_trees(&mut self, model_id: u128, trees: Vec<(TreeId, [f32; 3], f32)>);
     fn remove_tree(&mut self, tree_id: TreeId, model_id: u128);
+    fn mark_trees(&mut self, ids: Vec<TreeId>);
+    fn set_tree_markers(&mut self, positions: Vec<[f32; 3]>);
+    fn set_tree_tool(&mut self, model_id: u128, trees: Vec<[f32; 3]>);
 }

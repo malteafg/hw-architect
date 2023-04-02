@@ -77,6 +77,7 @@ impl ToolStrategy for BulldozeTool {
 
     /// Unmark any marked segment.
     fn destroy(self: Box<Self>) -> Box<dyn WorldManipulator> {
+        self.gfx_handle.borrow_mut().set_tree_markers(vec![]);
         self.gfx_handle.borrow_mut().mark_road_segments(vec![]);
         self.world
     }
@@ -95,30 +96,34 @@ impl BulldozeTool {
             state_handle,
             ground_pos,
         };
-        tool.check_segment();
+        tool.update_markings();
         tool
-    }
-
-    fn bd_segments(&self) -> bool {
-        self.state_handle.borrow().bulldoze_state.bulldoze_segments
     }
 
     fn bd_trees(&self) -> bool {
         self.state_handle.borrow().bulldoze_state.bulldoze_trees
     }
 
-    fn update_markings(&mut self) {
-        if self.state_handle.borrow().bulldoze_state.bulldoze_segments {
-            self.check_segment()
-        }
+    fn bd_segments(&self) -> bool {
+        self.state_handle.borrow().bulldoze_state.bulldoze_segments
     }
 
-    fn check_segment(&mut self) {
-        let segment_id = self.world.get_segment_from_pos(self.ground_pos);
-        if let Some(id) = segment_id {
-            self.gfx_handle.borrow_mut().mark_road_segments(vec![id]);
-            return;
-        }
+    fn update_markings(&mut self) {
+        self.gfx_handle.borrow_mut().set_tree_markers(vec![]);
         self.gfx_handle.borrow_mut().mark_road_segments(vec![]);
+
+        if self.bd_trees() {
+            if let Some(id) = self.world.get_tree_from_pos(self.ground_pos) {
+                self.gfx_handle
+                    .borrow_mut()
+                    .set_tree_markers(vec![self.world.get_tree_pos(id).into()]);
+                return;
+            }
+        }
+        if self.bd_segments() {
+            if let Some(id) = self.world.get_segment_from_pos(self.ground_pos) {
+                self.gfx_handle.borrow_mut().mark_road_segments(vec![id]);
+            }
+        }
     }
 }

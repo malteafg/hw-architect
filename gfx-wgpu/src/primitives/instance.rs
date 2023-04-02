@@ -19,6 +19,18 @@ impl Instance {
             normal: Mat3::from_quat(self.rotation).to_3x3(),
         }
     }
+
+    pub fn to_raw_with_scale(&self, scale: f32) -> InstanceRaw {
+        let model = Mat4::from_scale_rotation_translation(
+            Vec3::new(scale, scale, scale),
+            self.rotation,
+            self.position,
+        );
+        InstanceRaw {
+            model: model.to_4x4(),
+            normal: Mat3::from_quat(self.rotation).to_3x3(),
+        }
+    }
 }
 
 #[repr(C)]

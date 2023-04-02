@@ -168,9 +168,7 @@ impl ToolStrategy for ConstructTool {
     /// Remove node markings from gpu, and remove the road tool mesh.
     fn destroy(self: Box<Self>) -> Box<dyn WorldManipulator> {
         self.gfx_handle.borrow_mut().set_node_markers(vec![]);
-        self.gfx_handle
-            .borrow_mut()
-            .set_road_tool_mesh(Some(RoadMesh::empty()));
+        self.gfx_handle.borrow_mut().set_road_tool_mesh(None);
         self.world
     }
 }
@@ -432,10 +430,8 @@ impl ConstructTool {
     /// Updates the construct tool when there is no node that we should snap to.
     fn update_no_snap(&mut self) {
         self.snapped_node = None;
-        let empty_mesh = Some(RoadMesh::empty());
-        // let segment_type = self.get_sel_segment_type();
         match &self.mode {
-            SelectPos => self.gfx_handle.borrow_mut().set_road_tool_mesh(empty_mesh),
+            SelectPos => self.gfx_handle.borrow_mut().set_road_tool_mesh(None),
             SelectDir {
                 pos,
                 init_node_type,

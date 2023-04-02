@@ -323,32 +323,26 @@ impl GfxState {
 
         let depth_texture =
             primitives::Texture::create_depth_texture(&device, &config, "depth_texture");
-
         timer.emit("setup_time");
 
         // load shaders
         let mut shaders = crate::shaders::load_shaders(&device);
-
         timer.emit("shader_time");
 
         // load models
         let tree_model =
             resources::load_model("tree_test", &device, &queue, &texture_bind_group_layout)
                 .unwrap();
-
         timer.emit("tree_model");
 
         let obj_model =
             resources::load_model("sphere", &device, &queue, &texture_bind_group_layout).unwrap();
-
         timer.emit("obj_model");
 
-        let _test_model = resources::load_simple_model("simple_test", &device).unwrap();
-
-        timer.emit("test_model");
+        let torus_model = resources::load_simple_model("torus", &device).unwrap();
+        timer.emit("torus_model");
 
         let arrow_model = resources::load_simple_model("arrow", &device).unwrap();
-
         timer.emit("arrow_model");
 
         use primitives::Vertex;
@@ -381,13 +375,47 @@ impl GfxState {
 
         timer.emit("terrain_time");
 
+        let simple_color_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("road_color_bind_group_layout"),
+            });
+
+        use primitives::InstanceRaw;
+        let simple_shader = shaders.remove(crate::shaders::SIMPLE).unwrap();
+        let simple_render_pipeline = Rc::new({
+            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("simple_pipeline_layout"),
+                bind_group_layouts: &[&camera_bind_group_layout, &simple_color_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+            create_render_pipeline(
+                &device,
+                &layout,
+                config.format,
+                Some(primitives::Texture::DEPTH_FORMAT),
+                &[primitives::SimpleModelVertex::desc(), InstanceRaw::desc()],
+                simple_shader,
+                "simple_renderer",
+            )
+        });
+
         let road_renderer = road_renderer::RoadState::new(
             Rc::clone(&device),
             Rc::clone(&queue),
             config.format,
             shaders.remove(crate::shaders::ROAD).unwrap(),
             &camera_bind_group_layout,
-            shaders.remove(crate::shaders::SIMPLE).unwrap(),
+            Rc::clone(&simple_render_pipeline),
             arrow_model,
         );
 
@@ -401,7 +429,9 @@ impl GfxState {
             &texture_bind_group_layout,
             &light_bind_group_layout,
             shaders.remove(crate::shaders::BASIC).unwrap(),
+            Rc::clone(&simple_render_pipeline),
             tree_model,
+            torus_model,
         );
 
         timer.emit("tree_time");
@@ -640,5 +670,17 @@ impl gfx_api::GfxTreeData for GfxState {
 
     fn remove_tree(&mut self, tree_id: TreeId, model_id: u128) {
         self.tree_renderer.remove_tree(tree_id, model_id);
+    }
+
+    fn mark_trees(&mut self, ids: Vec<TreeId>) {
+        self.tree_renderer.mark_trees(ids);
+    }
+
+    fn set_tree_markers(&mut self, positions: Vec<[f32; 3]>) {
+        self.tree_renderer.set_tree_markers(positions);
+    }
+
+    fn set_tree_tool(&mut self, model_id: u128, tree: Vec<[f32; 3]>) {
+        self.tree_renderer.set_tree_tool(model_id, tree);
     }
 }
