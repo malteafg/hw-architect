@@ -43,6 +43,7 @@ impl core::ops::DerefMut for SnapRange {
 
 impl SnapRange {
     /// Returns a new snap range with `size` where indexes start at 0.
+    /// Should only be called by world. How to enforce?
     pub fn new(size: u8) -> Self {
         let mut snap_range = vec![];
         (0..size).for_each(|i| snap_range.push(i as i8));
@@ -90,6 +91,7 @@ impl PartialEq for SnapConfig {
 }
 
 impl SnapConfig {
+    /// Should only be called by world. How to enforce?
     pub fn new(
         node_id: NodeId,
         node_type: NodeType,

@@ -1,11 +1,15 @@
+use super::simple_renderer::{RenderSimpleModel, SimpleRenderer};
 use crate::primitives;
-use crate::primitives::{DBuffer, Instance, InstanceRaw, Model, SimpleModel};
+use crate::primitives::{DBuffer, Instance, InstanceRaw, Model};
+use crate::renderer::simple_renderer;
 
 use utils::id::TreeId;
 
 use glam::*;
 use wgpu::util::DeviceExt;
+use wgpu::Buffer;
 
+use rand::Rng;
 use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
@@ -20,10 +24,7 @@ pub struct TreeState {
     tree_buffer: DBuffer,
     tree_model: Model,
     tool_buffer: DBuffer,
-
-    simple_render_pipeline: Rc<wgpu::RenderPipeline>,
-    torus_model: SimpleModel,
-    simple_color: wgpu::BindGroup,
+    color_buffer: Buffer,
 
     markers_buffer: DBuffer,
     num_markers: u32,
@@ -40,64 +41,32 @@ impl TreeState {
         texture_bind_group_layout: &wgpu::BindGroupLayout,
         light_bind_group_layout: &wgpu::BindGroupLayout,
         basic_shader: wgpu::ShaderModule,
-        simple_render_pipeline: Rc<wgpu::RenderPipeline>,
         tree_model: Model,
-        torus_model: SimpleModel,
     ) -> Self {
         use primitives::Vertex;
-        let tree_render_pipeline = {
-            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("tree_pipeline_layout"),
-                bind_group_layouts: &[
-                    &texture_bind_group_layout,
-                    &camera_bind_group_layout,
-                    &light_bind_group_layout,
-                ],
-                push_constant_ranges: &[],
-            });
-            super::create_render_pipeline(
-                &device,
-                &layout,
-                color_format,
-                Some(primitives::Texture::DEPTH_FORMAT),
-                &[primitives::ModelVertex::desc(), InstanceRaw::desc()],
-                basic_shader,
-                "tree_render_pipeline",
-            )
-        };
+        let tree_render_pipeline = super::create_render_pipeline(
+            &device,
+            &[
+                &texture_bind_group_layout,
+                &camera_bind_group_layout,
+                &light_bind_group_layout,
+            ],
+            color_format,
+            Some(primitives::Texture::DEPTH_FORMAT),
+            &[primitives::ModelVertex::desc(), InstanceRaw::desc()],
+            basic_shader,
+            "tree",
+        );
 
         let tree_buffer = DBuffer::new("tree_buffer", wgpu::BufferUsages::VERTEX, &device);
         let tool_buffer = DBuffer::new("tree_tool_buffer", wgpu::BufferUsages::VERTEX, &device);
         let markers_buffer =
             DBuffer::new("tree_markers_buffer", wgpu::BufferUsages::VERTEX, &device);
 
-        let marked_color_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("marked_color_bind_group_layout"),
-            });
-
         let color_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("simple_color_buffer"),
             contents: bytemuck::cast_slice(&[Vec4::new(1.0, 0.2, 0.8, 0.7)]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-        let simple_color = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &marked_color_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: color_buffer.as_entire_binding(),
-            }],
-            label: Some("simple_color_bind_group"),
         });
 
         Self {
@@ -108,10 +77,7 @@ impl TreeState {
             tree_buffer,
             tool_buffer,
             tree_model,
-
-            simple_render_pipeline,
-            torus_model,
-            simple_color,
+            color_buffer,
 
             markers_buffer,
             num_markers: 0,
@@ -125,6 +91,10 @@ impl TreeState {
             .values()
             .flat_map(|model_map| model_map.values().map(|t| *t))
             .collect();
+
+        let color = Vec4::new(rand::thread_rng().gen_range(0. ..1.), 0.5, 0.2, 0.8);
+        self.queue
+            .write_buffer(&self.color_buffer, 0, &bytemuck::cast_slice(&[color]));
         self.tree_buffer.write(
             &self.queue,
             &self.device,
@@ -134,6 +104,10 @@ impl TreeState {
 
     fn num_trees(&self) -> u32 {
         self.tree_map.values().map(|m| m.len()).sum::<usize>() as u32
+    }
+
+    fn get_markings_buffer(&self) -> &DBuffer {
+        &self.markers_buffer
     }
 }
 
@@ -238,6 +212,7 @@ pub trait RenderTrees<'a> {
     fn render_trees(
         &mut self,
         tree_state: &'a TreeState,
+        simple_renderer: &'a SimpleRenderer,
         camera_bind_group: &'a wgpu::BindGroup,
         light_bind_group: &'a wgpu::BindGroup,
     );
@@ -250,6 +225,7 @@ where
     fn render_trees(
         &mut self,
         tree_state: &'a TreeState,
+        simple_renderer: &'a SimpleRenderer,
         camera_bind_group: &'a wgpu::BindGroup,
         light_bind_group: &'a wgpu::BindGroup,
     ) {
@@ -277,16 +253,12 @@ where
             );
         };
 
-        if let Some(buffer_slice) = tree_state.markers_buffer.get_buffer_slice() {
-            use primitives::DrawSimpleModel;
-            self.set_vertex_buffer(1, buffer_slice);
-            self.set_pipeline(&tree_state.simple_render_pipeline);
-            self.set_bind_group(1, &tree_state.simple_color, &[]);
-            self.draw_mesh_instanced(
-                &tree_state.torus_model,
-                0..tree_state.num_markers,
-                &camera_bind_group,
-            );
-        };
+        self.render_simple_model(
+            simple_renderer,
+            simple_renderer::TORUS_MODEL,
+            Vec4::new(1.0, 0.5, 0.2, 0.8),
+            tree_state.get_markings_buffer(),
+            tree_state.num_markers,
+        );
     }
 }

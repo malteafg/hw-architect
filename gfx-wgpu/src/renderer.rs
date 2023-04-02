@@ -1,9 +1,11 @@
 mod road_renderer;
+mod simple_renderer;
 pub mod terrain_renderer;
 mod tree_renderer;
 
 // use crate::vertex::Vertex;
 use crate::primitives;
+use crate::render_utils::create_render_pipeline;
 use crate::resources;
 
 use utils::id::{SegmentId, TreeId};
@@ -66,13 +68,16 @@ pub struct GfxState {
     surface: wgpu::Surface,
     device: Rc<wgpu::Device>,
     queue: Rc<wgpu::Queue>,
+    depth_texture: primitives::Texture,
+
     config: wgpu::SurfaceConfiguration,
     window_width: u32,
     window_height: u32,
+
     projection: Projection,
     camera_buffer: wgpu::Buffer,
-    camera_bind_group: wgpu::BindGroup,
-    depth_texture: primitives::Texture,
+    camera_bind_group: Rc<wgpu::BindGroup>,
+
     obj_model: primitives::Model,
     light_uniform: LightUniform,
     light_buffer: wgpu::Buffer,
@@ -81,69 +86,7 @@ pub struct GfxState {
     terrain_renderer: terrain_renderer::TerrainState,
     road_renderer: road_renderer::RoadState,
     tree_renderer: tree_renderer::TreeState,
-}
-
-fn create_render_pipeline(
-    device: &wgpu::Device,
-    layout: &wgpu::PipelineLayout,
-    color_format: wgpu::TextureFormat,
-    depth_format: Option<wgpu::TextureFormat>,
-    vertex_layouts: &[wgpu::VertexBufferLayout],
-    shader: wgpu::ShaderModule,
-    name: &str,
-) -> wgpu::RenderPipeline {
-    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some(name),
-        layout: Some(layout),
-        vertex: wgpu::VertexState {
-            module: &shader,
-            entry_point: "vs_main",
-            buffers: vertex_layouts,
-        },
-        fragment: Some(wgpu::FragmentState {
-            module: &shader,
-            entry_point: "fs_main",
-            targets: &[Some(wgpu::ColorTargetState {
-                format: color_format,
-                blend: Some(wgpu::BlendState {
-                    // color: wgpu::BlendComponent::REPLACE,
-                    // alpha: wgpu::BlendComponent::REPLACE,
-                    color: wgpu::BlendComponent {
-                        src_factor: wgpu::BlendFactor::SrcAlpha,
-                        dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                        operation: wgpu::BlendOperation::Add,
-                    },
-                    alpha: wgpu::BlendComponent::OVER,
-                }),
-                write_mask: wgpu::ColorWrites::ALL,
-            })],
-        }),
-        primitive: wgpu::PrimitiveState {
-            topology: wgpu::PrimitiveTopology::TriangleList,
-            strip_index_format: None,
-            front_face: wgpu::FrontFace::Ccw,
-            cull_mode: Some(wgpu::Face::Back),
-            // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
-            polygon_mode: wgpu::PolygonMode::Fill,
-            // Requires Features::DEPTH_CLIP_CONTROL
-            unclipped_depth: false,
-            // Requires Features::CONSERVATIVE_RASTERIZATION
-            conservative: false,
-        },
-        depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
-            format,
-            depth_write_enabled: true,
-            depth_compare: wgpu::CompareFunction::Less,
-            stencil: wgpu::StencilState::default(),
-            bias: wgpu::DepthBiasState::default(),
-        }),
-        multisample: wgpu::MultisampleState {
-            count: 1,
-            mask: !0,
-            alpha_to_coverage_enabled: false,
-        },
-        multiview: None,
-    })
+    simple_renderer: simple_renderer::SimpleRenderer,
 }
 
 impl GfxState {
@@ -275,14 +218,14 @@ impl GfxState {
                 label: Some("camera_bind_group_layout"),
             });
 
-        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let camera_bind_group = Rc::new(device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &camera_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: camera_buffer.as_entire_binding(),
             }],
             label: Some("camera_bind_group"),
-        });
+        }));
 
         let light_uniform = LightUniform {
             position: [2.0, 2.0, 2.0],
@@ -345,23 +288,18 @@ impl GfxState {
         let arrow_model = resources::load_simple_model("arrow", &device).unwrap();
         timer.emit("arrow_model");
 
+        let sphere_model = resources::load_simple_model("sphere", &device).unwrap();
+
         use primitives::Vertex;
-        let light_render_pipeline = {
-            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Light Pipeline Layout"),
-                bind_group_layouts: &[&camera_bind_group_layout, &light_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-            create_render_pipeline(
-                &device,
-                &layout,
-                config.format,
-                Some(primitives::Texture::DEPTH_FORMAT),
-                &[primitives::ModelVertex::desc()],
-                shaders.remove(crate::shaders::LIGHT).unwrap(),
-                "Light Pipeline",
-            )
-        };
+        let light_render_pipeline = create_render_pipeline(
+            &device,
+            &[&camera_bind_group_layout, &light_bind_group_layout],
+            config.format,
+            Some(primitives::Texture::DEPTH_FORMAT),
+            &[primitives::ModelVertex::desc()],
+            shaders.remove(crate::shaders::LIGHT).unwrap(),
+            "light",
+        );
 
         timer.emit("light_time");
 
@@ -375,7 +313,7 @@ impl GfxState {
 
         timer.emit("terrain_time");
 
-        let simple_color_bind_group_layout =
+        let color_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
@@ -387,27 +325,8 @@ impl GfxState {
                     },
                     count: None,
                 }],
-                label: Some("road_color_bind_group_layout"),
+                label: Some("color_bind_group_layout"),
             });
-
-        use primitives::InstanceRaw;
-        let simple_shader = shaders.remove(crate::shaders::SIMPLE).unwrap();
-        let simple_render_pipeline = Rc::new({
-            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("simple_pipeline_layout"),
-                bind_group_layouts: &[&camera_bind_group_layout, &simple_color_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-            create_render_pipeline(
-                &device,
-                &layout,
-                config.format,
-                Some(primitives::Texture::DEPTH_FORMAT),
-                &[primitives::SimpleModelVertex::desc(), InstanceRaw::desc()],
-                simple_shader,
-                "simple_renderer",
-            )
-        });
 
         let road_renderer = road_renderer::RoadState::new(
             Rc::clone(&device),
@@ -415,8 +334,6 @@ impl GfxState {
             config.format,
             shaders.remove(crate::shaders::ROAD).unwrap(),
             &camera_bind_group_layout,
-            Rc::clone(&simple_render_pipeline),
-            arrow_model,
         );
 
         timer.emit("road_time");
@@ -429,12 +346,26 @@ impl GfxState {
             &texture_bind_group_layout,
             &light_bind_group_layout,
             shaders.remove(crate::shaders::BASIC).unwrap(),
-            Rc::clone(&simple_render_pipeline),
             tree_model,
-            torus_model,
         );
 
         timer.emit("tree_time");
+
+        let mut simple_models = HashMap::new();
+        simple_models.insert(simple_renderer::TORUS_MODEL, torus_model);
+        simple_models.insert(simple_renderer::ARROW_MODEL, arrow_model);
+        simple_models.insert(simple_renderer::SPHERE_MODEL, sphere_model);
+
+        let simple_renderer = simple_renderer::SimpleRenderer::new(
+            Rc::clone(&device),
+            Rc::clone(&queue),
+            config.format,
+            simple_models,
+            shaders.remove(crate::shaders::SIMPLE).unwrap(),
+            Rc::clone(&camera_bind_group),
+            &camera_bind_group_layout,
+            &color_bind_group_layout,
+        );
 
         Self {
             surface,
@@ -452,9 +383,11 @@ impl GfxState {
             light_buffer,
             light_bind_group,
             light_render_pipeline,
+
             terrain_renderer,
             road_renderer,
             tree_renderer,
+            simple_renderer,
         }
     }
 }
@@ -520,11 +453,16 @@ impl gfx_api::Gfx for GfxState {
             );
 
             use road_renderer::RenderRoad;
-            render_pass.render_roads(&self.road_renderer, &self.camera_bind_group);
+            render_pass.render_roads(
+                &self.road_renderer,
+                &self.simple_renderer,
+                &self.camera_bind_group,
+            );
 
             use tree_renderer::RenderTrees;
             render_pass.render_trees(
                 &self.tree_renderer,
+                &self.simple_renderer,
                 &self.camera_bind_group,
                 &self.light_bind_group,
             );

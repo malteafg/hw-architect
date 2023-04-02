@@ -1,15 +1,18 @@
 use crate::primitives;
 use crate::primitives::{DBuffer, Instance, VIBuffer};
+use crate::render_utils::create_color;
+use crate::renderer::simple_renderer::RenderSimpleModel;
 
 use utils::id::SegmentId;
 
 // temporary, remove once proper road markings
 use gfx_api::RoadMesh;
 use glam::*;
-use wgpu::util::DeviceExt;
 
 use std::collections::HashMap;
 use std::rc::Rc;
+
+use super::simple_renderer::{self, SimpleRenderer};
 
 pub struct RoadState {
     device: Rc<wgpu::Device>,
@@ -20,9 +23,6 @@ pub struct RoadState {
     marked_buffer: RoadBuffer,
 
     road_render_pipeline: wgpu::RenderPipeline,
-    simple_render_pipeline: Rc<wgpu::RenderPipeline>,
-    simple_model: primitives::SimpleModel,
-    simple_color: wgpu::BindGroup,
 
     road_meshes: HashMap<SegmentId, RoadMesh>,
     marked_meshes: Vec<SegmentId>,
@@ -102,27 +102,6 @@ where
     }
 }
 
-fn create_color_group(
-    device: &wgpu::Device,
-    bind_group_layout: &wgpu::BindGroupLayout,
-    color: Vec4,
-    buffer_name: &str,
-) -> Rc<wgpu::BindGroup> {
-    let color_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some(&(buffer_name.to_owned() + "_color_buffer")),
-        contents: bytemuck::cast_slice(&[color]),
-        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-    });
-    Rc::new(device.create_bind_group(&wgpu::BindGroupDescriptor {
-        layout: &bind_group_layout,
-        entries: &[wgpu::BindGroupEntry {
-            binding: 0,
-            resource: color_buffer.as_entire_binding(),
-        }],
-        label: Some(&(buffer_name.to_owned() + "_color_bind_group")),
-    }))
-}
-
 fn empty_road_mesh() -> RoadMesh {
     RoadMesh {
         vertices: Vec::new(),
@@ -139,8 +118,6 @@ impl RoadState {
         color_format: wgpu::TextureFormat,
         road_shader: wgpu::ShaderModule,
         camera_bind_group_layout: &wgpu::BindGroupLayout,
-        simple_render_pipeline: Rc<wgpu::RenderPipeline>,
-        test_model: primitives::SimpleModel,
     ) -> Self {
         let road_color_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -157,30 +134,34 @@ impl RoadState {
                 label: Some("road_color_bind_group_layout"),
             });
 
-        let asphalt_color = create_color_group(
+        let (_, asphalt_color) = create_color(
             &device,
             &road_color_bind_group_layout,
             Vec4::new(0.12, 0.12, 0.12, 1.0),
             "asphalt",
         );
-        let markings_color = create_color_group(
+        let asphalt_color = Rc::new(asphalt_color);
+        let (_, markings_color) = create_color(
             &device,
             &road_color_bind_group_layout,
             Vec4::new(0.95, 0.95, 0.95, 1.0),
             "markings",
         );
-        let tool_color = create_color_group(
+        let markings_color = Rc::new(markings_color);
+        let (_, tool_color) = create_color(
             &device,
             &road_color_bind_group_layout,
             Vec4::new(0.1, 0.1, 0.6, 0.5),
             "asphalt",
         );
-        let marked_color = create_color_group(
+        let tool_color = Rc::new(tool_color);
+        let (_, marked_color) = create_color(
             &device,
             &road_color_bind_group_layout,
             Vec4::new(1.0, 0.0, 0.1, 0.7),
             "marked",
         );
+        let marked_color = Rc::new(marked_color);
 
         let road_buffer =
             RoadBuffer::new(&device, "road", asphalt_color, Rc::clone(&markings_color));
@@ -188,26 +169,19 @@ impl RoadState {
         let marked_buffer = RoadBuffer::new(&device, "marked", marked_color, markings_color);
 
         use primitives::Vertex;
-        let road_render_pipeline = {
-            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("road_pipeline_layout"),
-                bind_group_layouts: &[
-                    camera_bind_group_layout,
-                    &road_color_bind_group_layout,
-                    //&texture_bind_group_layout,
-                ],
-                push_constant_ranges: &[],
-            });
-            super::create_render_pipeline(
-                &device,
-                &layout,
-                color_format,
-                Some(primitives::Texture::DEPTH_FORMAT),
-                &[<[f32; 3]>::desc()],
-                road_shader,
-                "road_render_pipeline",
-            )
-        };
+        let road_render_pipeline = super::create_render_pipeline(
+            &device,
+            &[
+                camera_bind_group_layout,
+                &road_color_bind_group_layout,
+                //&texture_bind_group_layout,
+            ],
+            color_format,
+            Some(primitives::Texture::DEPTH_FORMAT),
+            &[<[f32; 3]>::desc()],
+            road_shader,
+            "road",
+        );
 
         // let diffuse_bytes = loader::load_binary("road-diffuse.png").await.unwrap();
         // let diffuse_texture =
@@ -228,20 +202,6 @@ impl RoadState {
 
         let markers_buffer = DBuffer::new("markers_buffer", wgpu::BufferUsages::VERTEX, &device);
 
-        let color_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("simple_color_buffer"),
-            contents: bytemuck::cast_slice(&[Vec4::new(1.0, 0.2, 0.8, 0.7)]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-        let simple_color = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &road_color_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: color_buffer.as_entire_binding(),
-            }],
-            label: Some("simple_color_bind_group"),
-        });
-
         Self {
             device,
             queue,
@@ -251,11 +211,8 @@ impl RoadState {
             road_render_pipeline,
             road_meshes: HashMap::new(),
             marked_meshes: Vec::new(),
-            simple_render_pipeline,
             markers_buffer,
             num_markers: 0,
-            simple_model: test_model,
-            simple_color,
         }
     }
 
@@ -273,6 +230,10 @@ impl RoadState {
         let marked_mesh = combine_road_meshes(&self.road_meshes, &self.marked_meshes);
         self.marked_buffer
             .write(&self.queue, &self.device, marked_mesh);
+    }
+
+    fn get_markers_buffer(&self) -> &DBuffer {
+        &self.markers_buffer
     }
 }
 
@@ -377,14 +338,24 @@ fn combine_road_meshes(
 /// A trait used by the main renderer to render the roads.
 pub trait RenderRoad<'a> {
     /// The function that implements rendering for roads.
-    fn render_roads(&mut self, road_state: &'a RoadState, camera_bind_group: &'a wgpu::BindGroup);
+    fn render_roads(
+        &mut self,
+        road_state: &'a RoadState,
+        simple_renderer: &'a SimpleRenderer,
+        camera_bind_group: &'a wgpu::BindGroup,
+    );
 }
 
 impl<'a, 'b> RenderRoad<'b> for wgpu::RenderPass<'a>
 where
     'b: 'a,
 {
-    fn render_roads(&mut self, road_state: &'b RoadState, camera_bind_group: &'b wgpu::BindGroup) {
+    fn render_roads(
+        &mut self,
+        road_state: &'b RoadState,
+        simple_renderer: &'a SimpleRenderer,
+        camera_bind_group: &'b wgpu::BindGroup,
+    ) {
         self.set_pipeline(&road_state.road_render_pipeline);
         self.set_bind_group(0, camera_bind_group, &[]);
         self.render(&road_state.road_buffer);
@@ -402,17 +373,12 @@ where
         //     &self.light_bind_group,
         // );
 
-        use primitives::DrawSimpleModel;
-        let Some(buffer_slice) = road_state.markers_buffer.get_buffer_slice() else {
-            return;
-        };
-        self.set_vertex_buffer(1, buffer_slice);
-        self.set_pipeline(&road_state.simple_render_pipeline);
-        self.set_bind_group(1, &road_state.simple_color, &[]);
-        self.draw_mesh_instanced(
-            &road_state.simple_model,
-            0..road_state.num_markers,
-            &camera_bind_group,
+        self.render_simple_model(
+            simple_renderer,
+            simple_renderer::ARROW_MODEL,
+            Vec4::new(1.0, 0.2, 0.3, 0.9),
+            road_state.get_markers_buffer(),
+            road_state.num_markers,
         );
     }
 }

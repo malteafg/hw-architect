@@ -21,23 +21,16 @@ impl TerrainState {
         camera_bind_group_layout: &wgpu::BindGroupLayout,
     ) -> Self {
         let terrain_mesh = TerrainMesh::new(&device);
-        let terrain_render_pipeline = {
-            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("terrain_pipeline_layout"),
-                bind_group_layouts: &[camera_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-            use primitives::Vertex;
-            super::create_render_pipeline(
-                &device,
-                &layout,
-                color_format,
-                Some(primitives::Texture::DEPTH_FORMAT),
-                &[TerrainVertex::desc()],
-                terrain_shader,
-                "terrain_pipeline",
-            )
-        };
+        use primitives::Vertex;
+        let terrain_render_pipeline = super::create_render_pipeline(
+            &device,
+            &[camera_bind_group_layout],
+            color_format,
+            Some(primitives::Texture::DEPTH_FORMAT),
+            &[TerrainVertex::desc()],
+            terrain_shader,
+            "terrain",
+        );
 
         Self {
             // device,
