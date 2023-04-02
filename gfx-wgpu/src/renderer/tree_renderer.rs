@@ -1,7 +1,8 @@
+use super::model_renderer;
+use super::model_renderer::{ModelRenderer, RenderModel};
+use super::simple_renderer;
 use super::simple_renderer::{RenderSimpleModel, SimpleRenderer};
-use crate::primitives;
-use crate::primitives::{DBuffer, Instance, InstanceRaw, Model};
-use crate::renderer::simple_renderer;
+use crate::primitives::{DBuffer, Instance, InstanceRaw};
 
 use utils::id::TreeId;
 
@@ -18,11 +19,9 @@ pub type TreeMap = BTreeMap<u128, HashMap<TreeId, InstanceRaw>>;
 pub struct TreeState {
     device: Rc<wgpu::Device>,
     queue: Rc<wgpu::Queue>,
-    tree_render_pipeline: wgpu::RenderPipeline,
     tree_map: TreeMap,
     /// TODO in the future we need to have a buffer for every model probably.
     tree_buffer: DBuffer,
-    tree_model: Model,
     tool_buffer: DBuffer,
     color_buffer: Buffer,
 
@@ -32,32 +31,7 @@ pub struct TreeState {
 }
 
 impl TreeState {
-    pub fn new(
-        device: Rc<wgpu::Device>,
-        queue: Rc<wgpu::Queue>,
-        color_format: wgpu::TextureFormat,
-        camera_bind_group_layout: &wgpu::BindGroupLayout,
-        // the following parameters should be removed after simpler rendering of road markers.
-        texture_bind_group_layout: &wgpu::BindGroupLayout,
-        light_bind_group_layout: &wgpu::BindGroupLayout,
-        basic_shader: wgpu::ShaderModule,
-        tree_model: Model,
-    ) -> Self {
-        use primitives::Vertex;
-        let tree_render_pipeline = super::create_render_pipeline(
-            &device,
-            &[
-                &texture_bind_group_layout,
-                &camera_bind_group_layout,
-                &light_bind_group_layout,
-            ],
-            color_format,
-            Some(primitives::Texture::DEPTH_FORMAT),
-            &[primitives::ModelVertex::desc(), InstanceRaw::desc()],
-            basic_shader,
-            "tree",
-        );
-
+    pub fn new(device: Rc<wgpu::Device>, queue: Rc<wgpu::Queue>) -> Self {
         let tree_buffer = DBuffer::new("tree_buffer", wgpu::BufferUsages::VERTEX, &device);
         let tool_buffer = DBuffer::new("tree_tool_buffer", wgpu::BufferUsages::VERTEX, &device);
         let markers_buffer =
@@ -72,11 +46,9 @@ impl TreeState {
         Self {
             device,
             queue,
-            tree_render_pipeline,
             tree_map: BTreeMap::new(),
             tree_buffer,
             tool_buffer,
-            tree_model,
             color_buffer,
 
             markers_buffer,
@@ -104,10 +76,6 @@ impl TreeState {
 
     fn num_trees(&self) -> u32 {
         self.tree_map.values().map(|m| m.len()).sum::<usize>() as u32
-    }
-
-    fn get_markings_buffer(&self) -> &DBuffer {
-        &self.markers_buffer
     }
 }
 
@@ -213,8 +181,7 @@ pub trait RenderTrees<'a> {
         &mut self,
         tree_state: &'a TreeState,
         simple_renderer: &'a SimpleRenderer,
-        camera_bind_group: &'a wgpu::BindGroup,
-        light_bind_group: &'a wgpu::BindGroup,
+        model_renderer: &'a ModelRenderer,
     );
 }
 
@@ -226,38 +193,27 @@ where
         &mut self,
         tree_state: &'a TreeState,
         simple_renderer: &'a SimpleRenderer,
-        camera_bind_group: &'a wgpu::BindGroup,
-        light_bind_group: &'a wgpu::BindGroup,
+        model_renderer: &'a ModelRenderer,
     ) {
-        if let Some(buffer_slice) = tree_state.tree_buffer.get_buffer_slice() {
-            use primitives::DrawModel;
-            self.set_vertex_buffer(1, buffer_slice);
-            self.set_pipeline(&tree_state.tree_render_pipeline);
-            self.draw_model_instanced(
-                &tree_state.tree_model,
-                0..tree_state.num_trees(),
-                &camera_bind_group,
-                &light_bind_group,
-            );
-        };
+        self.render_model(
+            model_renderer,
+            model_renderer::TREE_MODEL,
+            &tree_state.tree_buffer,
+            tree_state.num_trees(),
+        );
 
-        if let Some(buffer_slice) = tree_state.tool_buffer.get_buffer_slice() {
-            use primitives::DrawModel;
-            self.set_vertex_buffer(1, buffer_slice);
-            self.set_pipeline(&tree_state.tree_render_pipeline);
-            self.draw_model_instanced(
-                &tree_state.tree_model,
-                0..tree_state.num_tool_trees,
-                &camera_bind_group,
-                &light_bind_group,
-            );
-        };
+        self.render_model(
+            model_renderer,
+            model_renderer::TREE_MODEL,
+            &tree_state.tool_buffer,
+            tree_state.num_markers,
+        );
 
         self.render_simple_model(
             simple_renderer,
             simple_renderer::TORUS_MODEL,
             Vec4::new(1.0, 0.5, 0.2, 0.8),
-            tree_state.get_markings_buffer(),
+            &tree_state.markers_buffer,
             tree_state.num_markers,
         );
     }

@@ -14,23 +14,6 @@ use std::rc::Rc;
 
 use super::simple_renderer::{self, SimpleRenderer};
 
-pub struct RoadState {
-    device: Rc<wgpu::Device>,
-    queue: Rc<wgpu::Queue>,
-
-    road_buffer: RoadBuffer,
-    tool_buffer: RoadBuffer,
-    marked_buffer: RoadBuffer,
-
-    road_render_pipeline: wgpu::RenderPipeline,
-
-    road_meshes: HashMap<SegmentId, RoadMesh>,
-    marked_meshes: Vec<SegmentId>,
-
-    markers_buffer: DBuffer,
-    num_markers: u32,
-}
-
 /// The information needed on gpu to render a set of road meshes.
 struct RoadBuffer {
     pub mesh_buffer: VIBuffer,
@@ -111,53 +94,59 @@ fn empty_road_mesh() -> RoadMesh {
     }
 }
 
+pub struct RoadState {
+    device: Rc<wgpu::Device>,
+    queue: Rc<wgpu::Queue>,
+    camera_bind_group: Rc<wgpu::BindGroup>,
+
+    road_buffer: RoadBuffer,
+    tool_buffer: RoadBuffer,
+    marked_buffer: RoadBuffer,
+
+    road_render_pipeline: wgpu::RenderPipeline,
+
+    road_meshes: HashMap<SegmentId, RoadMesh>,
+    marked_meshes: Vec<SegmentId>,
+
+    markers_buffer: DBuffer,
+    num_markers: u32,
+}
+
 impl RoadState {
     pub fn new(
         device: Rc<wgpu::Device>,
         queue: Rc<wgpu::Queue>,
         color_format: wgpu::TextureFormat,
         road_shader: wgpu::ShaderModule,
-        camera_bind_group_layout: &wgpu::BindGroupLayout,
-    ) -> Self {
-        let road_color_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("road_color_bind_group_layout"),
-            });
 
+        camera_bind_group: Rc<wgpu::BindGroup>,
+        camera_bind_group_layout: &wgpu::BindGroupLayout,
+        color_bind_group_layout: &wgpu::BindGroupLayout,
+    ) -> Self {
         let (_, asphalt_color) = create_color(
             &device,
-            &road_color_bind_group_layout,
+            &color_bind_group_layout,
             Vec4::new(0.12, 0.12, 0.12, 1.0),
             "asphalt",
         );
         let asphalt_color = Rc::new(asphalt_color);
         let (_, markings_color) = create_color(
             &device,
-            &road_color_bind_group_layout,
+            &color_bind_group_layout,
             Vec4::new(0.95, 0.95, 0.95, 1.0),
             "markings",
         );
         let markings_color = Rc::new(markings_color);
         let (_, tool_color) = create_color(
             &device,
-            &road_color_bind_group_layout,
+            &color_bind_group_layout,
             Vec4::new(0.1, 0.1, 0.6, 0.5),
             "asphalt",
         );
         let tool_color = Rc::new(tool_color);
         let (_, marked_color) = create_color(
             &device,
-            &road_color_bind_group_layout,
+            &color_bind_group_layout,
             Vec4::new(1.0, 0.0, 0.1, 0.7),
             "marked",
         );
@@ -173,7 +162,7 @@ impl RoadState {
             &device,
             &[
                 camera_bind_group_layout,
-                &road_color_bind_group_layout,
+                &color_bind_group_layout,
                 //&texture_bind_group_layout,
             ],
             color_format,
@@ -205,6 +194,7 @@ impl RoadState {
         Self {
             device,
             queue,
+            camera_bind_group,
             road_buffer,
             tool_buffer,
             marked_buffer,
@@ -230,10 +220,6 @@ impl RoadState {
         let marked_mesh = combine_road_meshes(&self.road_meshes, &self.marked_meshes);
         self.marked_buffer
             .write(&self.queue, &self.device, marked_mesh);
-    }
-
-    fn get_markers_buffer(&self) -> &DBuffer {
-        &self.markers_buffer
     }
 }
 
@@ -338,26 +324,16 @@ fn combine_road_meshes(
 /// A trait used by the main renderer to render the roads.
 pub trait RenderRoad<'a> {
     /// The function that implements rendering for roads.
-    fn render_roads(
-        &mut self,
-        road_state: &'a RoadState,
-        simple_renderer: &'a SimpleRenderer,
-        camera_bind_group: &'a wgpu::BindGroup,
-    );
+    fn render_roads(&mut self, road_state: &'a RoadState, simple_renderer: &'a SimpleRenderer);
 }
 
 impl<'a, 'b> RenderRoad<'b> for wgpu::RenderPass<'a>
 where
     'b: 'a,
 {
-    fn render_roads(
-        &mut self,
-        road_state: &'b RoadState,
-        simple_renderer: &'a SimpleRenderer,
-        camera_bind_group: &'b wgpu::BindGroup,
-    ) {
+    fn render_roads(&mut self, road_state: &'b RoadState, simple_renderer: &'a SimpleRenderer) {
         self.set_pipeline(&road_state.road_render_pipeline);
-        self.set_bind_group(0, camera_bind_group, &[]);
+        self.set_bind_group(0, &road_state.camera_bind_group, &[]);
         self.render(&road_state.road_buffer);
         self.render(&road_state.tool_buffer);
         self.render(&road_state.marked_buffer);
@@ -377,7 +353,7 @@ where
             simple_renderer,
             simple_renderer::ARROW_MODEL,
             Vec4::new(1.0, 0.2, 0.3, 0.9),
-            road_state.get_markers_buffer(),
+            &road_state.markers_buffer,
             road_state.num_markers,
         );
     }

@@ -1,3 +1,4 @@
+mod model_renderer;
 mod road_renderer;
 mod simple_renderer;
 pub mod terrain_renderer;
@@ -81,12 +82,13 @@ pub struct GfxState {
     obj_model: primitives::Model,
     light_uniform: LightUniform,
     light_buffer: wgpu::Buffer,
-    light_bind_group: wgpu::BindGroup,
+    light_bind_group: Rc<wgpu::BindGroup>,
     light_render_pipeline: wgpu::RenderPipeline,
     terrain_renderer: terrain_renderer::TerrainState,
     road_renderer: road_renderer::RoadState,
     tree_renderer: tree_renderer::TreeState,
     simple_renderer: simple_renderer::SimpleRenderer,
+    model_renderer: model_renderer::ModelRenderer,
 }
 
 impl GfxState {
@@ -255,14 +257,14 @@ impl GfxState {
                 label: None,
             });
 
-        let light_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let light_bind_group = Rc::new(device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &light_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: light_buffer.as_entire_binding(),
             }],
             label: None,
-        });
+        }));
 
         let depth_texture =
             primitives::Texture::create_depth_texture(&device, &config, "depth_texture");
@@ -333,21 +335,14 @@ impl GfxState {
             Rc::clone(&queue),
             config.format,
             shaders.remove(crate::shaders::ROAD).unwrap(),
+            Rc::clone(&camera_bind_group),
             &camera_bind_group_layout,
+            &light_bind_group_layout,
         );
 
         timer.emit("road_time");
 
-        let tree_renderer = tree_renderer::TreeState::new(
-            Rc::clone(&device),
-            Rc::clone(&queue),
-            config.format,
-            &camera_bind_group_layout,
-            &texture_bind_group_layout,
-            &light_bind_group_layout,
-            shaders.remove(crate::shaders::BASIC).unwrap(),
-            tree_model,
-        );
+        let tree_renderer = tree_renderer::TreeState::new(Rc::clone(&device), Rc::clone(&queue));
 
         timer.emit("tree_time");
 
@@ -365,6 +360,20 @@ impl GfxState {
             Rc::clone(&camera_bind_group),
             &camera_bind_group_layout,
             &color_bind_group_layout,
+        );
+
+        let mut models = HashMap::new();
+        models.insert(model_renderer::TREE_MODEL, tree_model);
+        let model_renderer = model_renderer::ModelRenderer::new(
+            Rc::clone(&device),
+            config.format,
+            models,
+            shaders.remove(crate::shaders::BASIC).unwrap(),
+            &texture_bind_group_layout,
+            &camera_bind_group_layout,
+            &light_bind_group_layout,
+            Rc::clone(&camera_bind_group),
+            Rc::clone(&light_bind_group),
         );
 
         Self {
@@ -388,6 +397,7 @@ impl GfxState {
             road_renderer,
             tree_renderer,
             simple_renderer,
+            model_renderer,
         }
     }
 }
@@ -453,18 +463,13 @@ impl gfx_api::Gfx for GfxState {
             );
 
             use road_renderer::RenderRoad;
-            render_pass.render_roads(
-                &self.road_renderer,
-                &self.simple_renderer,
-                &self.camera_bind_group,
-            );
+            render_pass.render_roads(&self.road_renderer, &self.simple_renderer);
 
             use tree_renderer::RenderTrees;
             render_pass.render_trees(
                 &self.tree_renderer,
                 &self.simple_renderer,
-                &self.camera_bind_group,
-                &self.light_bind_group,
+                &self.model_renderer,
             );
         }
 

@@ -56,10 +56,12 @@ impl TreePlopperTool {
         world: Box<dyn WorldManipulator>,
         ground_pos: Vec3,
     ) -> Self {
-        Self {
+        let mut tree_plopper_tool = Self {
             gfx_handle,
             world,
             ground_pos,
-        }
+        };
+        tree_plopper_tool.update_ground_pos(ground_pos);
+        tree_plopper_tool
     }
 }
