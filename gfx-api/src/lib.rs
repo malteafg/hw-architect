@@ -14,8 +14,8 @@ use utils::id::{SegmentId, TreeId};
 
 /// This trait defines all the behavior that a gpu backend must implement to render all of
 /// hw-architect.
-pub trait GfxSuper: Gfx + GfxWorldData + GfxCameraData {}
-impl<T: Gfx + GfxWorldData + GfxCameraData> GfxSuper for T {}
+pub trait GfxSuper: Gfx + GfxWorldData + GfxCameraData + GfxCarData {}
+impl<T: Gfx + GfxWorldData + GfxCameraData + GfxCarData> GfxSuper for T {}
 
 /// This trait defines how a gpu backend should be interacted with
 pub trait Gfx {
@@ -75,4 +75,8 @@ pub trait GfxTreeData {
     fn mark_trees(&mut self, ids: Vec<TreeId>);
     fn set_tree_markers(&mut self, positions: Vec<[f32; 3]>, color: Option<colors::RGBAColor>);
     fn set_tree_tool(&mut self, model_id: u128, trees: Vec<([f32; 3], f32)>);
+}
+
+pub trait GfxCarData {
+    fn set_cars(&mut self, pos_yrots: Vec<([f32; 3], f32)>);
 }

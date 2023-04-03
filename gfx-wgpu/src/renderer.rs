@@ -295,3 +295,7 @@ impl gfx_api::GfxCameraData for GfxState {
         self.camera.compute_ray(mouse_pos, camera)
     }
 }
+
+impl gfx_api::GfxCarData for GfxState {
+    fn set_cars(&mut self, _pos_yrots: Vec<([f32; 3], f32)>) {}
+}

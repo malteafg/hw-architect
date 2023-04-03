@@ -104,6 +104,7 @@ impl State {
     }
 
     pub fn render(&mut self) -> Result<(), gfx_api::GfxFrameError> {
+        self.tool.prepare_gfx();
         self.gfx_handle.borrow_mut().render()
     }
 }

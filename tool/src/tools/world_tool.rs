@@ -52,60 +52,37 @@ impl WorldTool {
     }
 
     fn enter_bulldoze_mode(&mut self) {
-        let mut old_tool = std::mem::replace(&mut self.curr_tool_handle, Box::new(DummyTool));
-        old_tool.clean_gfx();
-        let (tool_state, world) = old_tool.destroy();
-
         self.curr_tool = ToolMarker::Bulldoze;
-        self.curr_tool_handle = Box::new(ToolInstance::<BulldozeTool>::new(
-            Rc::clone(&self.gfx_handle),
-            tool_state,
-            world,
-            self.ground_pos,
-        ));
-        self.curr_tool_handle.init();
+        self.enter_tool::<BulldozeTool>();
     }
 
     fn enter_construct_mode(&mut self) {
-        let mut old_tool = std::mem::replace(&mut self.curr_tool_handle, Box::new(DummyTool));
-        old_tool.clean_gfx();
-        let (tool_state, world) = old_tool.destroy();
-
         self.saved_tool = None;
         self.curr_tool = ToolMarker::Construct;
-        self.curr_tool_handle = Box::new(ToolInstance::<ConstructTool>::new(
-            Rc::clone(&self.gfx_handle),
-            tool_state,
-            world,
-            self.ground_pos,
-        ));
-        self.curr_tool_handle.init();
+        self.enter_tool::<ConstructTool>();
     }
 
     fn enter_tree_plopper_mode(&mut self) {
-        let mut old_tool = std::mem::replace(&mut self.curr_tool_handle, Box::new(DummyTool));
-        old_tool.clean_gfx();
-        let (tool_state, world) = old_tool.destroy();
-
         self.saved_tool = None;
         self.curr_tool = ToolMarker::TreePlopper;
-        self.curr_tool_handle = Box::new(ToolInstance::<TreePlopperTool>::new(
-            Rc::clone(&self.gfx_handle),
-            tool_state,
-            world,
-            self.ground_pos,
-        ));
-        self.curr_tool_handle.init();
+        self.enter_tool::<TreePlopperTool>();
     }
 
     fn enter_no_tool(&mut self) {
+        self.saved_tool = None;
+        self.curr_tool = ToolMarker::NoTool;
+        self.enter_tool::<NoTool>();
+    }
+
+    fn enter_tool<A: Default + 'static>(&mut self)
+    where
+        ToolInstance<A>: Tool,
+    {
         let mut old_tool = std::mem::replace(&mut self.curr_tool_handle, Box::new(DummyTool));
         old_tool.clean_gfx();
         let (tool_state, world) = old_tool.destroy();
 
-        self.saved_tool = None;
-        self.curr_tool = ToolMarker::NoTool;
-        self.curr_tool_handle = Box::new(ToolInstance::<NoTool>::new(
+        self.curr_tool_handle = Box::new(ToolInstance::<A>::new(
             Rc::clone(&self.gfx_handle),
             tool_state,
             world,
@@ -166,6 +143,10 @@ impl WorldTool {
         self.ground_pos = ground_pos;
         self.curr_tool_handle.update_ground_pos(ground_pos);
         self.curr_tool_handle.update_view();
+    }
+
+    pub fn prepare_gfx(&mut self) {
+        self.gfx_handle.borrow_mut().set_cars(vec![]);
     }
 }
 

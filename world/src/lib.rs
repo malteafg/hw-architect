@@ -6,7 +6,9 @@
 pub mod nature;
 pub mod roads;
 
-use world_api::{IdGetter, RoadManipulator, TreeManipulator, WorldManipulator};
+use world_api::{
+    IdGetter, RoadManipulator, SimController, SimData, TreeManipulator, WorldManipulator,
+};
 use world_api::{LRoadBuilder, NodeType, Side, SnapConfig, Tree};
 
 use nature::Trees;
@@ -79,10 +81,6 @@ impl TreeManipulator for World {
         self.trees.remove_tree(tree_id)
     }
 
-    // fn get_trees(&self) -> &TreeMap {
-    //     self.trees.get_trees()
-    // }
-
     fn get_tree_pos(&self, id: TreeId) -> Vec3 {
         self.trees.get_tree_pos(id)
     }
@@ -99,5 +97,16 @@ impl IdGetter for World {
 
     fn get_tree_from_pos(&self, pos: Vec3) -> Option<TreeId> {
         self.trees.get_tree_from_pos(pos)
+    }
+}
+
+impl SimController for World {
+    fn pause(&mut self) {}
+    fn unpause(&mut self) {}
+}
+
+impl SimData for World {
+    fn get_cars(&self) -> Vec<([f32; 3], f32)> {
+        vec![]
     }
 }

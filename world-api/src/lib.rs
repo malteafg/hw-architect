@@ -13,7 +13,10 @@ pub use tree::*;
 use glam::Vec3;
 use utils::id::{NodeId, SegmentId, TreeId};
 
-pub trait WorldManipulator: RoadManipulator + TreeManipulator + IdGetter {}
+pub trait WorldManipulator:
+    RoadManipulator + TreeManipulator + IdGetter + SimController + SimData
+{
+}
 
 pub trait RoadManipulator {
     /// The node_type parameter is temporary until implementation of transition segments.
@@ -61,4 +64,13 @@ pub trait IdGetter {
     fn get_segment_from_pos(&self, pos: Vec3) -> Option<SegmentId>;
     /// Returns the first tree found that contains the given position.
     fn get_tree_from_pos(&self, pos: Vec3) -> Option<TreeId>;
+}
+
+pub trait SimController {
+    fn pause(&mut self);
+    fn unpause(&mut self);
+}
+
+pub trait SimData {
+    fn get_cars(&self) -> Vec<([f32; 3], f32)>;
 }
