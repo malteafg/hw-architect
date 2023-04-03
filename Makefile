@@ -20,3 +20,13 @@ doc-all:
 
 browse:
 	cargo doc --no-deps --workspace --document-private-items --open
+
+loc:
+	loc app
+	loc gfx-api
+	loc gfx-wgpu
+	loc tool
+	loc utils
+	loc world
+	loc world-api
+	loc
