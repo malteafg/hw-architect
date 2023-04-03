@@ -2,14 +2,12 @@ use super::model_renderer::{ModelRenderer, RenderModel};
 use super::simple_renderer::{RenderSimpleModel, SimpleRenderer};
 use crate::primitives::{DBuffer, Instance, InstanceRaw};
 use crate::resources;
+use gfx_api::colors;
 
 use utils::id::TreeId;
 
 use glam::*;
-use wgpu::util::DeviceExt;
-use wgpu::Buffer;
 
-use rand::Rng;
 use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
@@ -22,9 +20,9 @@ pub struct TreeState {
     /// TODO in the future we need to have a buffer for every model probably.
     tree_buffer: DBuffer,
     tool_buffer: DBuffer,
-    color_buffer: Buffer,
-
     markers_buffer: DBuffer,
+
+    markers_color: colors::RGBAColor,
     num_markers: u32,
     num_tool_trees: u32,
 }
@@ -35,12 +33,7 @@ impl TreeState {
         let tool_buffer = DBuffer::new("tree_tool_buffer", wgpu::BufferUsages::VERTEX, &device);
         let markers_buffer =
             DBuffer::new("tree_markers_buffer", wgpu::BufferUsages::VERTEX, &device);
-
-        let color_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("simple_color_buffer"),
-            contents: bytemuck::cast_slice(&[Vec4::new(1.0, 0.2, 0.8, 0.7)]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
+        let markers_color = colors::DEFAULT;
 
         Self {
             device,
@@ -48,9 +41,9 @@ impl TreeState {
             tree_map: BTreeMap::new(),
             tree_buffer,
             tool_buffer,
-            color_buffer,
-
             markers_buffer,
+
+            markers_color,
             num_markers: 0,
             num_tool_trees: 0,
         }
@@ -63,9 +56,6 @@ impl TreeState {
             .flat_map(|model_map| model_map.values().map(|t| *t))
             .collect();
 
-        let color = Vec4::new(rand::thread_rng().gen_range(0. ..1.), 0.5, 0.2, 0.8);
-        self.queue
-            .write_buffer(&self.color_buffer, 0, &bytemuck::cast_slice(&[color]));
         self.tree_buffer.write(
             &self.queue,
             &self.device,
@@ -137,7 +127,7 @@ impl gfx_api::GfxTreeData for TreeState {
         // );
     }
 
-    fn set_tree_markers(&mut self, positions: Vec<[f32; 3]>) {
+    fn set_tree_markers(&mut self, positions: Vec<[f32; 3]>, color: Option<colors::RGBAColor>) {
         self.num_markers = positions.len() as u32;
         let instance_data = positions
             .into_iter()
@@ -149,6 +139,9 @@ impl gfx_api::GfxTreeData for TreeState {
             })
             .collect::<Vec<_>>();
 
+        if let Some(color) = color {
+            self.markers_color = color;
+        }
         self.markers_buffer.write(
             &self.queue,
             &self.device,
@@ -209,7 +202,7 @@ where
         self.render_simple_model(
             simple_renderer,
             resources::simple_models::TORUS_MODEL,
-            Vec4::new(1.0, 0.5, 0.2, 0.8),
+            tree_state.markers_color,
             &tree_state.markers_buffer,
             tree_state.num_markers,
         );

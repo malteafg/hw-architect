@@ -4,7 +4,7 @@ use crate::primitives::{
 use crate::render_utils::*;
 use crate::resources::simple_models::{SimpleModelId, SimpleModelMap};
 
-use glam::Vec4;
+use gfx_api::colors;
 
 use std::rc::Rc;
 
@@ -47,7 +47,7 @@ impl SimpleRenderer {
         let (color_buffer, color_bind_group) = create_color(
             &device,
             color_bind_group_layout,
-            Vec4::new(1.0, 0.2, 0.5, 1.0),
+            colors::DEFAULT,
             "simple_color",
         );
 
@@ -65,9 +65,9 @@ impl SimpleRenderer {
         }
     }
 
-    fn update_color(&self, color: Vec4) {
+    fn update_color(&self, color: colors::RGBAColor) {
         self.queue
-            .write_buffer(&self.color_buffer, 0, &bytemuck::cast_slice(&[color]));
+            .write_buffer(&self.color_buffer, 0, &bytemuck::cast_slice(&color));
     }
 }
 
@@ -76,7 +76,7 @@ pub trait RenderSimpleModel<'a> {
         &mut self,
         simple_renderer: &'a SimpleRenderer,
         model: SimpleModelId,
-        color: Vec4,
+        color: colors::RGBAColor,
         instances_buffer: &'a DBuffer,
         no_instances: u32,
     );
@@ -90,7 +90,7 @@ where
         &mut self,
         simple_renderer: &'a SimpleRenderer,
         model: SimpleModelId,
-        color: Vec4,
+        color: colors::RGBAColor,
         instances_buffer: &'a DBuffer,
         no_instances: u32,
     ) {

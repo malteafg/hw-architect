@@ -28,7 +28,7 @@ pub trait RoadManipulator {
 
     /// Returns a list of node id's that have an open slot for the selected road type to snap to
     /// together with that nodes pos and dir.
-    /// If reverse parameter is set to {`None`}, then no direction is checked when matching nodes.
+    /// If side parameter is set to {`None`}, then no direction is checked when matching nodes.
     fn get_possible_snap_nodes(
         &self,
         side: Option<Side>,
@@ -53,8 +53,6 @@ pub trait TreeManipulator {
     fn add_tree(&mut self, tree: Tree, model_id: u128) -> TreeId;
     /// Returns the model_id of the tree that has been removed.
     fn remove_tree(&mut self, tree_id: TreeId) -> u128;
-    /// Remove this and do something similar as for road segments.
-    // fn get_trees(&self) -> &TreeMap;
     fn get_tree_pos(&self, id: TreeId) -> Vec3;
 }
 

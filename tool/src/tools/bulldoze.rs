@@ -5,7 +5,10 @@ use super::ToolStrategy;
 use utils::input;
 use world_api::WorldManipulator;
 
-use gfx_api::GfxSuper;
+use gfx_api::{
+    colors::{self, rgba_d},
+    GfxSuper,
+};
 use glam::*;
 
 use std::cell::RefCell;
@@ -77,7 +80,7 @@ impl ToolStrategy for BulldozeTool {
 
     /// Unmark any marked segment.
     fn destroy(self: Box<Self>) -> Box<dyn WorldManipulator> {
-        self.gfx_handle.borrow_mut().set_tree_markers(vec![]);
+        self.gfx_handle.borrow_mut().set_tree_markers(vec![], None);
         self.gfx_handle.borrow_mut().mark_road_segments(vec![]);
         self.world
     }
@@ -109,14 +112,15 @@ impl BulldozeTool {
     }
 
     fn update_markings(&mut self) {
-        self.gfx_handle.borrow_mut().set_tree_markers(vec![]);
+        self.gfx_handle.borrow_mut().set_tree_markers(vec![], None);
         self.gfx_handle.borrow_mut().mark_road_segments(vec![]);
 
         if self.bd_trees() {
             if let Some(id) = self.world.get_tree_from_pos(self.ground_pos) {
-                self.gfx_handle
-                    .borrow_mut()
-                    .set_tree_markers(vec![self.world.get_tree_pos(id).into()]);
+                self.gfx_handle.borrow_mut().set_tree_markers(
+                    vec![self.world.get_tree_pos(id).into()],
+                    Some(rgba_d(colors::RED)),
+                );
                 return;
             }
         }

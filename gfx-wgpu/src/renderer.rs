@@ -12,7 +12,7 @@ use crate::resources;
 
 use utils::id::{SegmentId, TreeId};
 
-use gfx_api::{GfxFrameError, RawCameraData, RoadMesh};
+use gfx_api::{colors, GfxFrameError, RawCameraData, RoadMesh};
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -273,8 +273,10 @@ impl gfx_api::GfxTreeData for GfxState {
         self.main_renderer.tree_renderer.mark_trees(ids);
     }
 
-    fn set_tree_markers(&mut self, positions: Vec<[f32; 3]>) {
-        self.main_renderer.tree_renderer.set_tree_markers(positions);
+    fn set_tree_markers(&mut self, positions: Vec<[f32; 3]>, color: Option<colors::RGBAColor>) {
+        self.main_renderer
+            .tree_renderer
+            .set_tree_markers(positions, color);
     }
 
     fn set_tree_tool(&mut self, model_id: u128, tree: Vec<([f32; 3], f32)>) {

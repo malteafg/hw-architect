@@ -4,7 +4,10 @@ use super::ToolStrategy;
 use world_api::Tree;
 use world_api::WorldManipulator;
 
-use gfx_api::GfxSuper;
+use gfx_api::{
+    colors::{self, rgba_d},
+    GfxSuper,
+};
 
 use glam::Vec3;
 
@@ -45,20 +48,20 @@ impl ToolStrategy for TreePlopperTool {
                 .set_tree_tool(0, vec![(tree.pos().into(), tree.yrot())]);
             self.gfx_handle
                 .borrow_mut()
-                .set_tree_markers(vec![ground_pos.to_array()]);
+                .set_tree_markers(vec![ground_pos.to_array()], Some(rgba_d(colors::GREEN)));
             self.tool = Some(tree);
         } else {
             self.gfx_handle.borrow_mut().set_tree_tool(0, vec![]);
             self.gfx_handle
                 .borrow_mut()
-                .set_tree_markers(vec![ground_pos.to_array()]);
+                .set_tree_markers(vec![ground_pos.to_array()], Some(rgba_d(colors::RED)));
             self.tool = None;
         }
     }
 
     fn destroy(self: Box<Self>) -> Box<dyn WorldManipulator> {
         self.gfx_handle.borrow_mut().set_tree_tool(0, vec![]);
-        self.gfx_handle.borrow_mut().set_tree_markers(vec![]);
+        self.gfx_handle.borrow_mut().set_tree_markers(vec![], None);
         self.world
     }
 }

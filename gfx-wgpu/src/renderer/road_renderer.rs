@@ -7,6 +7,7 @@ use crate::resources;
 use utils::id::SegmentId;
 
 // temporary, remove once proper road markings
+use gfx_api::colors::{self, rgba};
 use gfx_api::RoadMesh;
 use glam::*;
 
@@ -110,6 +111,7 @@ pub struct RoadState {
     marked_meshes: Vec<SegmentId>,
 
     markers_buffer: DBuffer,
+    markers_color: colors::RGBAColor,
     num_markers: u32,
 }
 
@@ -127,28 +129,28 @@ impl RoadState {
         let (_, asphalt_color) = create_color(
             &device,
             &color_bind_group_layout,
-            Vec4::new(0.12, 0.12, 0.12, 1.0),
+            rgba(colors::ASPHALT_COLOR, 1.0),
             "asphalt",
         );
         let asphalt_color = Rc::new(asphalt_color);
         let (_, markings_color) = create_color(
             &device,
             &color_bind_group_layout,
-            Vec4::new(0.95, 0.95, 0.95, 1.0),
+            rgba(colors::LANE_MARKINGS_COLOR, 1.0),
             "markings",
         );
         let markings_color = Rc::new(markings_color);
         let (_, tool_color) = create_color(
             &device,
             &color_bind_group_layout,
-            Vec4::new(0.1, 0.1, 0.6, 0.5),
+            rgba(colors::LIGHT_BLUE, 0.5),
             "asphalt",
         );
         let tool_color = Rc::new(tool_color);
         let (_, marked_color) = create_color(
             &device,
             &color_bind_group_layout,
-            Vec4::new(1.0, 0.0, 0.1, 0.7),
+            rgba(colors::RED, 0.7),
             "marked",
         );
         let marked_color = Rc::new(marked_color);
@@ -191,6 +193,7 @@ impl RoadState {
         // )
 
         let markers_buffer = DBuffer::new("markers_buffer", wgpu::BufferUsages::VERTEX, &device);
+        let markers_color = rgba(colors::RED, 0.8);
 
         Self {
             device,
@@ -203,6 +206,7 @@ impl RoadState {
             road_meshes: HashMap::new(),
             marked_meshes: Vec::new(),
             markers_buffer,
+            markers_color,
             num_markers: 0,
         }
     }
@@ -353,7 +357,7 @@ where
         self.render_simple_model(
             simple_renderer,
             resources::simple_models::ARROW_MODEL,
-            Vec4::new(1.0, 0.2, 0.3, 0.9),
+            road_state.markers_color,
             &road_state.markers_buffer,
             road_state.num_markers,
         );

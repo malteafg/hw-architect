@@ -3,7 +3,7 @@ use wgpu::util::DeviceExt;
 pub fn create_color(
     device: &wgpu::Device,
     bind_group_layout: &wgpu::BindGroupLayout,
-    init_color: glam::Vec4,
+    init_color: gfx_api::colors::RGBAColor,
     buffer_name: &str,
 ) -> (wgpu::Buffer, wgpu::BindGroup) {
     let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
