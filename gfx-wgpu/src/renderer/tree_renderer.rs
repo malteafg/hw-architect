@@ -157,13 +157,11 @@ impl gfx_api::GfxTreeData for TreeState {
     }
 
     /// model_id should be used when there are several trees models.
-    fn set_tree_tool(&mut self, _model_id: u128, trees: Vec<[f32; 3]>) {
+    fn set_tree_tool(&mut self, _model_id: u128, trees: Vec<([f32; 3], f32)>) {
         self.num_tool_trees = trees.len() as u32;
         let instance_data = trees
             .into_iter()
-            .map(|pos| {
-                Instance::to_raw(&Instance::new(Vec3::from_array(pos), glam::Quat::IDENTITY))
-            })
+            .map(|(pos, yrot)| tree_to_raw(pos, yrot))
             .collect::<Vec<_>>();
 
         self.tool_buffer.write(

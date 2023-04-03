@@ -73,5 +73,5 @@ pub trait GfxTreeData {
     fn remove_tree(&mut self, tree_id: TreeId, model_id: u128);
     fn mark_trees(&mut self, ids: Vec<TreeId>);
     fn set_tree_markers(&mut self, positions: Vec<[f32; 3]>);
-    fn set_tree_tool(&mut self, model_id: u128, trees: Vec<[f32; 3]>);
+    fn set_tree_tool(&mut self, model_id: u128, trees: Vec<([f32; 3], f32)>);
 }

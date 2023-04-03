@@ -277,7 +277,7 @@ impl gfx_api::GfxTreeData for GfxState {
         self.main_renderer.tree_renderer.set_tree_markers(positions);
     }
 
-    fn set_tree_tool(&mut self, model_id: u128, tree: Vec<[f32; 3]>) {
+    fn set_tree_tool(&mut self, model_id: u128, tree: Vec<([f32; 3], f32)>) {
         self.main_renderer
             .tree_renderer
             .set_tree_tool(model_id, tree);
