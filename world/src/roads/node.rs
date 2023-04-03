@@ -584,7 +584,6 @@ mod lanes {
                     return i as u8;
                 }
             }
-            #[cfg(debug_assertions)]
             panic!("Requested segment_id does not exist in node");
         }
 

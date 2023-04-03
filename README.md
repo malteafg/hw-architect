@@ -20,6 +20,8 @@ Have Simon do this.
   points.
 - It is very important parallel segments always have the exact same distance to each other.
 
+### group material textures in a directory and then load them before loading models
+
 ## next major things to implement
 ### super nodes
 - A super node should simply be an addition to the road_graph that points to the nodes that it
@@ -54,6 +56,7 @@ traverse the road until the end of a node.
 ## future things to implement
 ### parallel resource loading
 Load shaders, models, textures, terrain and save game (when it becomes a thing) in parallel.
+- Not as necessary anymore after using dev.opt-level=1
 
 ### multiplayer
 This should be doable by simply providing a server and a client implementation of world-api. It

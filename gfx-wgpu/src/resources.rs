@@ -67,10 +67,7 @@ fn load_models(
     queue: &wgpu::Queue,
     texture_bind_group_layout: &wgpu::BindGroupLayout,
 ) -> ModelMap {
-    let mut timer = utils::time::Timer::new();
-
     let tree_model = load_model("tree_test", &device, &queue, &texture_bind_group_layout).unwrap();
-    timer.emit("tree_model");
 
     let mut models = HashMap::new();
     models.insert(models::TREE_MODEL, tree_model);
@@ -134,8 +131,6 @@ pub fn load_model(
     queue: &wgpu::Queue,
     layout: &wgpu::BindGroupLayout,
 ) -> anyhow::Result<primitives::Model> {
-    let mut timer = utils::time::Timer::new();
-
     let path = format!("models/{file_name}/");
     let obj_text = loader::load_string(&format!("{path}{file_name}.obj"))?;
     let obj_cursor = Cursor::new(obj_text);
@@ -157,16 +152,12 @@ pub fn load_model(
         },
     )?;
 
-    timer.emit("model_loaded");
-
     let mut materials = Vec::new();
     for m in obj_materials? {
         let diffuse_path = format!("{}{}", path, m.diffuse_texture);
         let normal_path = format!("{}{}", path, m.normal_texture);
         let diffuse_texture = load_texture(&diffuse_path, false, device, queue)?;
-        timer.emit("diffuse_loaded");
         let normal_texture = load_texture(&normal_path, true, device, queue)?;
-        timer.emit("normal_loaded");
 
         materials.push(primitives::Material::new(
             device,
@@ -176,8 +167,6 @@ pub fn load_model(
             layout,
         ));
     }
-
-    timer.emit("materials_loaded");
 
     use glam::*;
 
@@ -292,7 +281,6 @@ pub fn load_model(
         })
         .collect::<Vec<_>>();
 
-    timer.emit("model_completed");
     Ok(primitives::Model { meshes, materials })
 }
 

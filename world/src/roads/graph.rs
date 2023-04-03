@@ -309,7 +309,6 @@ impl crate::RoadManipulator for RoadGraph {
         })
     }
 
-    #[cfg(debug_assertions)]
     fn debug_node(&self, id: NodeId) {
         // let mut closest_node = None;
         // for (id, n) in self.node_map.iter() {
@@ -330,7 +329,6 @@ impl crate::RoadManipulator for RoadGraph {
         dbg!(self.backward_refs.get(&id));
     }
 
-    #[cfg(debug_assertions)]
     fn debug_segment(&self, id: SegmentId) {
         dbg!("Segment: {} ----------------------", id);
         dbg!(id);

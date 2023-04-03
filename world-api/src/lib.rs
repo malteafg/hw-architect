@@ -43,9 +43,7 @@ pub trait RoadManipulator {
         node_type: NodeType,
     ) -> Option<(NodeId, Vec<SnapConfig>)>;
 
-    #[cfg(debug_assertions)]
     fn debug_node(&self, id: NodeId);
-    #[cfg(debug_assertions)]
     fn debug_segment(&self, id: SegmentId);
 }
 
