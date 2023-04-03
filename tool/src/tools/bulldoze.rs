@@ -1,38 +1,27 @@
-use crate::tool_state::ToolState;
-
-use super::ToolStrategy;
+use super::{Tool, ToolInstance, ToolStrategy};
 
 use utils::input;
-use world_api::WorldManipulator;
 
-use gfx_api::{
-    colors::{self, rgba_d},
-    GfxSuper,
-};
+use gfx_api::colors::{self, rgba_d};
 use glam::*;
 
-use std::cell::RefCell;
-use std::rc::Rc;
+#[derive(Default)]
+pub struct BulldozeTool;
 
-pub struct BulldozeTool {
-    gfx_handle: Rc<RefCell<dyn GfxSuper>>,
-    world: Box<dyn WorldManipulator>,
-    state_handle: Rc<RefCell<ToolState>>,
+impl Tool for ToolInstance<BulldozeTool> {}
 
-    ground_pos: Vec3,
-}
+impl ToolStrategy for ToolInstance<BulldozeTool> {
+    fn init(&mut self) {
+        self.update_view();
+    }
 
-impl ToolStrategy for BulldozeTool {
     fn process_keyboard(&mut self, key: input::KeyAction) {
         use input::Action::*;
         use input::KeyState::*;
         match key {
             (ToggleBulldozeRoads, Press) => {
                 let curr = self.bd_segments();
-                self.state_handle
-                    .borrow_mut()
-                    .bulldoze_state
-                    .bulldoze_segments = !curr;
+                self.state_handle.bulldoze_state.bulldoze_segments = !curr;
                 if curr {
                     self.gfx_handle.borrow_mut().mark_road_segments(vec![]);
                 }
@@ -40,7 +29,7 @@ impl ToolStrategy for BulldozeTool {
             }
             (ToggleBulldozeTrees, Press) => {
                 let curr = self.bd_trees();
-                self.state_handle.borrow_mut().bulldoze_state.bulldoze_trees = !curr;
+                self.state_handle.bulldoze_state.bulldoze_trees = !curr;
                 self.update_markings();
             }
             _ => {}
@@ -73,42 +62,24 @@ impl ToolStrategy for BulldozeTool {
 
     fn right_click(&mut self) {}
 
-    fn update_ground_pos(&mut self, ground_pos: Vec3) {
-        self.ground_pos = ground_pos;
+    fn update_view(&mut self) {
         self.update_markings();
     }
 
     /// Unmark any marked segment.
-    fn destroy(self: Box<Self>) -> Box<dyn WorldManipulator> {
+    fn clean_gfx(&mut self) {
         self.gfx_handle.borrow_mut().set_tree_markers(vec![], None);
         self.gfx_handle.borrow_mut().mark_road_segments(vec![]);
-        self.world
     }
 }
 
-impl BulldozeTool {
-    pub fn new(
-        gfx_handle: Rc<RefCell<dyn GfxSuper>>,
-        world: Box<dyn WorldManipulator>,
-        state_handle: Rc<RefCell<ToolState>>,
-        ground_pos: Vec3,
-    ) -> Self {
-        let mut tool = Self {
-            gfx_handle,
-            world,
-            state_handle,
-            ground_pos,
-        };
-        tool.update_markings();
-        tool
-    }
-
+impl ToolInstance<BulldozeTool> {
     fn bd_trees(&self) -> bool {
-        self.state_handle.borrow().bulldoze_state.bulldoze_trees
+        self.state_handle.bulldoze_state.bulldoze_trees
     }
 
     fn bd_segments(&self) -> bool {
-        self.state_handle.borrow().bulldoze_state.bulldoze_segments
+        self.state_handle.bulldoze_state.bulldoze_segments
     }
 
     fn update_markings(&mut self) {

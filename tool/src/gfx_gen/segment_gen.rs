@@ -1,11 +1,11 @@
-use utils::curves::curve_gen;
-
 use utils::consts::{LANE_MARKINGS_WIDTH, ROAD_HEIGHT};
+use utils::curves::curve_gen;
 use utils::curves::{GuidePoints, SpinePoints};
 use utils::VecUtils;
-use world_api::NodeType;
 
 use gfx_api::RoadMesh;
+use world_api::NodeType;
+
 use glam::*;
 
 const VERTEX_DENSITY: f32 = 0.05;

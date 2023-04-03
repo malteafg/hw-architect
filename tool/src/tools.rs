@@ -1,18 +1,38 @@
 mod bulldoze;
 mod construct;
 mod tree_plopper;
+mod world_tool;
 
-pub use bulldoze::BulldozeTool;
-pub use construct::ConstructTool;
-pub use tree_plopper::TreePlopperTool;
+use bulldoze::BulldozeTool;
+use construct::ConstructTool;
+use tree_plopper::TreePlopperTool;
+pub use world_tool::WorldTool;
 
+use crate::tool_state::ToolState;
+
+use gfx_api::GfxSuper;
 use utils::input;
 use world_api::WorldManipulator;
 
-pub trait ToolStrategy {
-    // type InitParameters;
+use glam::Vec3;
 
-    // fn new(params: InitParameters, selection: Selection) -> Self;
+use std::cell::RefCell;
+use std::rc::Rc;
+
+pub trait Tool: ToolStrategy + ToolShared {}
+
+pub trait ToolShared {
+    fn destroy(self: Box<Self>) -> (ToolState, Box<dyn WorldManipulator>);
+
+    fn get_state(&self) -> &ToolState;
+    fn get_world(&self) -> &Box<dyn WorldManipulator>;
+
+    fn update_ground_pos(&mut self, ground_pos: Vec3);
+}
+
+pub trait ToolStrategy {
+    /// Called when the tool is first created.
+    fn init(&mut self);
 
     /// The tool shall process the given {`KeyAction`}. This happens when a key click should be
     /// used by the tool in question.
@@ -24,11 +44,54 @@ pub trait ToolStrategy {
     /// The tool shall process a right click.
     fn right_click(&mut self);
 
-    /// This function should be called whenever there is an update to where the mouse points on the
-    /// ground. This includes mouse movement and camera movement.
-    fn update_ground_pos(&mut self, ground_pos: glam::Vec3);
+    /// This function should be called whenever there the ground_pos has been updated due to a
+    /// change in camera or cursor position.
+    fn update_view(&mut self);
 
     /// This function is used to reset whatever a tool has given to the gpu, such that the next
     /// tool can manipulate the graphics from scratch, as it desires.
-    fn destroy(self: Box<Self>) -> Box<dyn WorldManipulator>;
+    fn clean_gfx(&mut self);
+}
+
+pub struct ToolInstance<A: Default> {
+    gfx_handle: Rc<RefCell<dyn GfxSuper>>,
+    state_handle: ToolState,
+    world: Box<dyn WorldManipulator>,
+    ground_pos: Vec3,
+    self_tool: A,
+}
+
+impl<A: Default> ToolInstance<A> {
+    pub fn new(
+        gfx_handle: Rc<RefCell<dyn GfxSuper>>,
+        state_handle: ToolState,
+        world: Box<dyn WorldManipulator>,
+        ground_pos: Vec3,
+    ) -> Self {
+        Self {
+            gfx_handle,
+            state_handle,
+            world,
+            ground_pos,
+            self_tool: A::default(),
+        }
+    }
+}
+
+impl<A: Default> ToolShared for ToolInstance<A> {
+    fn get_state(&self) -> &ToolState {
+        &self.state_handle
+    }
+
+    fn get_world(&self) -> &Box<dyn WorldManipulator> {
+        &self.world
+    }
+
+    fn update_ground_pos(&mut self, ground_pos: Vec3) {
+        self.ground_pos = ground_pos;
+    }
+
+    fn destroy(self: Box<Self>) -> (ToolState, Box<dyn WorldManipulator>) {
+        (self.state_handle, self.world)
+    }
 }

@@ -1,9 +1,8 @@
 // #![feature(trait_upcasting)]
 
 mod cycle_selection;
-mod road_gen;
+mod gfx_gen;
 mod tool_state;
 mod tools;
-mod world_tool;
 
-pub use world_tool::WorldTool;
+pub use tools::WorldTool;
