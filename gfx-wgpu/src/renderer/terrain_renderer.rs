@@ -72,7 +72,7 @@ where
     }
 }
 
-// TODO moves this code to somewhere on the cpu side / bridge side
+/// TODO moves this code to somewhere on the cpu side / bridge side
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct TerrainVertex {
