@@ -82,6 +82,10 @@ impl LSegment {
         self.to_node
     }
 
+    pub fn no_lane_paths(&self) -> u8 {
+        self.spine_points.len() as u8
+    }
+
     pub fn contains_pos(&self, pos: Vec3) -> bool {
         self.guide_points().is_inside(pos, self.width())
     }

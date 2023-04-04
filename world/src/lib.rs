@@ -14,6 +14,7 @@ use world_api::{LRoadBuilder, NodeType, Side, SnapConfig, Tree};
 
 use nature::Trees;
 use roads::RoadGraph;
+use simulation::SimHandler;
 
 use utils::id::{NodeId, SegmentId, TreeId};
 
@@ -23,6 +24,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Default)]
 pub struct World {
     road_graph: RoadGraph,
+    sim_handler: SimHandler,
     trees: Trees,
 }
 
@@ -40,11 +42,22 @@ impl RoadManipulator for World {
         road: LRoadBuilder,
         sel_node_type: NodeType,
     ) -> (Option<SnapConfig>, Vec<SegmentId>) {
-        self.road_graph.add_road(road, sel_node_type)
+        let (snap, segments) = self.road_graph.add_road(road, sel_node_type);
+
+        for s_id in segments.iter() {
+            let no_lane_paths = self.road_graph.get_segment(*s_id).no_lane_paths();
+            self.sim_handler.add_segment(*s_id, no_lane_paths);
+        }
+
+        (snap, segments)
     }
 
     fn remove_segment(&mut self, segment_id: SegmentId) -> bool {
-        self.road_graph.remove_segment(segment_id)
+        let result = self.road_graph.remove_segment(segment_id);
+        if result {
+            self.sim_handler.remove_segment(segment_id);
+        }
+        result
     }
 
     fn get_possible_snap_nodes(

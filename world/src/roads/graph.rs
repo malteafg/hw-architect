@@ -75,7 +75,7 @@ impl RoadGraph {
             .expect("Segment does not exist in segment map")
     }
 
-    fn get_segment(&self, segment: SegmentId) -> &LSegment {
+    pub fn get_segment(&self, segment: SegmentId) -> &LSegment {
         self.segment_map
             .get(&segment)
             .expect("Segment does not exist in segment map")
@@ -111,10 +111,7 @@ impl RoadGraph {
 
     fn update_starting_ending(&mut self, nodes: &[NodeId]) {
         nodes.iter().for_each(|id| {
-            let node = self
-                .node_map
-                .get(id)
-                .expect("node does not exist in node map");
+            let node = self.get_node(*id);
             match (node.is_starting(), node.is_ending()) {
                 (true, false) => {
                     self.starting_nodes.insert(*id);
