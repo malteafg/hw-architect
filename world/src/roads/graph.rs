@@ -8,7 +8,7 @@ use utils::id::{IdManager, NodeId, SegmentId};
 use glam::*;
 use serde::{Deserialize, Serialize};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 type LeadingPair = (NodeId, SegmentId);
 
@@ -23,6 +23,13 @@ pub struct RoadGraph {
     /// one segment in the opposite direction of the segment.
     backward_refs: HashMap<NodeId, Vec<LeadingPair>>,
 
+    /// These are basic nodes where the main segment is outgoing and open nodes where the open
+    /// side is incoming
+    starting_nodes: HashSet<NodeId>,
+    /// These are basic nodes where the main segment is incoming and open nodes where the open
+    /// side is outgoing
+    ending_nodes: HashSet<NodeId>,
+
     node_id_manager: IdManager<NodeId>,
     segment_id_manager: IdManager<SegmentId>,
 }
@@ -33,12 +40,16 @@ impl Default for RoadGraph {
         let segment_map = HashMap::new();
         let forward_refs = HashMap::new();
         let backward_refs = HashMap::new();
+        let starting_nodes = HashSet::new();
+        let ending_nodes = HashSet::new();
 
         Self {
             node_map,
             segment_map,
             forward_refs,
             backward_refs,
+            starting_nodes,
+            ending_nodes,
             node_id_manager: IdManager::new(),
             segment_id_manager: IdManager::new(),
         }
@@ -46,10 +57,6 @@ impl Default for RoadGraph {
 }
 
 impl RoadGraph {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     fn get_node_mut(&mut self, node: NodeId) -> &mut LNode {
         self.node_map
             .get_mut(&node)
@@ -96,6 +103,33 @@ impl RoadGraph {
             }
         }
         None
+    }
+
+    pub fn get_ending_nodes(&self) -> &HashSet<NodeId> {
+        &self.ending_nodes
+    }
+
+    fn update_starting_ending(&mut self, nodes: &[NodeId]) {
+        nodes.iter().for_each(|id| {
+            let node = self
+                .node_map
+                .get(id)
+                .expect("node does not exist in node map");
+            match (node.is_starting(), node.is_ending()) {
+                (true, false) => {
+                    self.starting_nodes.insert(*id);
+                    self.ending_nodes.remove(id);
+                }
+                (false, true) => {
+                    self.starting_nodes.remove(id);
+                    self.ending_nodes.insert(*id);
+                }
+                (true, true) => {
+                    panic!("A node cannot possibly be both and ending and a starting node")
+                }
+                _ => {}
+            }
+        });
     }
 }
 
@@ -191,6 +225,9 @@ impl crate::RoadManipulator for RoadGraph {
             }
         });
 
+        // update starting and endings nodes
+        self.update_starting_ending(&node_ids);
+
         // compute the new node that the tool can snap to, if any.
         let new_snap_id = node_ids[if reverse { 0 } else { node_ids.len() - 1 }];
         let new_snap = self
@@ -230,18 +267,24 @@ impl crate::RoadManipulator for RoadGraph {
             .retain(|(_, id)| *id != segment_id);
 
         // TODO put this code in remove node
+        let mut affected_nodes = vec![segment.get_to_node(), segment.get_from_node()];
         if self
             .get_node_mut(segment.get_from_node())
             .remove_segment(segment_id)
         {
-            self.remove_node(segment.get_from_node())
+            self.remove_node(segment.get_from_node());
+            affected_nodes.remove(1);
         }
         if self
             .get_node_mut(segment.get_to_node())
             .remove_segment(segment_id)
         {
-            self.remove_node(segment.get_to_node())
+            self.remove_node(segment.get_to_node());
+            affected_nodes.remove(0);
         }
+
+        // update starting and endings nodes
+        self.update_starting_ending(&affected_nodes);
 
         #[cfg(debug_assertions)]
         {

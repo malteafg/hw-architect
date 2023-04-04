@@ -3,8 +3,9 @@
 //! crate does not care about constraints such as road curvature, it only concerns itself with the
 //! logical state of the world. For stuff like road curvature the tool crate is intended to enforce
 //! it.
-pub mod nature;
-pub mod roads;
+mod nature;
+mod roads;
+mod simulation;
 
 use world_api::{
     IdGetter, RoadManipulator, SimController, SimData, TreeManipulator, WorldManipulator,

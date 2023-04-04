@@ -13,4 +13,3 @@ crate-type = ["cdylib", "rlib"]
 utils = { path = "../utils" }
 
 bytemuck = { workspace = true }
-instant = { workspace = true }

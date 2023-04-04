@@ -19,7 +19,6 @@ world = { path = "../world"}
 winit = "0.27"
 
 anyhow = { workspace = true }
-instant = { workspace = true }
 
 glam = { workspace = true }
 

@@ -113,6 +113,22 @@ impl LNode {
         (self.pos - pos).length() < self.width()
     }
 
+    pub fn is_starting(&self) -> bool {
+        match self.mode {
+            Basic { main_side, .. } => main_side == Side::Out,
+            Open { open_side, .. } => open_side == Side::In,
+            _ => false,
+        }
+    }
+
+    pub fn is_ending(&self) -> bool {
+        match self.mode {
+            Basic { main_side, .. } => main_side == Side::In,
+            Open { open_side, .. } => open_side == Side::Out,
+            _ => false,
+        }
+    }
+
     /// Returns true if the given segment_id is part of this node.
     #[cfg(debug_assertions)]
     fn contains_segment(&self, segment_id: SegmentId) -> bool {

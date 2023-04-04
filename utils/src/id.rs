@@ -1,33 +1,61 @@
+use std::marker::PhantomData;
+
 use serde::{Deserialize, Serialize};
 
 /// Maybe make IdSize generic over integers using the num crate.
 type IdSize = u16;
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct NodeId(IdSize);
+pub const MAX_NUM_ID: usize = 65536;
+
+pub type NodeId = Id<NodeMarker>;
+pub type SegmentId = Id<SegmentMarker>;
+pub type TreeId = Id<TreeMarker>;
+pub type VehicleId = Id<VehicleMarker>;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SegmentId(IdSize);
-
-/// TreeId's are used for each model or type of tree, and not an id for each tree.
+pub struct NodeMarker;
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TreeId(IdSize);
+pub struct SegmentMarker;
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TreeMarker;
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VehicleMarker;
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Id<A> {
+    id: IdSize,
+    marker: PhantomData<A>,
+}
+
+impl<A> IdBehaviour for Id<A> {
+    fn from_id_size(id_size: IdSize) -> Self {
+        Self {
+            id: id_size,
+            marker: PhantomData,
+        }
+    }
+
+    fn internal(&self) -> IdSize {
+        self.id
+    }
+}
 
 #[derive(Serialize, Deserialize)]
-pub struct IdManager<A: PartialEq + FromIdSize> {
+pub struct IdManager<A: PartialEq + IdBehaviour> {
     counter: IdSize,
-    state: std::marker::PhantomData<A>,
+    state: PhantomData<A>,
 }
 
-pub trait FromIdSize {
+pub trait IdBehaviour {
     fn from_id_size(id_size: IdSize) -> Self;
+    fn internal(&self) -> IdSize;
 }
 
-impl<Id: PartialEq + FromIdSize> IdManager<Id> {
+impl<Id: PartialEq + IdBehaviour> IdManager<Id> {
     pub fn new() -> Self {
         IdManager {
             counter: 0,
-            state: std::marker::PhantomData::<Id>,
+            state: PhantomData::<Id>,
         }
     }
 
@@ -38,23 +66,5 @@ impl<Id: PartialEq + FromIdSize> IdManager<Id> {
     pub fn gen(&mut self) -> Id {
         self.update_state();
         Id::from_id_size(self.counter)
-    }
-}
-
-impl FromIdSize for NodeId {
-    fn from_id_size(id_size: IdSize) -> Self {
-        NodeId(id_size)
-    }
-}
-
-impl FromIdSize for SegmentId {
-    fn from_id_size(id_size: IdSize) -> Self {
-        SegmentId(id_size)
-    }
-}
-
-impl FromIdSize for TreeId {
-    fn from_id_size(id_size: IdSize) -> Self {
-        TreeId(id_size)
     }
 }

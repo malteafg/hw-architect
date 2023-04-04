@@ -22,6 +22,10 @@ Have Simon do this.
 
 ### group material textures in a directory and then load them before loading models
 
+### id manager reuses ids
+- When an id is deleted from an id manager it should cache that id and use it when a new id is
+  requested
+
 ## next major things to implement
 ### super nodes
 - A super node should simply be an addition to the road_graph that points to the nodes that it

@@ -10,6 +10,7 @@ pub use data::*;
 pub use error::*;
 
 use std::collections::HashMap;
+use std::time::Duration;
 use utils::id::{SegmentId, TreeId};
 
 /// This trait defines all the behavior that a gpu backend must implement to render all of
@@ -26,7 +27,7 @@ pub trait Gfx {
     /// Resizes the window. The unit of the parameters are in pixels.
     fn resize(&mut self, width: u32, height: u32);
 
-    fn update(&mut self, dt: instant::Duration);
+    fn update(&mut self, dt: Duration);
 }
 
 /// This trait defines all the data that a gpu backend must implement in order to render the world.

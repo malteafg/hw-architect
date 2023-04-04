@@ -12,6 +12,7 @@ use winit::{
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time::Instant;
 
 pub async fn run() {
     env_logger::init();
@@ -41,7 +42,7 @@ pub async fn run() {
         input_handler,
     );
 
-    let mut last_render_time = instant::Instant::now();
+    let mut last_render_time = Instant::now();
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         use input::Action;
@@ -75,7 +76,7 @@ pub async fn run() {
                     }
                 }
                 Event::RedrawRequested(window_id) if window_id == window.id() => {
-                    let now = instant::Instant::now();
+                    let now = Instant::now();
                     let dt = now - last_render_time;
                     last_render_time = now;
                     state.update(dt);

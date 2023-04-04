@@ -16,6 +16,7 @@ use gfx_api::{colors, GfxFrameError, RawCameraData, RoadMesh};
 
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::time::Duration;
 
 pub struct GfxState {
     surface: wgpu::Surface,
@@ -226,7 +227,7 @@ impl gfx_api::Gfx for GfxState {
         self.camera.resize(width, height);
     }
 
-    fn update(&mut self, dt: instant::Duration) {
+    fn update(&mut self, dt: Duration) {
         self.main_renderer.update(dt, &self.queue);
     }
 }

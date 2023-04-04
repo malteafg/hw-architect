@@ -30,10 +30,6 @@ impl Default for Trees {
 }
 
 impl Trees {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     pub fn get_tree_from_pos(&self, pos: Vec3) -> Option<TreeId> {
         for model_map in self.tree_map.values() {
             for (id, tree) in model_map.iter() {

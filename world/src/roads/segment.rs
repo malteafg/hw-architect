@@ -19,17 +19,18 @@ pub struct LSegment {
     width: f32,
     segment_type: SegmentType,
     guide_points: GuidePoints,
-    spine_points: SpinePoints,
+    /// The is a SpinePoints for each lane path, sorted from left to right.
+    spine_points: Vec<SpinePoints>,
     from_node: NodeId,
     to_node: NodeId,
 }
 
 impl LSegment {
-    pub fn new(
+    fn new(
         width: f32,
         segment_type: SegmentType,
         guide_points: GuidePoints,
-        spine_points: SpinePoints,
+        spine_points: Vec<SpinePoints>,
         from_node: NodeId,
         to_node: NodeId,
     ) -> Self {
@@ -46,7 +47,7 @@ impl LSegment {
     pub fn from_builder(builder: LSegmentBuilder, from_node: NodeId, to_node: NodeId) -> Self {
         // TODO fix 0.05, and figure out what to do with it.
         let (width, segment_type, guide_points) = builder.consume();
-        let spine_points = guide_points.get_spine_points(0.05);
+        let spine_points = vec![guide_points.get_spine_points(0.05)];
         Self::new(
             width,
             segment_type,
