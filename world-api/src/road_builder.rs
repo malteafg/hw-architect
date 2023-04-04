@@ -202,6 +202,7 @@ impl LRoadBuilder {
         .expect("Should allow projection");
 
         if reverse {
+            // TODO shouldn't we use GuidePoints::reverse_vec?
             g_points_vec.reverse()
         }
 

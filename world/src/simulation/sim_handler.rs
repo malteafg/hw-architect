@@ -1,4 +1,4 @@
-use super::vehicle::{Vehicle, VehicleLoc};
+use super::vehicle::{StaticVehicleData, VehicleAi, VehicleLoc};
 use crate::roads::{LSegment, RoadGraph};
 
 use curves::SpinePoints;
@@ -6,9 +6,10 @@ use serde::{Deserialize, Serialize};
 use utils::id::{SegmentId, VehicleId, MAX_NUM_ID};
 
 use fixedbitset::FixedBitSet;
+use glam::Vec3;
 
 use std::{
-    collections::{BTreeMap, HashMap, VecDeque},
+    collections::{HashMap, VecDeque},
     time::Duration,
 };
 
@@ -16,16 +17,52 @@ const DEFAULT_VEHICLE_CAP: usize = 8;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct LaneState {
-    /// The f32 represents how far along in meters the vehicle has travelled along this segment.
-    /// The VecDeque should probably always be sorted.
-    state: VecDeque<(VehicleId, f32)>,
+    /// The VecDeque is sorted by the dist_travelled field inside VehicleAi in order from largest
+    /// to smallest, ie. the vehicle that has reached the furtest (and thus should be simulated
+    /// first) is located at the end.
+    state: VecDeque<VehicleAi>,
     path: SpinePoints,
+    /// Length of this lane given in meters.
+    length: f32,
 }
 
 impl LaneState {
     fn new(path: SpinePoints) -> Self {
         let state = VecDeque::with_capacity(DEFAULT_VEHICLE_CAP);
-        Self { state, path }
+        let length = path.compute_length();
+        Self {
+            state,
+            path,
+            length,
+        }
+    }
+
+    /// Maybe iterate over all vehicles first, and then cars will make decision, and then simulate
+    /// can be called?
+    fn iter_vehicles(&self) -> impl Iterator<Item = &VehicleAi> + '_ {
+        self.state.iter()
+    }
+
+    /// Instead of returning a Vec maybe have local memory allocated and let the caller get a
+    /// reference to that memory. This would avoid unnecessary memory allocations.
+    fn simulate(&mut self) -> Vec<VehicleAi> {
+        // simulate and return the vehicles that have exited this lane
+        vec![]
+    }
+
+    /// Must maintain the invariant that self.state is sorted.
+    /// Returns the position and y_rot of the car inserted.
+    fn insert(&mut self, id: VehicleId, vehicle_ai: VehicleAi) -> (Vec3, f32) {
+        let num_vehicles = self.state.len();
+        let lowest_f32 = self
+            .state
+            .get(num_vehicles - 1)
+            .map(|v| v.dist_travelled)
+            .unwrap_or(0.);
+        if vehicle_ai.dist_travelled < lowest_f32 {
+            self.state.push_back(vehicle_ai);
+        }
+        (Vec3::new(0., 0., 0.), 0.)
     }
 }
 
@@ -46,7 +83,7 @@ impl SegmentState {
 
 // Maybe do the ai in such a way that the road graph is explored with backwards_refs. Then we do
 // not need the vehicle_tracker_swap. This is complicated with intersections maybe, but then
-// intersections should simply we simulated first?
+// intersections should simply be simulated first?
 //
 // in the backwards pass, when a segment is processed, it should be sufficient to report data about
 // the vehicles that have reached the smallest distance for each lane, and probably those vehicles'
@@ -54,12 +91,15 @@ impl SegmentState {
 /// Maybe add random shrink_to_fit, such that the memory will not become too large.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimHandler {
-    vehicles: HashMap<VehicleId, Vehicle>,
-    /// Maybe wrap the SegmentState in an Arc<RefCell<>>, when doing parallelism.
+    /// Sim needs to read from this, but StaticVehicleData can be read only.
+    vehicles_data: HashMap<VehicleId, StaticVehicleData>,
+
+    /// Sim needs to write to this, so VehicleLoc is mut.
+    vehicles_loc: HashMap<VehicleId, VehicleLoc>,
+
+    /// Maybe wrap the SegmentState in an Arc<RwLock<>>, when doing parallelism.
     vehicle_tracker: HashMap<SegmentId, SegmentState>,
-    /// Always assert that the point is not a duplicate when inserting. No duplicate keys!
-    vehicle_locs: BTreeMap<VehicleId, VehicleLoc>,
-    // vehicle_locs: BTreeMap<f32, (VehicleId, VehicleLoc)>,
+
     /// Represents all the segments currently in game. Must only be modified when a segment is
     /// added or removed.
     segments_to_dispatch: FixedBitSet,
@@ -67,22 +107,25 @@ pub struct SimHandler {
     /// Memory allocated for highlighting when a segment has been processed in each update
     /// iteration.
     processed_segments: FixedBitSet,
+
+    /// Memory allocated for indicating which vehicles need to be removed as a result of having
+    /// reached their destination in this update iteration.
     vehicles_to_remove: Vec<VehicleId>,
 }
 
 impl Default for SimHandler {
     fn default() -> Self {
-        let vehicles = HashMap::new();
+        let vehicles_data = HashMap::new();
+        let vehicles_loc = HashMap::new();
         let vehicle_tracker = HashMap::new();
-        let vehicle_locs = BTreeMap::new();
         let segments_to_dispatch = FixedBitSet::with_capacity(MAX_NUM_ID);
         let processed_segments = FixedBitSet::with_capacity(MAX_NUM_ID);
         let vehicles_to_remove = Vec::new();
 
         Self {
-            vehicles,
+            vehicles_data,
+            vehicles_loc,
             vehicle_tracker,
-            vehicle_locs,
             segments_to_dispatch,
             processed_segments,
             vehicles_to_remove,
@@ -164,8 +207,6 @@ impl SimHandler {
                     .for_each(|p| ready_to_dispatch.push(*p));
             }
         }
-
-        // std::mem::swap(&mut self.vehicle_tracker, &mut self.vehicle_tracker_swap);
 
         // remove vehicles that are done
         // TODO find a way to remove this unnecessary clone

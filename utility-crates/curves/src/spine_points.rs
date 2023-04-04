@@ -42,4 +42,12 @@ impl SpinePoints {
         }
         spine_points
     }
+
+    pub fn compute_length(&self) -> f32 {
+        let mut result = 0.;
+        for i in 0..(self.len() - 1) {
+            result += (self[i] - self[i + 1]).length();
+        }
+        result
+    }
 }
