@@ -1,4 +1,4 @@
-use curves::SpinePoints;
+use curves::Spine;
 use utils::consts::{LANE_MARKINGS_WIDTH, ROAD_HEIGHT};
 use utils::VecUtils;
 
@@ -9,11 +9,7 @@ use glam::*;
 
 /// Generates and returns the road mesh generated from the given uniform spine points and the type
 /// of the node, which is used to get the lane width and total width of the mesh to generate.
-pub fn gen_road_mesh_with_lanes(
-    spine_pos: &SpinePoints,
-    spine_dir: &SpinePoints,
-    node_type: NodeType,
-) -> RoadMesh {
+pub fn gen_road_mesh_with_lanes(spine: &Spine, node_type: NodeType) -> RoadMesh {
     let no_lanes = node_type.no_lanes;
 
     let mut vertices = vec![];
@@ -22,15 +18,15 @@ pub fn gen_road_mesh_with_lanes(
     let mut lane_indices = vec![];
     let m_verts = (no_lanes * 2) as u32;
 
-    let first_pos = spine_pos[0];
-    let first_dir = spine_dir[0];
+    let first_pos = spine[0].0;
+    let first_dir = spine[0].1;
     let first_cut = generate_clean_cut(first_pos, first_dir, node_type);
     vertices.append(&mut first_cut.clone());
     lane_vertices.append(&mut first_cut[1..5].to_vec());
 
-    for i in 1..spine_pos.len() {
-        let pos = spine_pos[i];
-        let dir = spine_dir[i];
+    for i in 1..spine.len() {
+        let pos = spine[i].0;
+        let dir = spine[i].1;
         if i % 3 == 0 {
             let cut = generate_clean_cut(pos, dir, node_type);
 

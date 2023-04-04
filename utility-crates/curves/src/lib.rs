@@ -1,4 +1,9 @@
-pub mod curve_gen;
-mod points;
+mod curve_gen;
+mod guide_points;
+mod spine;
+mod spine_points;
 
-pub use points::{GuidePoints, SpinePoints};
+pub use curve_gen::*;
+pub use guide_points::GuidePoints;
+pub use spine::Spine;
+pub use spine_points::SpinePoints;

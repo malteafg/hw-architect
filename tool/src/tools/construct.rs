@@ -587,9 +587,7 @@ impl ToolInstance<ConstructTool> {
         road_builder
             .get_segments()
             .iter()
-            .map(|s| {
-                segment_gen::gen_road_mesh_with_lanes(s.spine_points(), s.spine_dirs(), node_type)
-            })
+            .map(|s| segment_gen::gen_road_mesh_with_lanes(s.spine(), node_type))
             .collect::<Vec<RoadMesh>>()
     }
 

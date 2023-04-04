@@ -1,11 +1,8 @@
-use glam::*;
-
+use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GuidePoints(Vec<Vec3>);
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SpinePoints(Vec<Vec3>);
 
 impl core::ops::Deref for GuidePoints {
     type Target = Vec<Vec3>;
@@ -21,23 +18,13 @@ impl core::ops::DerefMut for GuidePoints {
     }
 }
 
-impl core::ops::Deref for SpinePoints {
-    type Target = Vec<Vec3>;
-
-    fn deref(self: &'_ Self) -> &'_ Self::Target {
-        &self.0
-    }
-}
-
-impl core::ops::DerefMut for SpinePoints {
-    fn deref_mut(self: &'_ mut Self) -> &'_ mut Self::Target {
-        &mut self.0
-    }
-}
-
 impl GuidePoints {
     pub fn from_vec(vec: Vec<Vec3>) -> Self {
-        GuidePoints(vec)
+        Self(vec)
+    }
+
+    pub fn empty() -> Self {
+        Self(vec![])
     }
 
     /// # Panics
@@ -47,10 +34,6 @@ impl GuidePoints {
         let dist = (p2 - p1).length();
         let dist_dir = dir * (dist / 3.);
         GuidePoints::from_vec(vec![p1, p1 + dist_dir, p1 + (2. * dist_dir), p2])
-    }
-
-    pub fn empty() -> Self {
-        GuidePoints(vec![])
     }
 
     /// Computes and returns the summed distance from the path starting in the first point to the
@@ -104,16 +87,6 @@ impl GuidePoints {
         v * self.len() as f32
     }
 
-    pub fn get_spine_points(&self, dt: f32) -> SpinePoints {
-        let mut spine_points = SpinePoints::empty();
-        let mut t = 0.0;
-        for _ in 0..((1. / dt) as u32) {
-            spine_points.push(self.calc_bezier_pos(t));
-            t += dt;
-        }
-        spine_points
-    }
-
     pub fn is_inside(&self, ground_pos: Vec3, width: f32) -> bool {
         let direct_dist = (self[self.len() - 1] - self[0]).length_squared();
 
@@ -153,19 +126,5 @@ impl GuidePoints {
             }
         }
         false
-    }
-}
-
-impl SpinePoints {
-    pub fn from_vec(vec: Vec<Vec3>) -> Self {
-        SpinePoints(vec)
-    }
-
-    pub fn with_capacity(capacity: usize) -> Self {
-        SpinePoints(Vec::with_capacity(capacity))
-    }
-
-    pub fn empty() -> Self {
-        SpinePoints(vec![])
     }
 }

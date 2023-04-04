@@ -1,6 +1,6 @@
 use super::{NodeType, SegmentType};
 
-use curves::{curve_gen, GuidePoints, SpinePoints};
+use curves::{GuidePoints, Spine};
 use utils::id::SegmentId;
 
 use glam::*;
@@ -75,47 +75,28 @@ pub struct LSegmentBuilder {
     segment_type: SegmentType,
     node_config: LSegmentBuilderType,
     guide_points: GuidePoints,
-    spine_points: SpinePoints,
-    spine_dirs: SpinePoints,
+    spine: Spine,
 }
 
 impl LSegmentBuilder {
     pub fn new(segment_type: SegmentType, node_type: NodeType, guide_points: GuidePoints) -> Self {
         let node_config = LSegmentBuilderType::Same(node_type);
-
-        // TODO check the results of this num_of_cuts
-        let num_of_cuts = (utils::consts::VERTEX_DENSITY * (1000.0 + guide_points.dist())) as u32;
-        let (spine_points, spine_dirs) = curve_gen::spine_points_and_dir(
-            &guide_points,
-            1.0 / (num_of_cuts as f32 - 1.0),
-            utils::consts::CUT_LENGTH,
-            num_of_cuts,
-        );
+        let spine = Spine::from_guide_points(&guide_points);
 
         Self {
             segment_type,
             node_config,
             guide_points,
-            spine_points,
-            spine_dirs,
+            spine,
         }
     }
 
-    pub fn consume(
-        self,
-    ) -> (
-        SegmentType,
-        LSegmentBuilderType,
-        GuidePoints,
-        SpinePoints,
-        SpinePoints,
-    ) {
+    pub fn consume(self) -> (SegmentType, LSegmentBuilderType, GuidePoints, Spine) {
         (
             self.segment_type,
             self.node_config,
             self.guide_points,
-            self.spine_points,
-            self.spine_dirs,
+            self.spine,
         )
     }
 
@@ -123,11 +104,7 @@ impl LSegmentBuilder {
         &self.guide_points
     }
 
-    pub fn spine_points(&self) -> &SpinePoints {
-        &self.spine_points
-    }
-
-    pub fn spine_dirs(&self) -> &SpinePoints {
-        &self.spine_dirs
+    pub fn spine(&self) -> &Spine {
+        &self.spine
     }
 }

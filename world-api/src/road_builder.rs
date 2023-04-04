@@ -1,6 +1,6 @@
 use super::{LNodeBuilder, LSegmentBuilder, NodeType, SegmentType, SnapConfig};
 
-use curves::{curve_gen, GuidePoints};
+use curves::GuidePoints;
 use utils::consts::ROAD_MIN_LENGTH;
 use utils::VecUtils;
 
@@ -179,7 +179,7 @@ impl LRoadBuilder {
         } else {
             last_pos
         };
-        let mut g_points_vec = curve_gen::three_quarter_circle_curve(
+        let mut g_points_vec = curves::three_quarter_circle_curve(
             start_pos,
             start_dir,
             last_pos,
@@ -193,7 +193,7 @@ impl LRoadBuilder {
             g_points_vec.reverse()
         }
 
-        let (g_points_vec, _) = curve_gen::guide_points_and_direction(g_points_vec);
+        let (g_points_vec, _) = curves::guide_points_and_direction(g_points_vec);
 
         let mut nodes = vec![];
         if reverse {
@@ -235,7 +235,7 @@ impl LRoadBuilder {
         reverse: bool,
     ) -> Result<Self, RoadGenErr> {
         let end_dir = last_node.dir().flip(!reverse);
-        let mut g_points_vec = curve_gen::three_quarter_circle_curve(
+        let mut g_points_vec = curves::three_quarter_circle_curve(
             last_node.pos(),
             end_dir,
             first_pos,
@@ -246,10 +246,10 @@ impl LRoadBuilder {
         .ok_or(RoadGenErr::CCSFailed)?;
 
         if !reverse {
-            curve_gen::reverse_g_points_vec(&mut g_points_vec);
+            curves::reverse_g_points_vec(&mut g_points_vec);
         }
 
-        let (g_points_vec, first_dir) = curve_gen::guide_points_and_direction(g_points_vec);
+        let (g_points_vec, first_dir) = curves::guide_points_and_direction(g_points_vec);
 
         let mut nodes = vec![];
         if reverse {
@@ -313,7 +313,7 @@ impl LRoadBuilder {
             )
         };
 
-        let snap_case = curve_gen::double_snap_curve_case(
+        let snap_case = curves::double_snap_curve_case(
             start_pos,
             start_dir,
             end_pos,
@@ -322,10 +322,9 @@ impl LRoadBuilder {
         )
         .map_err(|_| RoadGenErr::DoubleSnapFailed)?;
 
-        let (g_points_vec, _) =
-            curve_gen::guide_points_and_direction(curve_gen::match_double_snap_curve_case(
-                start_pos, start_dir, end_pos, end_dir, snap_case,
-            ));
+        let (g_points_vec, _) = curves::guide_points_and_direction(
+            curves::match_double_snap_curve_case(start_pos, start_dir, end_pos, end_dir, snap_case),
+        );
 
         let mut nodes = vec![start_node];
         g_points_vec.iter().for_each(|(g_points, dir)| {

@@ -45,7 +45,7 @@ impl LSegment {
     }
 
     pub fn from_builder(builder: LSegmentBuilder, from_node: NodeId, to_node: NodeId) -> Self {
-        let (segment_type, node_config, guide_points, spine_points, spine_dirs) = builder.consume();
+        let (segment_type, node_config, guide_points, spine) = builder.consume();
 
         let (width, lane_paths) = match node_config {
             LSegmentBuilderType::Same(node_type) => {
@@ -53,8 +53,9 @@ impl LSegment {
                 let no_lane_paths = node_type.no_lanes;
                 let mut lane_paths = Vec::with_capacity(no_lane_paths.into());
                 for _ in 0..no_lane_paths {
-                    lane_paths.push(SpinePoints::with_capacity(spine_points.len()));
+                    lane_paths.push(SpinePoints::with_capacity(spine.len()));
                 }
+                // loop over spine and create lane paths
 
                 (width, lane_paths)
             }
