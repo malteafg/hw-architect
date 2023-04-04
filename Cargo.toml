@@ -18,6 +18,7 @@ gfx-api = { path = "gfx-api" }
 gfx-wgpu = { path = "gfx-wgpu" }
 tool = { path = "tool" }
 utils = { path = "utility-crates/utils" }
+curves = { path = "utility-crates/curves" }
 world = { path = "world" }
 world-api = { path = "world-api" }
 

@@ -10,6 +10,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+curves = { workspace = true }
 utils = { workspace = true }
 world-api = { workspace = true }
 gfx-api = { workspace = true }

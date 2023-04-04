@@ -1,7 +1,7 @@
 use super::{LNodeBuilder, LSegmentBuilder, NodeType, SegmentType, SnapConfig};
 
+use curves::{curve_gen, GuidePoints};
 use utils::consts::ROAD_MIN_LENGTH;
-use utils::curves::{curve_gen, GuidePoints};
 use utils::VecUtils;
 
 use glam::Vec3;

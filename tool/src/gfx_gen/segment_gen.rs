@@ -1,5 +1,5 @@
+use curves::SpinePoints;
 use utils::consts::{LANE_MARKINGS_WIDTH, ROAD_HEIGHT};
-use utils::curves::SpinePoints;
 use utils::VecUtils;
 
 use gfx_api::RoadMesh;

@@ -1,6 +1,6 @@
 use super::{NodeType, SegmentType};
 
-use utils::curves::{curve_gen, GuidePoints, SpinePoints};
+use curves::{curve_gen, GuidePoints, SpinePoints};
 use utils::id::SegmentId;
 
 use glam::*;

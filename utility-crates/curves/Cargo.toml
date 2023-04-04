@@ -1,5 +1,5 @@
 [package]
-name = "world"
+name = "curves"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,14 +10,9 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-curves = { workspace = true }
 utils = { workspace = true }
-world-api = { workspace = true }
+
+glam = { workspace = true }
 
 anyhow = { workspace = true }
 serde = { workspace = true }
-
-glam = { workspace = true }
-rand = { workspace = true }
-
-fixedbitset = { workspace = true }

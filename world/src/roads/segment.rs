@@ -1,6 +1,6 @@
 use world_api::{LSegmentBuilder, LSegmentBuilderType, SegmentType};
 
-use utils::curves::{GuidePoints, SpinePoints};
+use curves::{GuidePoints, SpinePoints};
 use utils::id::NodeId;
 
 use glam::Vec3;
