@@ -69,7 +69,7 @@ impl RoadGraph {
             .expect("Node does not exist in node map")
     }
 
-    pub fn get_segment(&self, segment: &SegmentId) -> &LSegment {
+    fn get_segment(&self, segment: &SegmentId) -> &LSegment {
         self.segment_map
             .get(segment)
             .expect("Segment does not exist in segment map")

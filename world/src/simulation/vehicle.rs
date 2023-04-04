@@ -2,6 +2,8 @@ use glam::Vec3;
 use serde::{Deserialize, Serialize};
 use utils::id::{SegmentId, VehicleId};
 
+use std::time::Duration;
+
 // STATIC vehicle data:
 // max_speed(u8), acceleration(u8), aggressiveness(u8) (this is used by ai)
 // model(u128), color(96) (this is used by gfx)
@@ -30,6 +32,14 @@ pub struct VehicleAi {
     pub dist_travelled: f32,
     /// Current speed of vehicle given in KM/H
     pub speed: u8,
+}
+
+impl VehicleAi {
+    /// Updates the vehicles dist_travelled. Returns true if the vehicle has surpassed the given
+    /// length.
+    pub fn travel(&mut self, dt: Duration, max_length: f32) -> bool {
+        false
+    }
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]

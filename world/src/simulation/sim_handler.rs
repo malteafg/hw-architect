@@ -1,5 +1,5 @@
 use super::vehicle::{StaticVehicleData, VehicleAi, VehicleLoc};
-use crate::roads::{LSegment, RoadGraph};
+use crate::roads::RoadGraph;
 
 use curves::SpinePoints;
 use serde::{Deserialize, Serialize};
@@ -24,16 +24,23 @@ struct LaneState {
     path: SpinePoints,
     /// Length of this lane given in meters.
     length: f32,
+
+    /// Used to mark vehicles that need to move to new segments. Allocated here such that we do not
+    /// do unnecessary memory allocations in each update.
+    marker: Vec<u8>,
 }
 
 impl LaneState {
     fn new(path: SpinePoints) -> Self {
         let state = VecDeque::with_capacity(DEFAULT_VEHICLE_CAP);
         let length = path.compute_length();
+        let marker = Vec::with_capacity(1);
+
         Self {
             state,
             path,
             length,
+            marker,
         }
     }
 
@@ -45,8 +52,20 @@ impl LaneState {
 
     /// Instead of returning a Vec maybe have local memory allocated and let the caller get a
     /// reference to that memory. This would avoid unnecessary memory allocations.
-    fn simulate(&mut self) -> Vec<VehicleAi> {
+    /// # Panics
+    ///
+    /// Will crash if more than 256 vehicles exit this lane in this frame, but this is deemed
+    /// unlikely.
+    fn simulate(&mut self, dt: Duration) -> Vec<VehicleAi> {
+        self.marker.clear();
+
         // simulate and return the vehicles that have exited this lane
+        for (i, vehicle) in self.state.iter_mut().enumerate() {
+            if vehicle.travel(dt, self.length) {
+                self.marker.push(i as u8);
+            }
+        }
+
         vec![]
     }
 
@@ -79,6 +98,16 @@ impl SegmentState {
         }
         Self { lane_map }
     }
+
+    /// Returns vehicles that need to be removed, because they have reached their destination.
+    /// Maybe reconsider return type to avoid unnecessary allocations.
+    fn simulate(&mut self, dt: Duration) -> Vec<VehicleId> {
+        // iter over vehicles and make decisions for each vehicle
+        // loop over segment_state and simulate all lane states
+        // move done vehicles into their next segment, or remove if they are done
+        // iter over vehicles and write their new positions to vehicles_loc
+        vec![]
+    }
 }
 
 // Maybe do the ai in such a way that the road graph is explored with backwards_refs. Then we do
@@ -89,6 +118,8 @@ impl SegmentState {
 // the vehicles that have reached the smallest distance for each lane, and probably those vehicles'
 // speed.
 /// Maybe add random shrink_to_fit, such that the memory will not become too large.
+///
+/// Have two maps for each SegmentState, containing the front vehicles and back vehicles.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimHandler {
     /// Sim needs to read from this, but StaticVehicleData can be read only.
@@ -138,13 +169,13 @@ impl Default for SimHandler {
 /// Figure out exactly how the segment states should be passed when doing parallelism. It might be
 /// fine to just give vehicle_tracker_swap wrapped in Arc<RefCell> to all threads.
 /// When parallel the thread should send a request for more stuff to process.
-fn process(
-    dt: Duration,
-    segment_state: &mut SegmentState,
-    // dst: &mut SegmentState,
-    // src: &SegmentState,
-    segment: &LSegment,
-) -> Vec<VehicleId> {
+///
+/// TODO add some phantom segmentstate in front such that the segment_state can be updated based on
+/// what is in front of it.
+///
+/// Maybe do something about return type such that we do not have to allocate in each update.
+fn process(dt: Duration, segment_state: &mut SegmentState) -> Vec<VehicleId> {
+    segment_state.simulate(dt);
     vec![]
 }
 
@@ -175,7 +206,6 @@ impl SimHandler {
             };
 
             self.segments_to_dispatch.set(segment_id.usize(), false);
-            let segment_ref = road_graph.get_segment(&segment_id);
             // let dst = self
             //     .vehicle_tracker_swap
             //     .get_mut(&segment_id)
@@ -185,7 +215,7 @@ impl SimHandler {
                 .get_mut(&segment_id)
                 .expect("Segment state did not exist in vehicle tracker map");
 
-            let mut result = process(dt, segment_state, segment_ref);
+            let mut result = process(dt, segment_state);
             self.vehicles_to_remove.append(&mut result);
             // when a dispatch returns add the backwards segments of the processed segments to (3) if
             // they still exist in (2)

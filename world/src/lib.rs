@@ -37,6 +37,8 @@ impl World {
 }
 
 impl WorldManipulator for World {
+    /// TODO add check for dt. If dt is too large (maybe larger than a second) fix it to be some
+    /// smaller value. Large values of dt can cause bad behaviour in the simulation.
     fn update(&mut self, dt: Duration) {
         self.sim_handler.update(dt, &self.road_graph);
     }
