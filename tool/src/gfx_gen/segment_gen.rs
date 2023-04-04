@@ -1,6 +1,5 @@
 use utils::consts::{LANE_MARKINGS_WIDTH, ROAD_HEIGHT};
-use utils::curves::curve_gen;
-use utils::curves::{GuidePoints, SpinePoints};
+use utils::curves::SpinePoints;
 use utils::VecUtils;
 
 use gfx_api::RoadMesh;
@@ -8,71 +7,11 @@ use world_api::NodeType;
 
 use glam::*;
 
-const VERTEX_DENSITY: f32 = 0.05;
-const CUT_LENGTH: f32 = 5.0;
-
-/// Generates a simple mesh where the node ends have the same node type.
-pub fn generate_simple_mesh(g_points: &GuidePoints, node_type: NodeType) -> RoadMesh {
-    // TODO check the results of this num_of_cuts
-    let num_of_cuts = (VERTEX_DENSITY * (1000.0 + g_points.dist())) as u32;
-    let (spine_points, spine_dirs) = curve_gen::spine_points_and_dir(
-        &g_points,
-        1.0 / (num_of_cuts as f32 - 1.0),
-        CUT_LENGTH,
-        num_of_cuts,
-    );
-
-    generate_road_mesh_with_lanes(spine_points.clone(), spine_dirs, node_type)
-}
-
-/// Generates a straight mesh between the given positions, and returns the mesh together with the
-/// uniformly spaced spine points.
-pub fn _generate_straight_mesh(
-    start_pos: Vec3,
-    end_pos: Vec3,
-    node_type: NodeType,
-) -> (RoadMesh, SpinePoints) {
-    let dir = end_pos - start_pos;
-
-    let (spine_points, spine_dirs) = curve_gen::calc_uniform_spine_points(
-        SpinePoints::from_vec(vec![start_pos, end_pos]),
-        SpinePoints::from_vec(vec![dir, dir]),
-        CUT_LENGTH,
-    );
-
-    (
-        generate_road_mesh_with_lanes(spine_points.clone(), spine_dirs, node_type),
-        spine_points,
-    )
-}
-
-/// Generates a circular mesh from the given guide points and positions and returns the mesh
-/// together with the uniformly spaced spine_points.
-pub fn _generate_circular_mesh(
-    start_pos: Vec3,
-    end_pos: Vec3,
-    node_type: NodeType,
-    g_points: GuidePoints,
-) -> (RoadMesh, SpinePoints) {
-    let num_of_cuts = (VERTEX_DENSITY * (1000.0 + (end_pos - start_pos).length())) as u32;
-    let (spine_points, spine_dirs) = curve_gen::spine_points_and_dir(
-        &g_points,
-        1.0 / (num_of_cuts as f32 - 1.0),
-        CUT_LENGTH,
-        num_of_cuts,
-    );
-
-    (
-        generate_road_mesh_with_lanes(spine_points.clone(), spine_dirs, node_type),
-        spine_points,
-    )
-}
-
 /// Generates and returns the road mesh generated from the given uniform spine points and the type
 /// of the node, which is used to get the lane width and total width of the mesh to generate.
-fn generate_road_mesh_with_lanes(
-    spine_pos: SpinePoints,
-    spine_dir: SpinePoints,
+pub fn gen_road_mesh_with_lanes(
+    spine_pos: &SpinePoints,
+    spine_dir: &SpinePoints,
     node_type: NodeType,
 ) -> RoadMesh {
     let no_lanes = node_type.no_lanes;

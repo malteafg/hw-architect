@@ -1,4 +1,4 @@
-use world_api::{LSegmentBuilder, SegmentType};
+use world_api::{LSegmentBuilder, LSegmentBuilderType, SegmentType};
 
 use utils::curves::{GuidePoints, SpinePoints};
 use utils::id::NodeId;
@@ -20,7 +20,7 @@ pub struct LSegment {
     segment_type: SegmentType,
     guide_points: GuidePoints,
     /// The is a SpinePoints for each lane path, sorted from left to right.
-    spine_points: Vec<SpinePoints>,
+    lane_paths: Vec<SpinePoints>,
     from_node: NodeId,
     to_node: NodeId,
 }
@@ -30,7 +30,7 @@ impl LSegment {
         width: f32,
         segment_type: SegmentType,
         guide_points: GuidePoints,
-        spine_points: Vec<SpinePoints>,
+        lane_paths: Vec<SpinePoints>,
         from_node: NodeId,
         to_node: NodeId,
     ) -> Self {
@@ -38,21 +38,32 @@ impl LSegment {
             width,
             segment_type,
             guide_points,
-            spine_points,
+            lane_paths,
             from_node,
             to_node,
         }
     }
 
     pub fn from_builder(builder: LSegmentBuilder, from_node: NodeId, to_node: NodeId) -> Self {
-        // TODO fix 0.05, and figure out what to do with it.
-        let (width, segment_type, guide_points) = builder.consume();
-        let spine_points = vec![guide_points.get_spine_points(0.05)];
+        let (segment_type, node_config, guide_points, spine_points, spine_dirs) = builder.consume();
+
+        let (width, lane_paths) = match node_config {
+            LSegmentBuilderType::Same(node_type) => {
+                let width = node_type.compute_width();
+                let no_lane_paths = node_type.no_lanes;
+                let mut lane_paths = Vec::with_capacity(no_lane_paths.into());
+                for _ in 0..no_lane_paths {
+                    lane_paths.push(SpinePoints::with_capacity(spine_points.len()));
+                }
+
+                (width, lane_paths)
+            }
+        };
         Self::new(
             width,
             segment_type,
             guide_points,
-            spine_points,
+            lane_paths,
             from_node,
             to_node,
         )
@@ -83,7 +94,7 @@ impl LSegment {
     }
 
     pub fn no_lane_paths(&self) -> u8 {
-        self.spine_points.len() as u8
+        self.lane_paths.len() as u8
     }
 
     pub fn contains_pos(&self, pos: Vec3) -> bool {

@@ -175,26 +175,6 @@ impl ToolStrategy for ToolInstance<ConstructTool> {
 }
 
 impl ToolInstance<ConstructTool> {
-    // pub fn new(
-    //     gfx_handle: Rc<RefCell<dyn GfxSuper>>,
-    //     world: Box<dyn WorldManipulator>,
-    //     state_handle: Rc<RefCell<ToolState>>,
-    //     ground_pos: Vec3,
-    // ) -> Self {
-    //     let mut tool = Self {
-    //         gfx_handle,
-    //         world,
-    //         state_handle,
-    //         snapped_node: None,
-    //         ground_pos,
-    //         mode: SelectPos,
-    //     };
-    //     tool.update_view(ground_pos);
-    //     tool.show_snappable_nodes();
-    //     tool.check_snapping();
-    //     tool
-    // }
-
     fn get_sel_road_type(&self) -> SelectedRoad {
         self.state_handle.road_state.selected_road
     }
@@ -607,7 +587,9 @@ impl ToolInstance<ConstructTool> {
         road_builder
             .get_segments()
             .iter()
-            .map(|s| segment_gen::generate_simple_mesh(s.guide_points(), node_type))
+            .map(|s| {
+                segment_gen::gen_road_mesh_with_lanes(s.spine_points(), s.spine_dirs(), node_type)
+            })
             .collect::<Vec<RoadMesh>>()
     }
 

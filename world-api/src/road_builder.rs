@@ -109,10 +109,10 @@ impl LRoadBuilder {
         }
 
         let segments = vec![LSegmentBuilder::new(
-            first_type.compute_width(),
             SegmentType {
                 curve_type: super::CurveType::Straight,
             },
+            first_type,
             GuidePoints::from_two_points(first_pos, end_pos),
         )];
 
@@ -150,10 +150,10 @@ impl LRoadBuilder {
         }
 
         let segments = vec![LSegmentBuilder::new(
-            last_type.compute_width(),
             SegmentType {
                 curve_type: super::CurveType::Straight,
             },
+            last_type,
             GuidePoints::from_two_points(nodes[0].get_pos(), nodes[1].get_pos()),
         )];
 
@@ -214,10 +214,10 @@ impl LRoadBuilder {
         let mut segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, _)| {
             segments.push(LSegmentBuilder::new(
-                last_type.compute_width(),
                 SegmentType {
                     curve_type: super::CurveType::Curved,
                 },
+                last_type,
                 g_points,
             ));
         });
@@ -272,10 +272,10 @@ impl LRoadBuilder {
         let mut segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, _)| {
             segments.push(LSegmentBuilder::new(
-                first_type.compute_width(),
                 SegmentType {
                     curve_type: super::CurveType::Curved,
                 },
+                first_type,
                 g_points,
             ));
         });
@@ -338,10 +338,10 @@ impl LRoadBuilder {
         let mut segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, _)| {
             segments.push(LSegmentBuilder::new(
-                node_type.compute_width(),
                 SegmentType {
                     curve_type: super::CurveType::Curved,
                 },
+                node_type,
                 g_points,
             ));
         });

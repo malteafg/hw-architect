@@ -161,6 +161,10 @@ impl SpinePoints {
         SpinePoints(vec)
     }
 
+    pub fn with_capacity(capacity: usize) -> Self {
+        SpinePoints(Vec::with_capacity(capacity))
+    }
+
     pub fn empty() -> Self {
         SpinePoints(vec![])
     }
