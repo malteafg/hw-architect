@@ -10,7 +10,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-utils = { path = "../utils" }
+utils = { workspace = true }
 
 anyhow = { workspace = true }
 serde = { workspace = true }

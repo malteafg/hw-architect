@@ -10,8 +10,8 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-utils = { path = "../utils" }
-world-api = { path = "../world-api" }
+utils = { workspace = true }
+world-api = { workspace = true }
 
 anyhow = { workspace = true }
 serde = { workspace = true }

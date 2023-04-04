@@ -10,8 +10,8 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-utils = { path = "../utils" }
-gfx-api = { path = "../gfx-api" }
+utils = { workspace = true }
+gfx-api = { workspace = true }
 
 wgpu = "0.14"
 raw-window-handle = "0.5.1"
