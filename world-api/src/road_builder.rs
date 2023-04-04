@@ -246,7 +246,7 @@ impl LRoadBuilder {
         .ok_or(RoadGenErr::CCSFailed)?;
 
         if !reverse {
-            curves::reverse_g_points_vec(&mut g_points_vec);
+            GuidePoints::reverse_vec(&mut g_points_vec);
         }
 
         let (g_points_vec, first_dir) = curves::guide_points_and_direction(g_points_vec);

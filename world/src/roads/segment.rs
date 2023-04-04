@@ -74,17 +74,13 @@ impl LSegment {
         self.width
     }
 
-    // pub fn segment_type(&self) -> SegmentType {
-    //     self.segment_type
-    // }
+    pub fn _segment_type(&self) -> SegmentType {
+        self.segment_type
+    }
 
     pub fn guide_points(&self) -> &GuidePoints {
         &self.guide_points
     }
-
-    // pub fn spine_points(&self) -> &SpinePoints {
-    //     &self.spine_points
-    // }
 
     pub fn get_from_node(&self) -> NodeId {
         self.from_node

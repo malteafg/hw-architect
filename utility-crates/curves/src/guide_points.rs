@@ -19,14 +19,15 @@ impl core::ops::DerefMut for GuidePoints {
 }
 
 impl GuidePoints {
-    pub fn from_vec(vec: Vec<Vec3>) -> Self {
+    pub(crate) fn from_vec(vec: Vec<Vec3>) -> Self {
         Self(vec)
     }
 
-    pub fn empty() -> Self {
+    pub(crate) fn _empty() -> Self {
         Self(vec![])
     }
 
+    /// Creates four points on a straight line between the two given points (containing them).
     /// # Panics
     /// Panics if the points are the same.
     pub fn from_two_points(p1: Vec3, p2: Vec3) -> Self {
@@ -38,7 +39,7 @@ impl GuidePoints {
 
     /// Computes and returns the summed distance from the path starting in the first point to the
     /// last point, visiting all points.
-    pub fn dist(&self) -> f32 {
+    pub(crate) fn dist(&self) -> f32 {
         let mut sum = 0.0;
         for i in 0..self.len() - 1 {
             sum += (self[i] - self[i + 1]).length()
@@ -46,7 +47,7 @@ impl GuidePoints {
         sum
     }
 
-    pub fn calc_bezier_pos(&self, t: f32) -> Vec3 {
+    pub(crate) fn calc_bezier_pos(&self, t: f32) -> Vec3 {
         let mut v = Vec3::new(0.0, 0.0, 0.0);
         let mut r = (1.0 - t).powi(self.len() as i32 - 1);
         let mut l = 1.0;
@@ -67,7 +68,7 @@ impl GuidePoints {
         v
     }
 
-    pub fn calc_bezier_dir(&self, t: f32) -> Vec3 {
+    pub(crate) fn calc_bezier_dir(&self, t: f32) -> Vec3 {
         let mut v = Vec3::new(0.0, 0.0, 0.0);
         let mut r = (1.0 - t).powi(self.len() as i32 - 2);
         let mut l = 1.0;
@@ -85,6 +86,13 @@ impl GuidePoints {
             l *= (self.len() as f32 - 1.0) / (1.0 + p as f32) - 1.0;
         }
         v * self.len() as f32
+    }
+
+    pub fn reverse_vec(vec: &mut Vec<Self>) {
+        vec.reverse();
+        for guide_points in vec.iter_mut() {
+            guide_points.reverse();
+        }
     }
 
     pub fn is_inside(&self, ground_pos: Vec3, width: f32) -> bool {
