@@ -7,6 +7,8 @@ mod nature;
 mod roads;
 mod simulation;
 
+use std::time::Duration;
+
 use world_api::{
     IdGetter, RoadManipulator, SimController, SimData, TreeManipulator, WorldManipulator,
 };
@@ -34,7 +36,11 @@ impl World {
     }
 }
 
-impl WorldManipulator for World {}
+impl WorldManipulator for World {
+    fn update(&mut self, dt: Duration) {
+        self.sim_handler.update(dt, &self.road_graph);
+    }
+}
 
 impl RoadManipulator for World {
     fn add_road(
@@ -42,11 +48,22 @@ impl RoadManipulator for World {
         road: LRoadBuilder,
         sel_node_type: NodeType,
     ) -> (Option<SnapConfig>, Vec<SegmentId>) {
+        // capture the spine to create lane paths for sim_handler
+        let lane_paths: Vec<_> = {
+            // temporary until transition segments
+            let node_type = road.get_first_node_type();
+            let width = node_type.lane_width_f32();
+            let no_paths = node_type.no_lanes();
+            road.get_segments()
+                .iter()
+                .map(|b| b.spine().gen_parallel(width, no_paths))
+                .collect()
+        };
+
         let (snap, segments) = self.road_graph.add_road(road, sel_node_type);
 
-        for s_id in segments.iter() {
-            let no_lane_paths = self.road_graph.get_segment(*s_id).no_lane_paths();
-            self.sim_handler.add_segment(*s_id, no_lane_paths);
+        for (i, lane_path) in lane_paths.into_iter().enumerate() {
+            self.sim_handler.add_segment(segments[i], lane_path);
         }
 
         (snap, segments)

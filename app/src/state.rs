@@ -75,6 +75,7 @@ impl State {
         if self.camera_controller.update_camera(dt) {
             self.update_ground_pos();
         }
+        self.tool.update(dt);
         self.gfx_handle
             .borrow_mut()
             .update_camera(self.camera_controller.get_raw_camera());

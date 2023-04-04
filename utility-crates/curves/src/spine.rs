@@ -1,7 +1,9 @@
+use crate::{GuidePoints, SpinePoints};
+
+use utils::VecUtils;
+
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
-
-use crate::GuidePoints;
 
 /// Spines always have a uniform distribution of their points.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -86,5 +88,23 @@ impl Spine {
         uniform_spine.push((self[oldpoint].0, self[oldpoint].1));
 
         uniform_spine
+    }
+
+    /// Generates a set of parallel spine_points ordered from left to right.
+    pub fn gen_parallel(&self, path_width: f32, no_paths: u8) -> Vec<SpinePoints> {
+        let mut paths = Vec::with_capacity(no_paths.into());
+        for _ in 0..no_paths {
+            paths.push(SpinePoints::with_capacity(self.len()));
+        }
+
+        for (pos, dir) in self.iter() {
+            let space = dir.right_hand() * path_width;
+            let left_most = *pos - (no_paths as f32 / 2.) * space;
+            for (i, path) in paths.iter_mut().enumerate() {
+                let p = left_most + space * i as f32;
+                path.push(p)
+            }
+        }
+        paths
     }
 }

@@ -11,6 +11,7 @@ use glam::Vec3;
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time::Duration;
 
 #[derive(Debug, Clone, Copy)]
 enum ToolMarker {
@@ -145,6 +146,10 @@ impl WorldTool {
         self.curr_tool_handle.update_view();
     }
 
+    pub fn update(&mut self, dt: Duration) {
+        self.curr_tool_handle.get_world_mut().update(dt);
+    }
+
     pub fn prepare_gfx(&mut self) {
         self.gfx_handle.borrow_mut().set_cars(vec![]);
     }
@@ -186,6 +191,10 @@ impl ToolShared for DummyTool {
     }
 
     fn get_world(&self) -> &Box<dyn WorldManipulator> {
+        panic!()
+    }
+
+    fn get_world_mut(&mut self) -> &mut Box<dyn WorldManipulator> {
         panic!()
     }
 

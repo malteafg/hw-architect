@@ -57,28 +57,40 @@ impl Default for RoadGraph {
 }
 
 impl RoadGraph {
-    fn get_node_mut(&mut self, node: NodeId) -> &mut LNode {
+    fn get_node_mut(&mut self, node: &NodeId) -> &mut LNode {
         self.node_map
-            .get_mut(&node)
+            .get_mut(node)
             .expect("Node does not exist in node map")
     }
 
-    fn get_node(&self, node: NodeId) -> &LNode {
+    fn get_node(&self, node: &NodeId) -> &LNode {
         self.node_map
-            .get(&node)
+            .get(node)
             .expect("Node does not exist in node map")
     }
 
-    fn _get_segment_mut(&mut self, segment: SegmentId) -> &mut LSegment {
+    pub fn get_segment(&self, segment: &SegmentId) -> &LSegment {
         self.segment_map
-            .get_mut(&segment)
+            .get(segment)
             .expect("Segment does not exist in segment map")
     }
 
-    pub fn get_segment(&self, segment: SegmentId) -> &LSegment {
+    fn _get_segment_mut(&mut self, segment: &SegmentId) -> &mut LSegment {
         self.segment_map
-            .get(&segment)
+            .get_mut(segment)
             .expect("Segment does not exist in segment map")
+    }
+
+    pub fn get_forwards_ref(&self, node: &NodeId) -> &Vec<LeadingPair> {
+        self.forward_refs
+            .get(node)
+            .expect("Node does not exist in forward_refs map")
+    }
+
+    pub fn get_backwards_ref(&self, node: &NodeId) -> &Vec<LeadingPair> {
+        self.backward_refs
+            .get(node)
+            .expect("Node does not exist in backward_refs map")
     }
 
     fn remove_node(&mut self, node_id: NodeId) {
@@ -105,13 +117,20 @@ impl RoadGraph {
         None
     }
 
-    pub fn get_ending_nodes(&self) -> &HashSet<NodeId> {
-        &self.ending_nodes
+    pub fn get_ending_segments(&self) -> Vec<LeadingPair> {
+        let mut ending_segments = Vec::with_capacity(self.ending_nodes.len());
+        for node_id in self.ending_nodes.iter() {
+            match self.get_backwards_ref(node_id).as_slice() {
+                [] => {}
+                leading_pairs => leading_pairs.iter().for_each(|p| ending_segments.push(*p)),
+            }
+        }
+        ending_segments
     }
 
     fn update_starting_ending(&mut self, nodes: &[NodeId]) {
         nodes.iter().for_each(|id| {
-            let node = self.get_node(*id);
+            let node = self.get_node(id);
             match (node.is_starting(), node.is_ending()) {
                 (true, false) => {
                     self.starting_nodes.insert(*id);
@@ -189,7 +208,7 @@ impl crate::RoadManipulator for RoadGraph {
                             Side::Out => segment_ids[0],
                             Side::In => segment_ids[segment_ids.len() - 1],
                         };
-                        self.get_node_mut(node_id)
+                        self.get_node_mut(&node_id)
                             .add_segment(segment_id, snap_config);
                     }
                 };
@@ -228,7 +247,7 @@ impl crate::RoadManipulator for RoadGraph {
         // compute the new node that the tool can snap to, if any.
         let new_snap_id = node_ids[if reverse { 0 } else { node_ids.len() - 1 }];
         let new_snap = self
-            .get_node(new_snap_id)
+            .get_node(&new_snap_id)
             .construct_snap_configs(sel_node_type, new_snap_id)
             .get(0)
             .cloned();
@@ -244,16 +263,19 @@ impl crate::RoadManipulator for RoadGraph {
 
     fn remove_segment(&mut self, segment_id: SegmentId) -> bool {
         // check if deletion is valid
-        let segment = self.get_segment(segment_id).clone();
-        let from_node = self.get_node(segment.get_from_node());
-        let to_node = self.get_node(segment.get_to_node());
+        let segment = self.get_segment(&segment_id);
+        let from_node = self.get_node(&segment.get_from_node());
+        let to_node = self.get_node(&segment.get_to_node());
         if !from_node.can_remove_segment(segment_id) || !to_node.can_remove_segment(segment_id) {
             dbg!("Cannot bulldoze segment");
             return false;
         }
 
         // remove any reference to this segment
-        self.segment_map.remove(&segment_id);
+        let segment = self
+            .segment_map
+            .remove(&segment_id)
+            .expect("Segment did not exist in segment map");
         self.forward_refs
             .get_mut(&segment.get_from_node())
             .expect("node does not exist in forward map")
@@ -266,14 +288,14 @@ impl crate::RoadManipulator for RoadGraph {
         // TODO put this code in remove node
         let mut affected_nodes = vec![segment.get_to_node(), segment.get_from_node()];
         if self
-            .get_node_mut(segment.get_from_node())
+            .get_node_mut(&segment.get_from_node())
             .remove_segment(segment_id)
         {
             self.remove_node(segment.get_from_node());
             affected_nodes.remove(1);
         }
         if self
-            .get_node_mut(segment.get_to_node())
+            .get_node_mut(&segment.get_to_node())
             .remove_segment(segment_id)
         {
             self.remove_node(segment.get_to_node());
@@ -332,12 +354,12 @@ impl crate::RoadManipulator for RoadGraph {
                     continue;
                 }
             }
-            if dist < (n.no_lanes() + node_type.no_lanes) as f32 * node_type.lane_width.getf32() {
+            if dist < (n.no_lanes() + node_type.no_lanes()) as f32 * node_type.lane_width_f32() {
                 closest_node = Some((id, dist));
             }
         }
         closest_node.map(|(id, _)| {
-            let n = self.get_node(*id);
+            let n = self.get_node(id);
             let mut snap_configs = n.construct_snap_configs(node_type, *id);
             snap_configs.sort_by(|a, b| {
                 (a.pos() - ground_pos)

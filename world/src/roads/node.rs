@@ -98,11 +98,11 @@ impl LNode {
     /// Returns the number of lanes of this node's type. This is the number of lanes in the main
     /// segment.
     pub fn no_lanes(&self) -> u8 {
-        self.node_type.no_lanes
+        self.node_type.no_lanes()
     }
 
     pub fn lane_width(&self) -> f32 {
-        self.node_type.lane_width.getf32()
+        self.node_type.lane_width_f32()
     }
 
     fn width(&self) -> f32 {
@@ -365,10 +365,7 @@ impl LNode {
 
                 attached_segments.shift(-(left_space as i8));
                 attached_segments.update_no_lanes(new_no_lanes);
-                self.node_type = NodeType {
-                    no_lanes: new_no_lanes,
-                    ..self.node_type
-                };
+                self.node_type = NodeType::new(self.node_type.lane_width(), new_no_lanes);
                 self.mode = Open {
                     open_side: *main_side,
                     attached_segments: mem::take(attached_segments),
@@ -407,16 +404,13 @@ impl LNode {
                 attached_segments.update_no_lanes(new_no_lanes);
 
                 let pos_shift_change = if empty_space == 0 {
-                    -((self.node_type.no_lanes - new_no_lanes) as i8)
+                    -((self.node_type.no_lanes() - new_no_lanes) as i8)
                 } else {
                     empty_space as i8
                 };
                 self.pos += (pos_shift_change as f32 / 2.0) * lane_width_dir;
 
-                self.node_type = NodeType {
-                    no_lanes: new_no_lanes,
-                    ..self.node_type
-                };
+                self.node_type = NodeType::new(self.node_type.lane_width(), new_no_lanes);
                 // It is safe to return false, because if attached_segments is now empty, then it
                 // would have been an Asym node in the first place, so this code would never have
                 // been run.
@@ -454,12 +448,12 @@ impl LNode {
     /// trying to snap and the id of this node.
     pub fn construct_snap_configs(&self, node_type: NodeType, node_id: NodeId) -> Vec<SnapConfig> {
         // TODO in the future we should generate a transition segment probably
-        if self.node_type.lane_width != node_type.lane_width {
+        if self.node_type.lane_width_f32() != node_type.lane_width_f32() {
             return vec![];
         }
 
         let lane_width_dir = self.dir.right_hand() * self.lane_width();
-        let snap_no_lanes = node_type.no_lanes;
+        let snap_no_lanes = node_type.no_lanes();
 
         let (snap_ranges_with_pos, side): (Vec<(SnapRange, Vec3)>, Side) = match &self.mode {
             Basic { main_side, .. } => {
@@ -540,7 +534,7 @@ mod lanes {
         }
 
         pub fn no_lanes(&self) -> u8 {
-            self.node_type.no_lanes
+            self.node_type.no_lanes()
         }
 
         pub fn get_segment_id(&self) -> SegmentId {

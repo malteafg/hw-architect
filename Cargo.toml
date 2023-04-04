@@ -25,7 +25,7 @@ world-api = { path = "world-api" }
 bytemuck = { version = "1.13", features = [ "derive" ] }
 
 anyhow = "1.0"
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0", features = ["derive", "rc"] }
 
 glam = { version = "0.22", default-features = false, features = ["serde", "bytemuck"] }
 rand = "^0.8"

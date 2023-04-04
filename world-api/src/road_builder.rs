@@ -38,6 +38,13 @@ impl LNodeBuilderType {
             Old(snap_config) => (snap_config.pos(), snap_config.dir()),
         }
     }
+
+    fn node_type(&self) -> NodeType {
+        match self {
+            New(b) => b.node_type(),
+            Old(s) => s.node_type(),
+        }
+    }
 }
 
 fn flip_dir_on_new(nodes: &mut [LNodeBuilderType]) {
@@ -76,6 +83,11 @@ impl LRoadBuilder {
 
     pub fn consume(self) -> (Vec<LNodeBuilderType>, Vec<LSegmentBuilder>, bool) {
         (self.nodes, self.segments, self.reverse)
+    }
+
+    /// NOTE: temporary should be removed once transition segments
+    pub fn get_first_node_type(&self) -> NodeType {
+        self.nodes[0].node_type()
     }
 
     pub fn get_segments(&self) -> &Vec<LSegmentBuilder> {
@@ -318,7 +330,7 @@ impl LRoadBuilder {
             start_dir,
             end_pos,
             end_dir,
-            node_type.no_lanes,
+            node_type.no_lanes(),
         )
         .map_err(|_| RoadGenErr::DoubleSnapFailed)?;
 

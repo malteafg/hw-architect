@@ -90,7 +90,7 @@ impl ToolStrategy for ToolInstance<ConstructTool> {
                         .road_state
                         .selected_road
                         .node_type
-                        .lane_width,
+                        .lane_width(),
                     scroll_state,
                 );
                 self.set_lane_width(new_lane_width);
@@ -102,7 +102,7 @@ impl ToolStrategy for ToolInstance<ConstructTool> {
                         .road_state
                         .selected_road
                         .node_type
-                        .no_lanes,
+                        .no_lanes(),
                     scroll_state,
                 );
                 self.set_no_lanes(new_no_lanes);
@@ -267,12 +267,12 @@ impl ToolInstance<ConstructTool> {
     /// Sets the lane width in use.
     fn set_lane_width(&mut self, _new_lane_width: LaneWidth) {
         self.reset();
-        dbg!(self.get_sel_road_type().node_type.lane_width);
+        dbg!(self.get_sel_road_type().node_type.lane_width_f32());
     }
 
     /// Sets the selected number of lanes.
     fn set_no_lanes(&mut self, _no_lanes: u8) {
-        dbg!(self.get_sel_road_type().node_type.no_lanes);
+        dbg!(self.get_sel_road_type().node_type.no_lanes());
         self.show_snappable_nodes();
         if let SelNode { .. } = self.self_tool.mode {
             self.reset();
