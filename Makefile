@@ -30,3 +30,6 @@ loc:
 	loc world
 	loc world-api
 	loc
+
+# use to print layout of types
+# cargo +nightly rustc -- -Zprint-type-sizes

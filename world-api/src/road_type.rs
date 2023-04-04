@@ -59,6 +59,10 @@ impl NodeType {
     pub fn compute_width(&self) -> f32 {
         self.lane_width.getf32() * self.no_lanes as f32
     }
+
+    pub fn lane_width(&self) -> f32 {
+        self.lane_width.getf32()
+    }
 }
 
 /// Defines the types of segments that can be constructed.

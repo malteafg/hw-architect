@@ -191,7 +191,7 @@ pub fn gen_road_mesh_with_lanes(spine: &Spine, node_type: NodeType) -> RoadMesh 
 
 /// Generates the cut where no lane markings are present.
 fn generate_clean_cut(pos: Vec3, dir: Vec3, node_type: NodeType) -> Vec<[f32; 3]> {
-    let right_dir = dir.right_hand().normalize();
+    let right_dir = dir.right_hand();
     let mut vertices = vec![];
     let height = Vec3::new(0.0, ROAD_HEIGHT, 0.0);
     let road_width = node_type.lane_width.getf32() * node_type.no_lanes as f32;
@@ -219,7 +219,7 @@ fn generate_clean_cut(pos: Vec3, dir: Vec3, node_type: NodeType) -> Vec<[f32; 3]
 
 /// Generates the cut where lane markings are present.
 fn generate_markings_cut(pos: Vec3, dir: Vec3, node_type: NodeType) -> Vec<[f32; 3]> {
-    let right_dir = dir.right_hand().normalize();
+    let right_dir = dir.right_hand();
     let mut vertices = vec![];
     let height = Vec3::new(0.0, ROAD_HEIGHT, 0.0);
     let lane_width = node_type.lane_width.getf32();

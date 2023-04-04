@@ -78,7 +78,7 @@ impl Spine {
                 let pos = self[oldpoint].0 + old_subsegment * interpolation_factor;
                 let dir = self[oldpoint + 1].1 * interpolation_factor
                     + self[oldpoint].1 * (1.0 - interpolation_factor);
-                uniform_spine.push((pos, dir));
+                uniform_spine.push((pos, dir.normalize()));
                 track_pos += uniform_dist;
             }
         }

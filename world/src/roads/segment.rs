@@ -1,7 +1,7 @@
 use world_api::{LSegmentBuilder, LSegmentBuilderType, SegmentType};
 
 use curves::{GuidePoints, SpinePoints};
-use utils::id::NodeId;
+use utils::{id::NodeId, VecUtils};
 
 use glam::Vec3;
 
@@ -50,12 +50,22 @@ impl LSegment {
         let (width, lane_paths) = match node_config {
             LSegmentBuilderType::Same(node_type) => {
                 let width = node_type.compute_width();
+                let lane_width = node_type.lane_width();
                 let no_lane_paths = node_type.no_lanes;
+
                 let mut lane_paths = Vec::with_capacity(no_lane_paths.into());
                 for _ in 0..no_lane_paths {
                     lane_paths.push(SpinePoints::with_capacity(spine.len()));
                 }
-                // loop over spine and create lane paths
+
+                for (pos, dir) in spine.iter() {
+                    let space = dir.right_hand() * lane_width;
+                    let left_most = *pos - (no_lane_paths as f32 / 2.) * space;
+                    for (i, lane_path) in lane_paths.iter_mut().enumerate() {
+                        let p = left_most + space * i as f32;
+                        lane_path.push(p)
+                    }
+                }
 
                 (width, lane_paths)
             }

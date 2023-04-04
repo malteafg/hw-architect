@@ -85,7 +85,7 @@ impl GuidePoints {
             }
             l *= (self.len() as f32 - 1.0) / (1.0 + p as f32) - 1.0;
         }
-        v * self.len() as f32
+        v.normalize()
     }
 
     pub fn reverse_vec(vec: &mut Vec<Self>) {
