@@ -133,6 +133,7 @@ pub struct SimHandler {
 
     /// Represents all the segments currently in game. Must only be modified when a segment is
     /// added or removed.
+    /// TODO make FixedBitSet type as IdSet in id.rs
     segments_to_dispatch: FixedBitSet,
 
     /// Memory allocated for highlighting when a segment has been processed in each update
@@ -190,6 +191,7 @@ impl SimHandler {
         self.processed_segments.clear();
 
         // (2) clone segments_to_dispatch. This contains all segments that need dispatching
+        // TODO remove this clone by having a swap buffer
         let segments_left = self.segments_to_dispatch.clone();
         // (3) create a list of segment ids from from backwards_refs of road_graph.ending_nodes
         let mut ready_to_dispatch = road_graph.get_ending_segments();
@@ -205,7 +207,8 @@ impl SimHandler {
                 continue;
             };
 
-            self.segments_to_dispatch.set(segment_id.usize(), false);
+            // self.segments_to_dispatch.set(segment_id.usize(), false);
+            self.segments_to_dispatch.set(0, false);
             // let dst = self
             //     .vehicle_tracker_swap
             //     .get_mut(&segment_id)
@@ -219,11 +222,13 @@ impl SimHandler {
             self.vehicles_to_remove.append(&mut result);
             // when a dispatch returns add the backwards segments of the processed segments to (3) if
             // they still exist in (2)
-            self.processed_segments.put(segment_id.usize());
+            // self.processed_segments.put(segment_id.usize());
+            self.processed_segments.put(0);
 
             let mut ready = true;
             for (_, required_segment) in road_graph.get_forwards_ref(&node_id) {
-                if !self.processed_segments.contains(required_segment.usize()) {
+                // if !self.processed_segments.contains(required_segment.usize()) {
+                if !self.processed_segments.contains(0) {
                     ready = false;
                     break;
                 }
@@ -248,12 +253,14 @@ impl SimHandler {
     pub fn add_segment(&mut self, segment: SegmentId, lane_paths: Vec<SpinePoints>) {
         self.vehicle_tracker
             .insert(segment, SegmentState::new(lane_paths));
-        self.segments_to_dispatch.put(segment.usize());
+        // self.segments_to_dispatch.put(segment.usize());
+        self.segments_to_dispatch.put(0);
     }
 
     pub fn remove_segment(&mut self, segment: SegmentId) {
         // TODO what about the vehicles in the segment?
         self.vehicle_tracker.remove(&segment);
-        self.segments_to_dispatch.set(segment.usize(), false);
+        // self.segments_to_dispatch.set(segment.usize(), false);
+        self.segments_to_dispatch.set(0, false);
     }
 }

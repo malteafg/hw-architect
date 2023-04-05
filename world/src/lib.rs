@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Default)]
 pub struct World {
     road_graph: RoadGraph,
-    sim_handler: SimHandler,
+    // sim_handler: SimHandler,
     trees: Trees,
 }
 
@@ -40,7 +40,7 @@ impl WorldManipulator for World {
     /// TODO add check for dt. If dt is too large (maybe larger than a second) fix it to be some
     /// smaller value. Large values of dt can cause bad behaviour in the simulation.
     fn update(&mut self, dt: Duration) {
-        self.sim_handler.update(dt, &self.road_graph);
+        // self.sim_handler.update(dt, &self.road_graph);
     }
 }
 
@@ -64,18 +64,18 @@ impl RoadManipulator for World {
 
         let (snap, segments) = self.road_graph.add_road(road, sel_node_type);
 
-        for (i, lane_path) in lane_paths.into_iter().enumerate() {
-            self.sim_handler.add_segment(segments[i], lane_path);
-        }
+        // for (i, lane_path) in lane_paths.into_iter().enumerate() {
+        //     self.sim_handler.add_segment(segments[i], lane_path);
+        // }
 
         (snap, segments)
     }
 
     fn remove_segment(&mut self, segment_id: SegmentId) -> bool {
         let result = self.road_graph.remove_segment(segment_id);
-        if result {
-            self.sim_handler.remove_segment(segment_id);
-        }
+        // if result {
+        //     self.sim_handler.remove_segment(segment_id);
+        // }
         result
     }
 
