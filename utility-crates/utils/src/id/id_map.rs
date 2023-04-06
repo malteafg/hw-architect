@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 const RESERVE_CHUNKS: usize = 8192;
 
 /// Maybe always insert
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdMap<K: IdBehaviour, V> {
     vec: Vec<Option<V>>,
     marker: PhantomData<K>,

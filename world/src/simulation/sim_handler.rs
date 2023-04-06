@@ -3,15 +3,12 @@ use crate::roads::RoadGraph;
 
 use curves::SpinePoints;
 use serde::{Deserialize, Serialize};
-use utils::id::{SegmentId, VehicleId, MAX_NUM_ID};
+use utils::id::{IdMap, SegmentId, VehicleId, MAX_NUM_ID};
 
 use fixedbitset::FixedBitSet;
 use glam::Vec3;
 
-use std::{
-    collections::{HashMap, VecDeque},
-    time::Duration,
-};
+use std::{collections::VecDeque, time::Duration};
 
 const DEFAULT_VEHICLE_CAP: usize = 8;
 
@@ -123,13 +120,13 @@ impl SegmentState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimHandler {
     /// Sim needs to read from this, but StaticVehicleData can be read only.
-    vehicles_data: HashMap<VehicleId, StaticVehicleData>,
+    vehicles_data: IdMap<VehicleId, StaticVehicleData>,
 
     /// Sim needs to write to this, so VehicleLoc is mut.
-    vehicles_loc: HashMap<VehicleId, VehicleLoc>,
+    vehicles_loc: IdMap<VehicleId, VehicleLoc>,
 
     /// Maybe wrap the SegmentState in an Arc<RwLock<>>, when doing parallelism.
-    vehicle_tracker: HashMap<SegmentId, SegmentState>,
+    vehicle_tracker: IdMap<SegmentId, SegmentState>,
 
     /// Represents all the segments currently in game. Must only be modified when a segment is
     /// added or removed.
@@ -147,9 +144,9 @@ pub struct SimHandler {
 
 impl Default for SimHandler {
     fn default() -> Self {
-        let vehicles_data = HashMap::new();
-        let vehicles_loc = HashMap::new();
-        let vehicle_tracker = HashMap::new();
+        let vehicles_data = IdMap::new();
+        let vehicles_loc = IdMap::new();
+        let vehicle_tracker = IdMap::new();
         let segments_to_dispatch = FixedBitSet::with_capacity(MAX_NUM_ID);
         let processed_segments = FixedBitSet::with_capacity(MAX_NUM_ID);
         let vehicles_to_remove = Vec::new();
@@ -213,10 +210,7 @@ impl SimHandler {
             //     .vehicle_tracker_swap
             //     .get_mut(&segment_id)
             //     .expect("Segment state did not exist in vehicle tracker swap map");
-            let segment_state = self
-                .vehicle_tracker
-                .get_mut(&segment_id)
-                .expect("Segment state did not exist in vehicle tracker map");
+            let segment_state = self.vehicle_tracker.get_mut(&segment_id);
 
             let mut result = process(dt, segment_state);
             self.vehicles_to_remove.append(&mut result);
@@ -252,7 +246,7 @@ impl SimHandler {
 
     pub fn add_segment(&mut self, segment: SegmentId, lane_paths: Vec<SpinePoints>) {
         self.vehicle_tracker
-            .insert(segment, SegmentState::new(lane_paths));
+            .insert(&segment, SegmentState::new(lane_paths));
         // self.segments_to_dispatch.put(segment.usize());
         self.segments_to_dispatch.put(0);
     }
