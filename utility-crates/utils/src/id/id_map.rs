@@ -4,6 +4,11 @@ use serde::{Deserialize, Serialize};
 
 use std::marker::PhantomData;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Safe;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Unsafe;
+
 /// The number of elements that will be reserved space for each time the allocated memory needs to
 /// be extended.
 /// This an arbitrary number maybe find better number, or scale it exponentially.
@@ -40,6 +45,14 @@ impl<K: IdBehaviour, V: Clone> IdMap<K, V> {
         self.len
     }
 
+    pub fn clear(&mut self) {
+        self.len = 0;
+        for v in self.vec.iter_mut() {
+            *v = None;
+        }
+    }
+
+    /// Maybe subtract the current empty space from additional
     pub fn reserve(&mut self, additional: usize) {
         // round up to nearest multiple of RESERVE_CHUNKS
         let additional = additional + (RESERVE_CHUNKS - 1) & !(RESERVE_CHUNKS - 1);
@@ -92,6 +105,7 @@ impl<K: IdBehaviour, V: Clone> IdMap<K, V> {
     pub fn insert(&mut self, k: K, v: V) {
         let k_num = k.to_usize();
 
+        // this could be removed for some instances
         if self.contains_key(k) {
             self.vec[k_num] = Some(v);
             return;
@@ -111,6 +125,7 @@ impl<K: IdBehaviour, V: Clone> IdMap<K, V> {
     pub fn remove(&mut self, k: K) -> Option<V> {
         let k_num = k.to_usize();
 
+        // this could be removed for some instances
         if !self.contains_key(k) {
             return None;
         }

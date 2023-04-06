@@ -253,14 +253,14 @@ impl ToolInstance<ConstructTool> {
     }
 
     /// Sets the lane width in use.
-    fn set_lane_width(&mut self, _new_lane_width: LaneWidth) {
+    fn set_lane_width(&mut self, new_lane_width: LaneWidth) {
         self.reset();
-        dbg!(self.get_sel_road_type().node_type.lane_width_f32());
+        dbg!(new_lane_width.getf32());
     }
 
     /// Sets the selected number of lanes.
-    fn set_no_lanes(&mut self, _no_lanes: u8) {
-        dbg!(self.get_sel_road_type().node_type.no_lanes());
+    fn set_no_lanes(&mut self, no_lanes: u8) {
+        dbg!(no_lanes);
         self.show_snappable_nodes();
         if let SelNode { .. } = self.self_tool.mode {
             self.reset();
