@@ -14,6 +14,12 @@ pub struct UnsafeMap;
 /// This an arbitrary number maybe find better number, or scale it exponentially.
 const RESERVE_CHUNKS: usize = 8192;
 
+/// A map for mapping Id's to arbitrary data.
+///
+/// `S` represents the safety of a map. A map can be either a `{SafeMap}` or an `{UnsafeMap}` where
+/// `{SafeMap}` is the default. `{UnsafeMap}` is more likely to panic but should be used for
+/// efficiency reasons, if the user is absolutely certain that they will not be inserting the same
+/// key twice or removing/getting keys that do not exist in the map.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdMap<K: IdBehaviour, V, S = SafeMap> {
     vec: Vec<Option<V>>,
@@ -24,6 +30,20 @@ pub struct IdMap<K: IdBehaviour, V, S = SafeMap> {
 
 /// Remove clone requirement once extend can use into_iter
 impl<K: IdBehaviour, V, S> IdMap<K, V, S> {
+    /// Creates an empty `IdMap`.
+    ///
+    /// The map is initially created with a capacity of 0, so it will not allocate until it is
+    /// first inserted into.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use utils::id::{SegmentId, IdMap, UnsafeMap};
+    /// // a safe map
+    /// let mut map: IdMap<SegmentId, i32> = IdMap::new();
+    /// // an unsafe map
+    /// let mut map: IdMap<SegmentId, i32, UnsafeMap> = IdMap::new();
+    /// ```
     pub fn new() -> Self {
         Self {
             vec: Vec::new(),
@@ -33,20 +53,69 @@ impl<K: IdBehaviour, V, S> IdMap<K, V, S> {
         }
     }
 
+    /// Creates an empty `IdMap` with at least the specified capacity.
+    ///
+    /// The map will be able to hold at least `capacity` elements without reallocating. This method
+    /// is allowed to allocate for more elements than `capacity`. If `capacity` is 0, the map will
+    /// not allocate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use utils::id::{IdMap, SegmentId};
+    /// let mut map: IdMap<SegmentId, i32> = IdMap::with_capacity(10);
+    /// ```
     pub fn with_capacity(capacity: usize) -> Self {
         let mut result = Self::new();
         result.reserve(capacity);
         result
     }
 
+    /// Returns the total number of elements the map can hold without reallocating.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use utils::id::{IdMap, SegmentId};
+    /// let mut map: IdMap<SegmentId, i32> = IdMap::with_capacity(10);
+    /// assert!(map.capacity() > 10);
+    /// ```
     pub fn capacity(&self) -> usize {
         self.vec.capacity()
     }
 
+    /// Returns the number of elements contained in the map, also referred to
+    /// as its 'length'.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use utils::id::{IdMap, SegmentId};
+    /// let mut map: IdMap<SegmentId, i32> = IdMap::with_capacity(10);
+    /// assert_eq!(map.len(), 0);
+    /// ```
     pub fn len(&self) -> usize {
         self.len
     }
 
+    /// Returns `true` if the map contains no elements.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use utils::id::{IdMap, SegmentId};
+    /// let mut map: IdMap<SegmentId, i32> = IdMap::with_capacity(10);
+    /// assert!(map.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// Clears the map, removing all values. Thus, aftewards the length of the map will be 0.
+    ///
+    /// Note that this method has no effect on the allocated capacity of the map.
+    ///
+    /// TODO add example, but how to create Id in doc code?
     pub fn clear(&mut self) {
         self.len = 0;
         for v in self.vec.iter_mut() {
@@ -54,13 +123,32 @@ impl<K: IdBehaviour, V, S> IdMap<K, V, S> {
         }
     }
 
-    /// Maybe subtract the current empty space from additional
+    /// Reserves capacity for at least `additional` more elements to be inserted
+    /// in the given `IdMap<K, V>`. The collection may reserve more space to
+    /// speculatively avoid frequent reallocations. After calling `reserve`,
+    /// capacity will be greater than or equal to `self.len() + additional`.
+    /// Does nothing if capacity is already sufficient.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the new capacity exceeds `isize::MAX` bytes. This is a result
+    /// of the underlying implementation using a `Vec<V>`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use utils::id::{IdMap, SegmentId};
+    /// let mut map: IdMap<SegmentId, i32> = IdMap::new();
+    /// map.reserve(10);
+    /// assert!(map.capacity() > 10);
+    /// ```
     pub fn reserve(&mut self, additional: usize) {
         // round up to nearest multiple of RESERVE_CHUNKS
         let additional = additional + (RESERVE_CHUNKS - 1) & !(RESERVE_CHUNKS - 1);
         self.vec.reserve(additional);
 
-        for _ in 0..additional {
+        let new_spaces = self.vec.capacity() - self.len;
+        for _ in 0..new_spaces {
             self.vec.push(None)
         }
     }

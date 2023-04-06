@@ -105,7 +105,7 @@ impl Mat4Utils for Mat4 {
     }
 }
 
-/// Defines utility functions intended for 4x4 matrices
+/// Defines utility functions intended for 3x3 matrices
 pub trait Mat3Utils {
     fn to_3x3(self) -> [[f32; 3]; 3];
 }

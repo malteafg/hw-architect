@@ -1,7 +1,6 @@
 //! This crate defines the api for the graphics engine that hw-architect uses. The only interaction
 //! that other crates are allowed to have to a graphics engine must go through this api, to keep
 //! things modular.
-//! Dependency on wgpu in Gfx.render should be removed
 pub mod colors;
 mod data;
 mod error;
