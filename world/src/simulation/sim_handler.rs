@@ -3,7 +3,7 @@ use crate::roads::RoadGraph;
 
 use curves::SpinePoints;
 use serde::{Deserialize, Serialize};
-use utils::id::{IdMap, IdSet, SegmentId, VehicleId, MAX_NUM_ID};
+use utils::id::{IdMap, IdSet, SegmentId, VehicleId};
 
 use glam::Vec3;
 
@@ -203,22 +203,22 @@ impl SimHandler {
                 continue;
             };
 
-            self.segments_to_dispatch.remove(&segment_id);
+            self.segments_to_dispatch.remove(segment_id);
             // let dst = self
             //     .vehicle_tracker_swap
             //     .get_mut(&segment_id)
             //     .expect("Segment state did not exist in vehicle tracker swap map");
-            let segment_state = self.vehicle_tracker.get_mut(&segment_id);
+            let segment_state = self.vehicle_tracker.get_panic_mut(segment_id);
 
             let mut result = process(dt, segment_state);
             self.vehicles_to_remove.append(&mut result);
             // when a dispatch returns add the backwards segments of the processed segments to (3) if
             // they still exist in (2)
-            self.processed_segments.insert(&segment_id);
+            self.processed_segments.insert(segment_id);
 
             let mut ready = true;
-            for (_, required_segment) in road_graph.get_forwards_ref(&node_id) {
-                if !self.processed_segments.contains(required_segment) {
+            for (_, required_segment) in road_graph.get_forwards_ref(node_id) {
+                if !self.processed_segments.contains(*required_segment) {
                     ready = false;
                     break;
                 }
@@ -227,7 +227,7 @@ impl SimHandler {
             if ready {
                 // todo add the forward data from the segments just processed
                 road_graph
-                    .get_backwards_ref(&node_id)
+                    .get_backwards_ref(node_id)
                     .iter()
                     .for_each(|p| ready_to_dispatch.push(*p));
             }
@@ -242,13 +242,13 @@ impl SimHandler {
 
     pub fn add_segment(&mut self, segment: SegmentId, lane_paths: Vec<SpinePoints>) {
         self.vehicle_tracker
-            .insert(&segment, SegmentState::new(lane_paths));
-        self.segments_to_dispatch.insert(&segment);
+            .insert(segment, SegmentState::new(lane_paths));
+        self.segments_to_dispatch.insert(segment);
     }
 
     pub fn remove_segment(&mut self, segment: SegmentId) {
         // TODO what about the vehicles in the segment?
-        self.vehicle_tracker.remove(&segment);
-        self.segments_to_dispatch.remove(&segment);
+        self.vehicle_tracker.remove(segment);
+        self.segments_to_dispatch.remove(segment);
     }
 }

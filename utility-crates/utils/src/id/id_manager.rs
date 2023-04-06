@@ -3,7 +3,16 @@ use serde::{Deserialize, Serialize};
 
 use std::marker::PhantomData;
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
+pub struct NodeMarker;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
+pub struct SegmentMarker;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
+pub struct TreeMarker;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
+pub struct VehicleMarker;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
+
 /// TODO maybe ensure that Int is nonnegative?
 pub struct Id<A, Int: Integer + Bounded + FromPrimitive + ToPrimitive> {
     id: Int,
@@ -35,8 +44,6 @@ impl<A, Int: Integer + Bounded + FromPrimitive + ToPrimitive> IdBehaviour for Id
 #[derive(Serialize, Deserialize)]
 // pub struct IdManager<A = Id<M, Int>> {
 pub struct IdManager<A: IdBehaviour> {
-    // Maybe this should be larger than usize, ideally generic with the type from inside
-    // IdBehaviour.
     counter: usize,
     state: PhantomData<A>,
 }
@@ -59,5 +66,3 @@ impl<A: IdBehaviour> IdManager<A> {
         self.counter += 1;
     }
 }
-
-// make IdSet using FixedBitSet and IdMap using Vec.

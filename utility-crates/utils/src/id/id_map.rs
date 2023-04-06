@@ -16,7 +16,8 @@ pub struct IdMap<K: IdBehaviour, V> {
     len: usize,
 }
 
-impl<K: IdBehaviour, V> IdMap<K, V> {
+/// Remove clone requirement once extend can use into_iter
+impl<K: IdBehaviour, V: Clone> IdMap<K, V> {
     pub fn new() -> Self {
         Self {
             vec: Vec::new(),
@@ -62,25 +63,43 @@ impl<K: IdBehaviour, V> IdMap<K, V> {
         self.vec.shrink_to_fit();
     }
 
-    pub fn get(&self, k: &K) -> &V {
-        let k_num = k.to_usize();
-        &self.vec[k_num].as_ref().unwrap()
+    pub fn get_panic(&self, k: K) -> &V {
+        self.get(k).as_ref().unwrap()
     }
 
-    pub fn get_mut(&mut self, k: &K) -> &mut V {
-        let k_num = k.to_usize();
-        let result = &mut self.vec[k_num];
-        let result = result.as_mut().unwrap();
-        result
+    pub fn get_panic_mut(&mut self, k: K) -> &mut V {
+        self.get_mut(k).as_mut().unwrap()
     }
 
-    pub fn insert(&mut self, k: &K, v: V) {
+    pub fn get(&self, k: K) -> &Option<V> {
         let k_num = k.to_usize();
-        let vec_len = self.vec.len();
+        &self.vec[k_num]
+    }
 
-        // allocate more space if necessary
-        if k_num >= vec_len {
-            let additional = k_num - vec_len + 1;
+    pub fn get_mut(&mut self, k: K) -> &mut Option<V> {
+        let k_num = k.to_usize();
+        &mut self.vec[k_num]
+    }
+
+    pub fn contains_key(&mut self, k: K) -> bool {
+        let k_num = k.to_usize();
+        if k_num >= self.capacity() {
+            return false;
+        }
+        self.vec[k_num].is_some()
+    }
+
+    pub fn insert(&mut self, k: K, v: V) {
+        let k_num = k.to_usize();
+
+        if self.contains_key(k) {
+            self.vec[k_num] = Some(v);
+            return;
+        }
+
+        let capacity = self.capacity();
+        if k_num >= capacity {
+            let additional = k_num - capacity + 1;
             self.reserve(additional);
         }
 
@@ -88,20 +107,39 @@ impl<K: IdBehaviour, V> IdMap<K, V> {
         self.vec[k_num] = Some(v);
     }
 
-    /// Removes an Id from the map and returns its value. It panics if the id does not exist within
-    /// the map.
-    pub fn remove(&mut self, k: &K) -> V {
+    /// Removes an Id from the map and returns its value.
+    pub fn remove(&mut self, k: K) -> Option<V> {
         let k_num = k.to_usize();
 
+        if !self.contains_key(k) {
+            return None;
+        }
+
         self.len -= 1;
-        std::mem::take(&mut self.vec[k_num]).unwrap()
+        std::mem::take(&mut self.vec[k_num])
     }
 
-    pub fn iter_values(&self) -> impl Iterator<Item = &V> + '_ {
+    /// TODO figure out how to implement into iter and remove clones.
+    /// If an Id is already present, this function will override.
+    pub fn extend(&mut self, other: IdMap<K, V>) {
+        for (k, v) in other.iter() {
+            self.insert(k, v.clone());
+        }
+    }
+
+    /// TODO check if from_usize creates a memory allocation
+    pub fn keys(&self) -> impl Iterator<Item = K> + '_ {
+        self.vec
+            .iter()
+            .enumerate()
+            .filter_map(|(k_num, v)| v.as_ref().map(|_| K::from_usize(k_num)))
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = &V> + '_ {
         self.vec.iter().filter_map(|v| v.as_ref())
     }
 
-    pub fn iter_values_mut(&mut self) -> impl Iterator<Item = &mut V> + '_ {
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut V> + '_ {
         self.vec.iter_mut().filter_map(|v| v.as_mut())
     }
 
@@ -110,7 +148,7 @@ impl<K: IdBehaviour, V> IdMap<K, V> {
         self.vec
             .iter()
             .enumerate()
-            .filter_map(|(k, v)| v.as_ref().map(|v| (K::from_usize(k), v)))
+            .filter_map(|(k_num, v)| v.as_ref().map(|v| (K::from_usize(k_num), v)))
     }
 
     /// TODO check if from_usize creates a memory allocation
@@ -118,8 +156,18 @@ impl<K: IdBehaviour, V> IdMap<K, V> {
         self.vec
             .iter_mut()
             .enumerate()
-            .filter_map(|(k, v)| v.as_mut().map(|v| (K::from_usize(k), v)))
+            .filter_map(|(k_num, v)| v.as_mut().map(|v| (K::from_usize(k_num), v)))
     }
+
+    // pub fn into_iter(self) -> impl IntoIterator<Item = (K, V)> + 'static {
+    //     self.vec
+    //         .into_iter()
+    //         .enumerate()
+    //         .filter_map(|(k_num, v)| match v {
+    //             Some(v) => Some((K::from_usize(k_num), v)),
+    //             None => None,
+    //         })
+    // }
 }
 
 // impl<'a, K: IdBehaviour, V> Iterator for &'a IdMap<K, V> {

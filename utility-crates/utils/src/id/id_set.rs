@@ -65,28 +65,42 @@ impl<V: IdBehaviour> IdSet<V> {
         self.set.is_superset(&other.set)
     }
 
-    pub fn contains(&self, v: &V) -> bool {
+    pub fn contains(&self, v: V) -> bool {
         let v_num = v.to_usize();
         self.set.contains(v_num)
     }
 
-    pub fn insert(&mut self, v: &V) -> bool {
+    pub fn insert(&mut self, v: V) -> bool {
         let v_num = v.to_usize();
-        let set_len = self.set.len();
+        let capacity = self.capacity();
 
-        if v_num >= set_len {
-            let additional = v_num - set_len + 1;
+        if v_num >= capacity {
+            let additional = v_num - capacity + 1;
             self.reserve(additional);
         }
 
         self.set.put(v_num)
     }
 
-    pub fn remove(&mut self, v: &V) -> bool {
+    pub fn remove(&mut self, v: V) -> bool {
         let v_num = v.to_usize();
-        let result = self.set.contains(v_num);
 
+        if v_num >= self.capacity() {
+            return false;
+        }
+
+        let result = self.set.contains(v_num);
         self.set.set(v_num, false);
         result
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = V> + '_ {
+        (0..self.capacity()).filter_map(|v_num| {
+            if self.set.contains(v_num) {
+                Some(V::from_usize(v_num))
+            } else {
+                None
+            }
+        })
     }
 }

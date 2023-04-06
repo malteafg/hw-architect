@@ -8,24 +8,7 @@ pub use id_manager::IdManager;
 pub use id_map::IdMap;
 pub use id_set::IdSet;
 
-use serde::{Deserialize, Serialize};
-
-/// TODO this should be deprecated and removed
-pub const MAX_NUM_ID: usize = 65536;
-
-pub type NodeId = Id<NodeMarker, u16>;
-pub type SegmentId = Id<SegmentMarker, u16>;
-pub type TreeId = Id<TreeMarker, u16>;
-pub type VehicleId = Id<VehicleMarker, u32>;
-
-/// It is dum to hash ids, make IdMap using Vec
-/// Maybe all of these traits are dum to implement, they should just use the underlying integer to
-/// do all these things.
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
-pub struct NodeMarker;
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
-pub struct SegmentMarker;
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
-pub struct TreeMarker;
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
-pub struct VehicleMarker;
+pub type NodeId = Id<id_manager::NodeMarker, u16>;
+pub type SegmentId = Id<id_manager::SegmentMarker, u16>;
+pub type TreeId = Id<id_manager::TreeMarker, u16>;
+pub type VehicleId = Id<id_manager::VehicleMarker, u32>;
