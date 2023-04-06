@@ -6,9 +6,9 @@ use std::marker::PhantomData;
 
 /// The number of elements that will be reserved space for each time the allocated memory needs to
 /// be extended.
+/// This an arbitrary number maybe find better number, or scale it exponentially.
 const RESERVE_CHUNKS: usize = 8192;
 
-/// Maybe always insert
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdMap<K: IdBehaviour, V> {
     vec: Vec<Option<V>>,

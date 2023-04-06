@@ -1,10 +1,12 @@
 mod id_manager;
 mod id_map;
+mod id_set;
 
 use id_manager::{Id, IdBehaviour};
 
 pub use id_manager::IdManager;
 pub use id_map::IdMap;
+pub use id_set::IdSet;
 
 use serde::{Deserialize, Serialize};
 

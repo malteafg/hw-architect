@@ -15,6 +15,7 @@ glam = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 num = { workspace = true }
+fixedbitset = { workspace = true }
 
 strum = "0.24.0"
 strum_macros = "0.24.0"
