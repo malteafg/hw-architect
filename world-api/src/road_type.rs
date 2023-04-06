@@ -64,16 +64,24 @@ impl NodeType {
         self.lane_width_f32() * self.no_lanes as f32
     }
 
-    // maybe these two functions should switch names
     pub fn lane_width(&self) -> LaneWidth {
         self.lane_width
     }
+
     pub fn lane_width_f32(&self) -> f32 {
         self.lane_width.getf32()
     }
 
     pub fn no_lanes(&self) -> u8 {
         self.no_lanes
+    }
+
+    pub fn set_lane_width(&mut self, lane_width: LaneWidth) {
+        self.lane_width = lane_width;
+    }
+
+    pub fn set_no_lanes(&mut self, no_lanes: u8) {
+        self.no_lanes = no_lanes;
     }
 }
 

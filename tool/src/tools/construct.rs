@@ -72,39 +72,20 @@ impl ToolStrategy for ToolInstance<ConstructTool> {
             (ToggleSnapping, Press) => self.toggle_snapping(),
             (ToggleReverse, Press) => self.toggle_reverse(),
             (CycleCurveType, Scroll(scroll_state)) => {
-                let new_curve_type = cycle_selection::scroll_mut(
-                    &mut self
-                        .state_handle
-                        .road_state
-                        .selected_road
-                        .segment_type
-                        .curve_type,
-                    scroll_state,
-                );
+                let new_curve_type =
+                    cycle_selection::scroll(self.get_sel_curve_type(), scroll_state);
+                self.state_handle.road_state.set_curve_type(new_curve_type);
                 self.set_curve_type(new_curve_type);
             }
             (CycleLaneWidth, Scroll(scroll_state)) => {
-                let new_lane_width = cycle_selection::scroll_mut(
-                    &mut self
-                        .state_handle
-                        .road_state
-                        .selected_road
-                        .node_type
-                        .lane_width(),
-                    scroll_state,
-                );
+                let new_lane_width =
+                    cycle_selection::scroll(self.get_sel_lane_width(), scroll_state);
+                self.state_handle.road_state.set_lane_width(new_lane_width);
                 self.set_lane_width(new_lane_width);
             }
             (CycleNoLanes, Scroll(scroll_state)) => {
-                let new_no_lanes = cycle_selection::scroll_mut(
-                    &mut self
-                        .state_handle
-                        .road_state
-                        .selected_road
-                        .node_type
-                        .no_lanes(),
-                    scroll_state,
-                );
+                let new_no_lanes = cycle_selection::scroll(self.get_sel_no_lanes(), scroll_state);
+                self.state_handle.road_state.set_no_lanes(new_no_lanes);
                 self.set_no_lanes(new_no_lanes);
             }
             _ => {}
@@ -193,6 +174,14 @@ impl ToolInstance<ConstructTool> {
 
     fn get_sel_node_type(&self) -> NodeType {
         self.state_handle.road_state.selected_road.node_type
+    }
+
+    fn get_sel_lane_width(&self) -> LaneWidth {
+        self.get_sel_node_type().lane_width()
+    }
+
+    fn get_sel_no_lanes(&self) -> u8 {
+        self.get_sel_node_type().no_lanes()
     }
 
     fn is_reverse(&self) -> bool {

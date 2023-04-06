@@ -6,16 +6,10 @@ pub trait CycleSelection {
     fn next(&self) -> Self;
 }
 
-pub fn scroll_mut<A: CycleSelection + Copy>(elem: &mut A, scroll_state: ScrollState) -> A {
+pub fn scroll<A: CycleSelection + Copy>(elem: A, scroll_state: ScrollState) -> A {
     match scroll_state {
-        ScrollState::Up => {
-            *elem = elem.prev();
-            *elem
-        }
-        ScrollState::Down => {
-            *elem = elem.next();
-            *elem
-        }
+        ScrollState::Up => elem.prev(),
+        ScrollState::Down => elem.next(),
     }
 }
 
