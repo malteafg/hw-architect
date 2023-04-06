@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct Safe;
+pub struct SafeMap;
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct Unsafe;
+pub struct UnsafeMap;
 
 /// The number of elements that will be reserved space for each time the allocated memory needs to
 /// be extended.
@@ -15,18 +15,20 @@ struct Unsafe;
 const RESERVE_CHUNKS: usize = 8192;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct IdMap<K: IdBehaviour, V> {
+pub struct IdMap<K: IdBehaviour, V, S = SafeMap> {
     vec: Vec<Option<V>>,
-    marker: PhantomData<K>,
+    key_marker: PhantomData<K>,
+    safe_marker: PhantomData<S>,
     len: usize,
 }
 
 /// Remove clone requirement once extend can use into_iter
-impl<K: IdBehaviour, V: Clone> IdMap<K, V> {
+impl<K: IdBehaviour, V, S> IdMap<K, V, S> {
     pub fn new() -> Self {
         Self {
             vec: Vec::new(),
-            marker: std::marker::PhantomData,
+            key_marker: std::marker::PhantomData,
+            safe_marker: std::marker::PhantomData,
             len: 0,
         }
     }
@@ -76,70 +78,12 @@ impl<K: IdBehaviour, V: Clone> IdMap<K, V> {
         self.vec.shrink_to_fit();
     }
 
-    pub fn get_panic(&self, k: K) -> &V {
-        self.get(k).as_ref().unwrap()
-    }
-
-    pub fn get_panic_mut(&mut self, k: K) -> &mut V {
-        self.get_mut(k).as_mut().unwrap()
-    }
-
-    pub fn get(&self, k: K) -> &Option<V> {
-        let k_num = k.to_usize();
-        &self.vec[k_num]
-    }
-
-    pub fn get_mut(&mut self, k: K) -> &mut Option<V> {
-        let k_num = k.to_usize();
-        &mut self.vec[k_num]
-    }
-
     pub fn contains_key(&mut self, k: K) -> bool {
         let k_num = k.to_usize();
         if k_num >= self.capacity() {
             return false;
         }
         self.vec[k_num].is_some()
-    }
-
-    pub fn insert(&mut self, k: K, v: V) {
-        let k_num = k.to_usize();
-
-        // this could be removed for some instances
-        if self.contains_key(k) {
-            self.vec[k_num] = Some(v);
-            return;
-        }
-
-        let capacity = self.capacity();
-        if k_num >= capacity {
-            let additional = k_num - capacity + 1;
-            self.reserve(additional);
-        }
-
-        self.len += 1;
-        self.vec[k_num] = Some(v);
-    }
-
-    /// Removes an Id from the map and returns its value.
-    pub fn remove(&mut self, k: K) -> Option<V> {
-        let k_num = k.to_usize();
-
-        // this could be removed for some instances
-        if !self.contains_key(k) {
-            return None;
-        }
-
-        self.len -= 1;
-        std::mem::take(&mut self.vec[k_num])
-    }
-
-    /// TODO figure out how to implement into iter and remove clones.
-    /// If an Id is already present, this function will override.
-    pub fn extend(&mut self, other: IdMap<K, V>) {
-        for (k, v) in other.iter() {
-            self.insert(k, v.clone());
-        }
     }
 
     /// TODO check if from_usize creates a memory allocation
@@ -183,6 +127,103 @@ impl<K: IdBehaviour, V: Clone> IdMap<K, V> {
     //             None => None,
     //         })
     // }
+}
+
+impl<K: IdBehaviour, V> IdMap<K, V, UnsafeMap> {
+    pub fn get(&self, k: K) -> &V {
+        let k_num = k.to_usize();
+        let result = &self.vec[k_num];
+        result.as_ref().unwrap()
+    }
+
+    pub fn get_mut(&mut self, k: K) -> &mut V {
+        let k_num = k.to_usize();
+        let result = &mut self.vec[k_num];
+        result.as_mut().unwrap()
+    }
+
+    pub fn insert(&mut self, k: K, v: V) {
+        let k_num = k.to_usize();
+
+        #[cfg(debug_assertions)]
+        if self.contains_key(k) {
+            panic!("Cannot insert an already existing key into an unsafe id map!")
+        }
+
+        let capacity = self.capacity();
+        if k_num >= capacity {
+            let additional = k_num - capacity + 1;
+            self.reserve(additional);
+        }
+
+        self.len += 1;
+        self.vec[k_num] = Some(v);
+    }
+
+    /// Removes an Id from the map and returns its value.
+    pub fn remove(&mut self, k: K) -> Option<V> {
+        let k_num = k.to_usize();
+
+        #[cfg(debug_assertions)]
+        if !self.contains_key(k) {
+            panic!("Cannot remove a non existing key from an unsafe id map!")
+        }
+
+        self.len -= 1;
+        std::mem::take(&mut self.vec[k_num])
+    }
+}
+
+impl<K: IdBehaviour, V: Clone> IdMap<K, V, SafeMap> {
+    pub fn get(&self, k: K) -> &Option<V> {
+        let k_num = k.to_usize();
+        &self.vec[k_num]
+    }
+
+    pub fn get_mut(&mut self, k: K) -> &mut Option<V> {
+        let k_num = k.to_usize();
+        &mut self.vec[k_num]
+    }
+
+    pub fn insert(&mut self, k: K, v: V) {
+        let k_num = k.to_usize();
+
+        // this could be removed for some instances
+        if self.contains_key(k) {
+            self.vec[k_num] = Some(v);
+            return;
+        }
+
+        let capacity = self.capacity();
+        if k_num >= capacity {
+            let additional = k_num - capacity + 1;
+            self.reserve(additional);
+        }
+
+        self.len += 1;
+        self.vec[k_num] = Some(v);
+    }
+
+    /// Removes an Id from the map and returns its value.
+    pub fn remove(&mut self, k: K) -> Option<V> {
+        let k_num = k.to_usize();
+
+        // this could be removed for some instances
+        if !self.contains_key(k) {
+            return None;
+        }
+
+        self.len -= 1;
+        std::mem::take(&mut self.vec[k_num])
+    }
+
+    /// TODO figure out how to implement into iter and remove clones.
+    /// If an Id is already present, this function will override.
+    pub fn extend(&mut self, other: IdMap<K, V, SafeMap>) {
+        for (k, v) in other.iter() {
+            self.insert(k, v.clone());
+        }
+    }
 }
 
 // impl<'a, K: IdBehaviour, V> Iterator for &'a IdMap<K, V> {

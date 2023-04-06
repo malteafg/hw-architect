@@ -3,7 +3,7 @@ use crate::cycle_selection;
 use crate::gfx_gen::segment_gen;
 use crate::tool_state::SelectedRoad;
 
-use utils::id::IdMap;
+use utils::id::{IdMap, SegmentId};
 use utils::{input, VecUtils};
 use world_api::{
     CurveType, LNodeBuilder, LNodeBuilderType, LRoadBuilder, LaneWidth, NodeType, SegmentType,
@@ -292,7 +292,7 @@ impl ToolInstance<ConstructTool> {
         let road_meshes = self.gen_road_mesh_from_builder(&road_builder, self.get_sel_node_type());
         let (new_node, segment_ids) = self.world.add_road(road_builder, next_node_type);
 
-        let mut mesh_map = IdMap::new();
+        let mut mesh_map: IdMap<SegmentId, RoadMesh> = IdMap::new();
         for i in 0..segment_ids.len() {
             mesh_map.insert(segment_ids[i], road_meshes[i].clone());
         }

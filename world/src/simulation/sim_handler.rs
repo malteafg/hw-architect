@@ -3,7 +3,7 @@ use crate::roads::RoadGraph;
 
 use curves::SpinePoints;
 use serde::{Deserialize, Serialize};
-use utils::id::{IdMap, IdSet, SegmentId, VehicleId};
+use utils::id::{IdMap, IdSet, SegmentId, UnsafeMap, VehicleId};
 
 use glam::Vec3;
 
@@ -119,13 +119,13 @@ impl SegmentState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimHandler {
     /// Sim needs to read from this, but StaticVehicleData can be read only.
-    vehicles_data: IdMap<VehicleId, StaticVehicleData>,
+    vehicles_data: IdMap<VehicleId, StaticVehicleData, UnsafeMap>,
 
     /// Sim needs to write to this, so VehicleLoc is mut.
-    vehicles_loc: IdMap<VehicleId, VehicleLoc>,
+    vehicles_loc: IdMap<VehicleId, VehicleLoc, UnsafeMap>,
 
     /// Maybe wrap the SegmentState in an Arc<RwLock<>>, when doing parallelism.
-    vehicle_tracker: IdMap<SegmentId, SegmentState>,
+    vehicle_tracker: IdMap<SegmentId, SegmentState, UnsafeMap>,
 
     /// Represents all the segments currently in game. Must only be modified when a segment is
     /// added or removed.
@@ -208,7 +208,7 @@ impl SimHandler {
             //     .vehicle_tracker_swap
             //     .get_mut(&segment_id)
             //     .expect("Segment state did not exist in vehicle tracker swap map");
-            let segment_state = self.vehicle_tracker.get_panic_mut(segment_id);
+            let segment_state = self.vehicle_tracker.get_mut(segment_id);
 
             let mut result = process(dt, segment_state);
             self.vehicles_to_remove.append(&mut result);

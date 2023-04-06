@@ -3,7 +3,7 @@ use super::segment::LSegment;
 
 use world_api::{LNodeBuilderType, LRoadBuilder, LaneMapConfig, NodeType, Side, SnapConfig};
 
-use utils::id::{IdManager, IdMap, IdSet, NodeId, SegmentId};
+use utils::id::{IdManager, IdMap, IdSet, NodeId, SegmentId, UnsafeMap};
 
 use glam::*;
 use serde::{Deserialize, Serialize};
@@ -12,14 +12,14 @@ type LeadingPair = (NodeId, SegmentId);
 
 #[derive(Serialize, Deserialize)]
 pub struct RoadGraph {
-    node_map: IdMap<NodeId, LNode>,
-    segment_map: IdMap<SegmentId, LSegment>,
+    node_map: IdMap<NodeId, LNode, UnsafeMap>,
+    segment_map: IdMap<SegmentId, LSegment, UnsafeMap>,
     /// Defines for each node, the set of nodes that are reachable from this node, through exactly
     /// one segment in the direction of the segment.
-    forward_refs: IdMap<NodeId, Vec<LeadingPair>>,
+    forward_refs: IdMap<NodeId, Vec<LeadingPair>, UnsafeMap>,
     /// Defines for each node, the set of nodes that are reachable from this node, through exactly
     /// one segment in the opposite direction of the segment.
-    backward_refs: IdMap<NodeId, Vec<LeadingPair>>,
+    backward_refs: IdMap<NodeId, Vec<LeadingPair>, UnsafeMap>,
 
     /// These are basic nodes where the main segment is outgoing and open nodes where the open
     /// side is incoming
@@ -56,27 +56,27 @@ impl Default for RoadGraph {
 
 impl RoadGraph {
     fn get_lnode(&self, node: NodeId) -> &LNode {
-        self.node_map.get_panic(node)
+        self.node_map.get(node)
     }
 
     fn get_lnode_mut(&mut self, node: NodeId) -> &mut LNode {
-        self.node_map.get_panic_mut(node)
+        self.node_map.get_mut(node)
     }
 
     fn get_lsegment(&self, segment: SegmentId) -> &LSegment {
-        self.segment_map.get_panic(segment)
+        self.segment_map.get(segment)
     }
 
     fn _get_lsegment_mut(&mut self, segment: SegmentId) -> &mut LSegment {
-        self.segment_map.get_panic_mut(segment)
+        self.segment_map.get_mut(segment)
     }
 
     pub fn get_forwards_ref(&self, node: NodeId) -> &Vec<LeadingPair> {
-        self.forward_refs.get_panic(node)
+        self.forward_refs.get(node)
     }
 
     pub fn get_backwards_ref(&self, node: NodeId) -> &Vec<LeadingPair> {
-        self.backward_refs.get_panic(node)
+        self.backward_refs.get(node)
     }
 
     fn remove_node(&mut self, node_id: NodeId) {
@@ -215,12 +215,12 @@ impl crate::RoadManipulator for RoadGraph {
         node_ids.iter().enumerate().for_each(|(i, node_id)| {
             if let Some(backward_id) = segment_ids.get(((i as i32 - 1) % 100) as usize) {
                 self.backward_refs
-                    .get_panic_mut(*node_id)
+                    .get_mut(*node_id)
                     .push((node_ids[i - 1], *backward_id));
             }
             if let Some(forward_id) = segment_ids.get(i) {
                 self.forward_refs
-                    .get_panic_mut(*node_id)
+                    .get_mut(*node_id)
                     .push((node_ids[i + 1], *forward_id));
             }
         });
@@ -258,10 +258,10 @@ impl crate::RoadManipulator for RoadGraph {
         // remove any reference to this segment
         let segment = self.segment_map.remove(segment_id).unwrap();
         self.forward_refs
-            .get_panic_mut(segment.get_from_node())
+            .get_mut(segment.get_from_node())
             .retain(|(_, id)| *id != segment_id);
         self.backward_refs
-            .get_panic_mut(segment.get_to_node())
+            .get_mut(segment.get_to_node())
             .retain(|(_, id)| *id != segment_id);
 
         // TODO put this code in remove node
@@ -365,9 +365,9 @@ impl crate::RoadManipulator for RoadGraph {
         // }
 
         dbg!("Node: {} -------------------------", id);
-        dbg!(self.node_map.get_panic(id));
-        dbg!(self.forward_refs.get_panic(id));
-        dbg!(self.backward_refs.get_panic(id));
+        dbg!(self.node_map.get(id));
+        dbg!(self.forward_refs.get(id));
+        dbg!(self.backward_refs.get(id));
     }
 
     fn debug_segment(&self, id: SegmentId) {

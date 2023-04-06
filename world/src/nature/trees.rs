@@ -1,6 +1,6 @@
 use world_api::Tree;
 
-use utils::id::{IdManager, IdMap, TreeId};
+use utils::id::{IdManager, IdMap, SafeMap, TreeId};
 
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
@@ -12,7 +12,7 @@ const TREE_RADIUS: f32 = 2.0;
 
 /// The u128 represents a hash of a tree model. For now it is not used as there is only one tree
 /// model.
-pub type TreeMap = BTreeMap<u128, IdMap<TreeId, Tree>>;
+pub type TreeMap = BTreeMap<u128, IdMap<TreeId, Tree, SafeMap>>;
 
 #[derive(Serialize, Deserialize)]
 pub struct Trees {
@@ -61,7 +61,7 @@ impl crate::TreeManipulator for Trees {
                 ()
             }
             None => {
-                let mut new_model_map = IdMap::new();
+                let mut new_model_map: IdMap<TreeId, Tree> = IdMap::new();
                 new_model_map.insert(tree_id, tree);
                 self.tree_map.insert(model_id, new_model_map);
             }
