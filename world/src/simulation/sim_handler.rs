@@ -45,12 +45,19 @@ impl LaneState {
     /// once, and if so they will just be transferred one frame later, which should only make their
     /// render location slightly wrong for a few frames, but not affect the logic otherwise.
     fn simulate(&mut self, dt: Duration, shortest_on_next: Option<f32>) -> Option<VehicleAi> {
+        if self.state.is_empty() {
+            return None;
+        }
+
+        // TODO add support for using shortest_on_next in the vehicle travel method.
         for vehicle in self.state.iter_mut() {
             vehicle.travel(dt)
         }
+
         if self.state[0].has_reached_end(self.length) {
             return Some(self.state.pop_front().unwrap());
         }
+
         None
     }
 
@@ -80,7 +87,7 @@ impl LaneState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct SegmentState {
     lane_map: Vec<LaneState>,
-    /// Represents the vehicle that needs to be transferred to their next segment.
+    /// Represents the vehicle that needs to be transferred to their next segment in this iteration.
     overflow_map: Vec<Option<VehicleAi>>,
 }
 
@@ -128,10 +135,6 @@ struct FrontConfig {
     node_config: u8,
 }
 
-// Maybe do the ai in such a way that the road graph is explored with backwards_refs. Then we do
-// not need the vehicle_tracker_swap. This is complicated with intersections maybe, but then
-// intersections should simply be simulated first?
-//
 // in the backwards pass, when a segment is processed, it should be sufficient to report data about
 // the vehicles that have reached the smallest distance for each lane, and probably those vehicles'
 // speed.
@@ -235,6 +238,11 @@ impl SimHandler {
                 // select some random segments and then process from there
                 // if at some point (3) is empty but (2) is not, just dispatch randomly from (2) using a
                 // fake sim of the forward segments from the segment we are processing
+                // this should just be the vehicles in front with one simulation step faked.
+                // We need to be careful and not move cars into the new segment until that has been
+                // processed.
+                // Maybe make one big data structure where we write the vehicles that need to move
+                // and then move them all at the end.
                 continue;
             };
             self.segments_to_dispatch.remove(segment_id);
@@ -261,6 +269,9 @@ impl SimHandler {
                 }
             }
         }
+
+        // Move vehicles to next segment if we use one data structure where we write all the
+        // vehicles that need to move.
 
         // remove vehicles that are done
         // TODO find a way to remove this unnecessary clone
