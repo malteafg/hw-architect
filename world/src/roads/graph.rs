@@ -103,6 +103,7 @@ impl RoadGraph {
         None
     }
 
+    /// Returns ending segments, and the node they backward_refs to as a LeadingPair.
     pub fn get_ending_segments(&self) -> Vec<LeadingPair> {
         let mut ending_segments = Vec::with_capacity(self.ending_nodes.len());
         for node_id in self.ending_nodes.iter() {

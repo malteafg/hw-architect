@@ -28,17 +28,26 @@ pub struct StaticVehicleData {
 pub struct VehicleAi {
     /// The id of this vehicle.
     pub id: VehicleId,
-    /// Represents how far along in meters the vehicle has travelled along this segment.
+    /// Represents how far along in meters the vehicle has travelled along this segment in meters.
     pub dist_travelled: f32,
-    /// Current speed of vehicle given in KM/H
-    pub speed: u8,
+    /// Current speed of vehicle given in m/s
+    pub speed: f32,
 }
 
 impl VehicleAi {
+    pub fn has_reached_end(&self, max_length: f32) -> bool {
+        if self.dist_travelled > max_length {
+            self.dist_travelled -= max_length;
+            return true;
+        }
+        false
+    }
+
     /// Updates the vehicles dist_travelled. Returns true if the vehicle has surpassed the given
     /// length.
-    pub fn travel(&mut self, dt: Duration, max_length: f32) -> bool {
-        false
+    pub fn travel(&mut self, dt: Duration) {
+        let dist_to_travel = dt.as_secs_f32() * self.speed;
+        self.dist_travelled += dist_to_travel;
     }
 }
 

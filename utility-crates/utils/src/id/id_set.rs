@@ -47,6 +47,17 @@ impl<V: IdBehaviour> IdSet<V> {
         self.set.grow(bits);
     }
 
+    pub fn write_into(&self, other: &mut IdSet<V>) {
+        if self.capacity() > other.capacity() {
+            other.reserve(self.capacity() - other.capacity());
+        }
+
+        let other_slice = other.set.as_mut_slice();
+        for (i, b) in self.set.as_slice().iter().enumerate() {
+            other_slice[i] = *b;
+        }
+    }
+
     // pub fn shrink_to_fit(&mut self) {}
 
     pub fn is_empty(&self) -> bool {
