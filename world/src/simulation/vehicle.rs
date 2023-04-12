@@ -35,7 +35,7 @@ pub struct VehicleAi {
 }
 
 impl VehicleAi {
-    pub fn has_reached_end(&self, max_length: f32) -> bool {
+    pub fn has_reached_end(&mut self, max_length: f32) -> bool {
         if self.dist_travelled > max_length {
             self.dist_travelled -= max_length;
             return true;

@@ -11,6 +11,10 @@ use std::{collections::VecDeque, time::Duration};
 
 const DEFAULT_VEHICLE_CAP: usize = 8;
 
+/// The Vec of option represents the distance travelled of the vehicles in each lane that has
+/// travelled the smallest distance on the next segments.
+type FrontConfig = Vec<Option<f32>>;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct LaneState {
     /// The VecDeque is sorted by the dist_travelled field inside VehicleAi in order from largest
@@ -107,11 +111,16 @@ impl SegmentState {
 
     /// Simulates each lane in this segment. Writes to overflow_map the vehicles that have reached
     /// the end of this segment for each lane.
-    fn simulate(&mut self, dt: Duration, shortest_on_next: Vec<Option<f32>>) {
+    fn simulate(&mut self, dt: Duration, shortest_on_next: &FrontConfig) {
         #[cfg(debug_assertions)]
         {
             assert_eq!(self.lane_map.len(), self.overflow_map.len());
             assert_eq!(self.lane_map.len(), shortest_on_next.len());
+            self.overflow_map.iter().for_each(|m| {
+                if let Some(_) = m {
+                    panic!("overflow_map of segment has not been cleared");
+                }
+            })
         }
         // iter over vehicles and make decisions for each vehicle
         // loop over segment_state and simulate all lane states
@@ -124,15 +133,6 @@ impl SegmentState {
             self.overflow_map[i] = overflow;
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct FrontConfig {
-    /// The Vec of option represents the distance travelled of the vehicles in each lane that has
-    /// travelled the smallest distance on the next segments.
-    lanes: Vec<Option<f32>>,
-    /// Something that dicates how segments are connected.
-    node_config: u8,
 }
 
 // in the backwards pass, when a segment is processed, it should be sufficient to report data about
@@ -205,7 +205,7 @@ impl Default for SimHandler {
     }
 }
 
-fn process(dt: Duration, segment_state: &mut SegmentState, shortest_on_next: Vec<Option<f32>>) {
+fn process(dt: Duration, segment_state: &mut SegmentState, shortest_on_next: &FrontConfig) {
     segment_state.simulate(dt, shortest_on_next);
     // send signal back and request more to process
 }
@@ -248,7 +248,7 @@ impl SimHandler {
             self.segments_to_dispatch.remove(segment_id);
 
             let (segment_state, front_config) = self.vehicle_tracker.get_mut(segment_id);
-            process(dt, segment_state);
+            process(dt, segment_state, front_config);
             // update the backwards segments from this segments with the vehicles new positions
             // update with the contents of segment_state.overflow_map
             // move vehicles to the next segments
