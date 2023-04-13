@@ -22,6 +22,7 @@ const RESERVE_CHUNKS: usize = 8192;
 /// key twice or removing/getting keys that do not exist in the map.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdMap<K: IdBehaviour, V, S = SafeMap> {
+    /// Maybe use Option<Box<V>> to make it possible to retrieve ownership of T
     vec: Vec<Option<V>>,
     key_marker: PhantomData<K>,
     safe_marker: PhantomData<S>,

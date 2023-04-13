@@ -3,6 +3,8 @@ use super::IdBehaviour;
 use fixedbitset::FixedBitSet;
 use serde::{Deserialize, Serialize};
 
+use rand::{thread_rng, Rng};
+
 use std::marker::PhantomData;
 
 const RESERVE_CHUNKS: usize = 8192;
@@ -58,8 +60,6 @@ impl<V: IdBehaviour> IdSet<V> {
         }
     }
 
-    // pub fn shrink_to_fit(&mut self) {}
-
     pub fn is_empty(&self) -> bool {
         self.set.is_clear()
     }
@@ -79,6 +79,21 @@ impl<V: IdBehaviour> IdSet<V> {
     pub fn contains(&self, v: V) -> bool {
         let v_num = v.to_usize();
         self.set.contains(v_num)
+    }
+
+    /// TODO maybe test this?
+    /// Cannot be called if empty
+    /// This is linear time maybe make faster.
+    pub fn get_random(&self) -> V {
+        let mut rng = thread_rng();
+        let mut i = rng.gen_range(0..self.len());
+        for v in self.iter() {
+            if i == 0 {
+                return v;
+            }
+            i -= 1;
+        }
+        panic!("Could not find element in id set");
     }
 
     pub fn insert(&mut self, v: V) -> bool {

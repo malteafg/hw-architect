@@ -63,7 +63,7 @@ impl RoadGraph {
         self.node_map.get_mut(node)
     }
 
-    fn get_lsegment(&self, segment: SegmentId) -> &LSegment {
+    pub fn get_lsegment(&self, segment: SegmentId) -> &LSegment {
         self.segment_map.get(segment)
     }
 
