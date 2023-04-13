@@ -14,11 +14,11 @@ const DEFAULT_VEHICLE_CAP: usize = 8;
 /// The Vec of option represents the distance travelled of the vehicles in each lane that has
 /// travelled the smallest distance on the next segments.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct FrontConfig {
+struct EndConfig {
     lanes: Vec<Option<VehicleAi>>,
 }
 
-impl core::ops::Deref for FrontConfig {
+impl core::ops::Deref for EndConfig {
     type Target = Vec<Option<VehicleAi>>;
 
     fn deref(self: &'_ Self) -> &'_ Self::Target {
@@ -26,13 +26,13 @@ impl core::ops::Deref for FrontConfig {
     }
 }
 
-impl core::ops::DerefMut for FrontConfig {
+impl core::ops::DerefMut for EndConfig {
     fn deref_mut(self: &'_ mut Self) -> &'_ mut Self::Target {
         &mut self.lanes
     }
 }
 
-impl FrontConfig {
+impl EndConfig {
     fn new(no_lanes: u8) -> Self {
         let mut lanes = Vec::with_capacity(no_lanes as usize);
         (0..no_lanes).for_each(|_| lanes.push(None));
@@ -126,13 +126,15 @@ struct SegmentState {
     lane_map: Vec<LaneState>,
     /// Represents the vehicle that needs to be transferred to their next segment in this iteration.
     overflow_map: Vec<Option<VehicleAi>>,
-    front: FrontConfig,
+    next_config: EndConfig,
+    prev_config: EndConfig,
 }
 
 impl SegmentState {
     fn new(lane_paths: Vec<SpinePoints>) -> Self {
         let no_lanes = lane_paths.len() as u8;
-        let front = FrontConfig::new(no_lanes);
+        let next_config = EndConfig::new(no_lanes);
+        let prev_config = EndConfig::new(no_lanes);
 
         let mut lane_map = Vec::with_capacity(lane_paths.len());
         for lane_path in lane_paths.into_iter() {
@@ -143,7 +145,8 @@ impl SegmentState {
         Self {
             lane_map,
             overflow_map,
-            front,
+            next_config,
+            prev_config,
         }
     }
 
@@ -153,7 +156,8 @@ impl SegmentState {
         #[cfg(debug_assertions)]
         {
             assert_eq!(self.lane_map.len(), self.overflow_map.len());
-            assert_eq!(self.lane_map.len(), self.front.len());
+            assert_eq!(self.lane_map.len(), self.next_config.len());
+            assert_eq!(self.lane_map.len(), self.prev_config.len());
             self.overflow_map.iter().for_each(|m| {
                 if let Some(_) = m {
                     panic!("overflow_map of segment has not been cleared");
@@ -166,14 +170,14 @@ impl SegmentState {
         // iter over vehicles and write their new positions to vehicles_loc
 
         for i in 0..self.lane_map.len() {
-            let shortest = self.front[i];
+            let shortest = self.next_config[i];
             let overflow = self.lane_map[i].simulate(dt, shortest);
             self.overflow_map[i] = overflow;
         }
     }
 
     fn fake_front_sim(&mut self, dt: Duration) {
-        self.front.fake_sim(dt);
+        self.next_config.fake_sim(dt);
     }
 }
 
