@@ -1,7 +1,6 @@
 //! Handles the configuration files for highway architect.
 
 use std::collections::BTreeMap;
-use std::fs;
 use std::str::FromStr;
 
 use crate::input_handler;
@@ -12,42 +11,25 @@ use anyhow::anyhow;
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use winit::event::VirtualKeyCode;
-use yaml_rust::{Yaml, YamlLoader};
+
+use figment::{
+    providers::{Format, Yaml},
+    Figment,
+};
 
 /// Returns the user config stored at:
 ///
 /// Linux: /home/Alice/.config/hw-architect/config.yml
-///
 /// Windows: C:\Users\Alice\AppData\Roaming\simaflux\hw-architect\config.yml
-///
 /// Mac: /Users/Alice/Library/Application Support/com.simaflux.hw-architect/config.yml
-fn load_user_config_to_yaml(file: &str) -> anyhow::Result<Yaml> {
-    dbg!("loading user config");
-    ProjectDirs::from("com", "simaflux", "hw-architect")
-        .and_then(|proj_dirs| {
-            let config_dir = proj_dirs.config_dir();
-            let config_file = fs::read_to_string(config_dir.join(file)).ok()?;
-            let docs = YamlLoader::load_from_str(&config_file).ok()?;
-            if docs.is_empty() {
-                None
-            } else {
-                Some(docs[0].clone())
-            }
-        })
-        .ok_or_else(|| anyhow!("failed to update with user config"))
-}
-
-/// Returns the user config (dev config) stored at project_root/config.yml.
-#[cfg(debug_assertions)]
-fn load_dev_config_to_yaml(file: &str) -> anyhow::Result<Yaml> {
-    dbg!("loading dev config");
-    let config_file = fs::read_to_string(file)?;
-    let docs = YamlLoader::load_from_str(&config_file)?;
-    if docs.is_empty() {
-        Err(anyhow!("no contents in dev config"))
-    } else {
-        Ok(docs[0].clone())
-    }
+pub fn get_config_dir() -> std::path::PathBuf {
+    let path = ProjectDirs::from("com", "simaflux", "hw_architect")
+        .map(|dir| dir.config_dir().to_path_buf())
+        .ok_or(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "no valid home directory found using the projectdirs crate, can't use/create config dir",
+        )).unwrap();
+    path
 }
 
 /// Configuration of the window.
@@ -69,42 +51,31 @@ pub struct Config {
     pub key_map: String,
 }
 
-impl Config {
-    /// Updates self with values of the variables that are set in another yaml.
-    /// If some variables are not set in the other yaml, the values of self are
-    /// used again.
-    fn update_from_yaml(self, yaml: Yaml) -> Self {
-        let width = yaml["window"]["width"]
-            .as_i64()
-            .unwrap_or(self.window.width as i64) as i32;
-        let height = yaml["window"]["height"]
-            .as_i64()
-            .unwrap_or(self.window.height as i64) as i32;
-        let key_map = match yaml["key_map"].as_str() {
-            Some("qwerty") | Some("wokmok") => "wokmok".to_string(),
-            _ => self.key_map,
+impl Default for Config {
+    fn default() -> Self {
+        let win_config = WindowConfig {
+            width: 1920,
+            height: 1080,
         };
 
-        let window = WindowConfig { width, height };
-
-        Config { window, key_map }
+        Self {
+            window: win_config,
+            key_map: "qwerty".to_string(),
+        }
     }
 }
 
-/// Loads the configuration file for highway architect
+/// Loads the configuration for highway architect
 pub fn load_config() -> anyhow::Result<Config> {
-    let config_file = loader::load_string("config/base_config.yml")?;
-    let base_config: Config = serde_yaml::from_str(&config_file)?;
+    let mut user_conf = get_config_dir();
+    user_conf.push("config.yml");
 
-    let config = match load_user_config_to_yaml("config.yml") {
-        Ok(yaml) => base_config.update_from_yaml(yaml),
-        _ => base_config,
-    };
+    let figment = Figment::from(Yaml::file("res/config/base_config.yml"));
+    let figment = figment.merge(Yaml::file(user_conf));
     #[cfg(debug_assertions)]
-    let config = match load_dev_config_to_yaml("config.yml") {
-        Ok(yaml) => config.update_from_yaml(yaml),
-        _ => config,
-    };
+    let figment = figment.merge(Yaml::file("config.yml"));
+
+    let config = figment.extract().unwrap();
     Ok(config)
 }
 
@@ -128,33 +99,32 @@ pub fn load_key_map(key_map: String) -> anyhow::Result<input_handler::KeyMap> {
     let key_config_file = loader::load_string(&key_config_path)?;
     let key_config: KeyLoaderConfig = serde_yaml::from_str(&key_config_file)?;
 
-    let mut group_maps: BTreeMap<String, input_handler::KeyMap> = BTreeMap::new();
+    let mut group_maps: BTreeMap<String, input_handler::KeyMap> =
+        BTreeMap::new();
     for (group, key_maps) in key_config.into_iter() {
         let mut group_map: input_handler::KeyMap = BTreeMap::new();
         for key_map in key_maps.into_iter() {
             // this loop is silly as there is only one entry in the map
             for (action, keys) in key_map.into_iter() {
                 let key_code = parse_key_code(&keys[0]).unwrap();
-                let mod_state =
-                    keys.iter()
-                        .fold(
-                            input::ModifierState::default(),
-                            |mod_state, key| match key.as_str() {
-                                "shift" => input::ModifierState {
-                                    shift: true,
-                                    ..mod_state
-                                },
-                                "ctrl" => input::ModifierState {
-                                    ctrl: true,
-                                    ..mod_state
-                                },
-                                "alt" => input::ModifierState {
-                                    alt: true,
-                                    ..mod_state
-                                },
-                                _ => mod_state,
-                            },
-                        );
+                let mod_state = keys.iter().fold(
+                    input::ModifierState::default(),
+                    |mod_state, key| match key.as_str() {
+                        "shift" => input::ModifierState {
+                            shift: true,
+                            ..mod_state
+                        },
+                        "ctrl" => input::ModifierState {
+                            ctrl: true,
+                            ..mod_state
+                        },
+                        "alt" => input::ModifierState {
+                            alt: true,
+                            ..mod_state
+                        },
+                        _ => mod_state,
+                    },
+                );
                 let action = input::Action::from_str(&action).unwrap();
                 group_map.insert((key_code, mod_state), vec![action]);
             }
@@ -241,15 +211,9 @@ mod tests {
     #[test]
     #[ignore]
     fn write_baseconfig() {
-        let baseconfig = Config {
-            window: WindowConfig {
-                width: 1920,
-                height: 1080,
-            },
-            key_map: "qwerty".to_string(),
-        };
-
-        let baseconfigyaml = serde_yaml::to_string(&baseconfig).unwrap().to_lowercase();
+        let baseconfig = Config::default();
+        let baseconfigyaml =
+            serde_yaml::to_string(&baseconfig).unwrap().to_lowercase();
         println!("{}", baseconfigyaml);
 
         let mut file = File::create("../res/config/base_config.yml").unwrap();

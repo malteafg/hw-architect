@@ -28,7 +28,7 @@ log = "0.4"
 
 pollster = "0.2"
 
-yaml-rust = "0.4"
 serde = { workspace = true }
 serde_yaml = "0.9"
 directories = "4.0"
+figment = { version = "0.10.10", features = ["yaml"] }
