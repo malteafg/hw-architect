@@ -16,7 +16,7 @@ use world_api::{LRoadBuilder, NodeType, Side, SnapConfig, Tree};
 
 use nature::Trees;
 use roads::RoadGraph;
-use simulation::SimHandler;
+// use simulation::SimHandler;
 
 use utils::id::{NodeId, SegmentId, TreeId};
 
@@ -39,7 +39,7 @@ impl World {
 impl WorldManipulator for World {
     /// TODO add check for dt. If dt is too large (maybe larger than 1/10 second) fix it to be some
     /// smaller value. Large values of dt can cause bad behaviour in the simulation.
-    fn update(&mut self, dt: Duration) {
+    fn update(&mut self, _dt: Duration) {
         // self.sim_handler.update(dt, &self.road_graph);
     }
 }
@@ -51,7 +51,7 @@ impl RoadManipulator for World {
         sel_node_type: NodeType,
     ) -> (Option<SnapConfig>, Vec<SegmentId>) {
         // capture the spine to create lane paths for sim_handler
-        let lane_paths: Vec<_> = {
+        let _lane_paths: Vec<_> = {
             // temporary until transition segments
             let node_type = road.get_first_node_type();
             let width = node_type.lane_width_f32();

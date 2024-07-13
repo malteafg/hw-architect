@@ -230,7 +230,7 @@ impl CameraController {
     }
 
     fn update_progress(&mut self, dt: f32) {
-        let mut camera = &mut self.camera;
+        let camera = &mut self.camera;
         if self.move_init {
             self.move_init = false;
             self.progression_speed *= 36.0
@@ -276,7 +276,7 @@ impl CameraController {
     }
 
     fn update_manually(&mut self, dt: f32) {
-        let mut camera = &mut self.camera;
+        let camera = &mut self.camera;
         camera.yaw = center(camera.yaw - self.delta_yaw, PI);
         camera.pitch = restrainf(
             camera.pitch + self.delta_pitch,
