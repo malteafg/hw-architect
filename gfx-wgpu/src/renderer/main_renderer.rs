@@ -4,6 +4,7 @@ use crate::{primitives, renderer, resources};
 use wgpu::util::DeviceExt;
 
 use std::rc::Rc;
+use std::time::Duration;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -150,7 +151,7 @@ impl MainRenderer {
         }
     }
 
-    pub fn update(&mut self, dt: instant::Duration, queue: &wgpu::Queue) {
+    pub fn update(&mut self, dt: Duration, queue: &wgpu::Queue) {
         // Update the light
         let old_position: glam::Vec3 = self.light_uniform.position.into();
         self.light_uniform.position = (glam::Quat::from_axis_angle(

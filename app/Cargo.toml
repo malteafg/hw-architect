@@ -10,16 +10,15 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-gfx-wgpu = { path = "../gfx-wgpu"  }
-gfx-api = { path = "../gfx-api" }
-tool = { path = "../tool"}
-utils = { path = "../utils"}
-world = { path = "../world"}
+gfx-wgpu = { workspace = true }
+gfx-api = { workspace = true }
+tool = { workspace = true }
+utils = { workspace = true }
+world = { workspace = true }
 
 winit = "0.27"
 
 anyhow = { workspace = true }
-instant = { workspace = true }
 
 glam = { workspace = true }
 

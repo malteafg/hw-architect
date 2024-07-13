@@ -4,14 +4,14 @@ use crate::primitives::{DBuffer, Instance, InstanceRaw};
 use crate::resources;
 use gfx_api::colors;
 
-use utils::id::TreeId;
+use utils::id::{IdMap, TreeId};
 
 use glam::*;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
-pub type TreeMap = BTreeMap<u128, HashMap<TreeId, InstanceRaw>>;
+pub type TreeMap = BTreeMap<u128, IdMap<TreeId, InstanceRaw>>;
 
 pub struct TreeState {
     device: Rc<wgpu::Device>,
@@ -75,7 +75,7 @@ fn tree_to_raw(pos: [f32; 3], yrot: f32) -> InstanceRaw {
     ))
 }
 
-fn insert_trees(model_map: &mut HashMap<TreeId, InstanceRaw>, trees: Vec<(TreeId, [f32; 3], f32)>) {
+fn insert_trees(model_map: &mut IdMap<TreeId, InstanceRaw>, trees: Vec<(TreeId, [f32; 3], f32)>) {
     for (id, pos, yrot) in trees.into_iter() {
         model_map.insert(id, tree_to_raw(pos, yrot));
     }
@@ -84,7 +84,7 @@ fn insert_trees(model_map: &mut HashMap<TreeId, InstanceRaw>, trees: Vec<(TreeId
 impl gfx_api::GfxTreeData for TreeState {
     fn add_trees(&mut self, model_id: u128, trees: Vec<(TreeId, [f32; 3], f32)>) {
         let Some(mut model_map) = self.tree_map.get_mut(&model_id) else {
-            let mut new_model_map = HashMap::new();
+            let mut new_model_map = IdMap::new();
             insert_trees(&mut new_model_map, trees);
             self.tree_map.insert(model_id, new_model_map);
             self.write_to_buffer();
@@ -96,7 +96,7 @@ impl gfx_api::GfxTreeData for TreeState {
 
     fn remove_tree(&mut self, tree_id: TreeId, _model_id: u128) {
         for (_, model_map) in self.tree_map.iter_mut() {
-            if model_map.remove(&tree_id).is_some() {
+            if model_map.remove(tree_id).is_some() {
                 self.write_to_buffer();
                 return;
             }

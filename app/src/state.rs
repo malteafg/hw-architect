@@ -9,6 +9,7 @@ use glam::*;
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time::Duration;
 
 pub struct State {
     /// The handle to the graphics card. A reference counter is used such that tools can
@@ -70,10 +71,11 @@ impl State {
         self.tool.mouse_input(event);
     }
 
-    pub fn update(&mut self, dt: instant::Duration) {
+    pub fn update(&mut self, dt: Duration) {
         if self.camera_controller.update_camera(dt) {
             self.update_ground_pos();
         }
+        self.tool.update(dt);
         self.gfx_handle
             .borrow_mut()
             .update_camera(self.camera_controller.get_raw_camera());

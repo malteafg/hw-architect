@@ -3,6 +3,7 @@ use crate::cycle_selection;
 use crate::gfx_gen::segment_gen;
 use crate::tool_state::SelectedRoad;
 
+use utils::id::{IdMap, SegmentId};
 use utils::{input, VecUtils};
 use world_api::{
     CurveType, LNodeBuilder, LNodeBuilderType, LRoadBuilder, LaneWidth, NodeType, SegmentType,
@@ -11,8 +12,6 @@ use world_api::{
 
 use gfx_api::RoadMesh;
 use glam::*;
-
-use std::collections::HashMap;
 
 #[derive(Default)]
 /// Defines the mode of the construct tool. At any time can the user snap to a node, which will
@@ -72,39 +71,20 @@ impl ToolStrategy for ToolInstance<ConstructTool> {
             (ToggleSnapping, Press) => self.toggle_snapping(),
             (ToggleReverse, Press) => self.toggle_reverse(),
             (CycleCurveType, Scroll(scroll_state)) => {
-                let new_curve_type = cycle_selection::scroll_mut(
-                    &mut self
-                        .state_handle
-                        .road_state
-                        .selected_road
-                        .segment_type
-                        .curve_type,
-                    scroll_state,
-                );
+                let new_curve_type =
+                    cycle_selection::scroll(self.get_sel_curve_type(), scroll_state);
+                self.state_handle.road_state.set_curve_type(new_curve_type);
                 self.set_curve_type(new_curve_type);
             }
             (CycleLaneWidth, Scroll(scroll_state)) => {
-                let new_lane_width = cycle_selection::scroll_mut(
-                    &mut self
-                        .state_handle
-                        .road_state
-                        .selected_road
-                        .node_type
-                        .lane_width,
-                    scroll_state,
-                );
+                let new_lane_width =
+                    cycle_selection::scroll(self.get_sel_lane_width(), scroll_state);
+                self.state_handle.road_state.set_lane_width(new_lane_width);
                 self.set_lane_width(new_lane_width);
             }
             (CycleNoLanes, Scroll(scroll_state)) => {
-                let new_no_lanes = cycle_selection::scroll_mut(
-                    &mut self
-                        .state_handle
-                        .road_state
-                        .selected_road
-                        .node_type
-                        .no_lanes,
-                    scroll_state,
-                );
+                let new_no_lanes = cycle_selection::scroll(self.get_sel_no_lanes(), scroll_state);
+                self.state_handle.road_state.set_no_lanes(new_no_lanes);
                 self.set_no_lanes(new_no_lanes);
             }
             _ => {}
@@ -175,26 +155,6 @@ impl ToolStrategy for ToolInstance<ConstructTool> {
 }
 
 impl ToolInstance<ConstructTool> {
-    // pub fn new(
-    //     gfx_handle: Rc<RefCell<dyn GfxSuper>>,
-    //     world: Box<dyn WorldManipulator>,
-    //     state_handle: Rc<RefCell<ToolState>>,
-    //     ground_pos: Vec3,
-    // ) -> Self {
-    //     let mut tool = Self {
-    //         gfx_handle,
-    //         world,
-    //         state_handle,
-    //         snapped_node: None,
-    //         ground_pos,
-    //         mode: SelectPos,
-    //     };
-    //     tool.update_view(ground_pos);
-    //     tool.show_snappable_nodes();
-    //     tool.check_snapping();
-    //     tool
-    // }
-
     fn get_sel_road_type(&self) -> SelectedRoad {
         self.state_handle.road_state.selected_road
     }
@@ -213,6 +173,14 @@ impl ToolInstance<ConstructTool> {
 
     fn get_sel_node_type(&self) -> NodeType {
         self.state_handle.road_state.selected_road.node_type
+    }
+
+    fn get_sel_lane_width(&self) -> LaneWidth {
+        self.get_sel_node_type().lane_width()
+    }
+
+    fn get_sel_no_lanes(&self) -> u8 {
+        self.get_sel_node_type().no_lanes()
     }
 
     fn is_reverse(&self) -> bool {
@@ -285,14 +253,14 @@ impl ToolInstance<ConstructTool> {
     }
 
     /// Sets the lane width in use.
-    fn set_lane_width(&mut self, _new_lane_width: LaneWidth) {
+    fn set_lane_width(&mut self, new_lane_width: LaneWidth) {
         self.reset();
-        dbg!(self.get_sel_road_type().node_type.lane_width);
+        dbg!(new_lane_width.getf32());
     }
 
     /// Sets the selected number of lanes.
-    fn set_no_lanes(&mut self, _no_lanes: u8) {
-        dbg!(self.get_sel_road_type().node_type.no_lanes);
+    fn set_no_lanes(&mut self, no_lanes: u8) {
+        dbg!(no_lanes);
         self.show_snappable_nodes();
         if let SelNode { .. } = self.self_tool.mode {
             self.reset();
@@ -324,7 +292,7 @@ impl ToolInstance<ConstructTool> {
         let road_meshes = self.gen_road_mesh_from_builder(&road_builder, self.get_sel_node_type());
         let (new_node, segment_ids) = self.world.add_road(road_builder, next_node_type);
 
-        let mut mesh_map = HashMap::new();
+        let mut mesh_map: IdMap<SegmentId, RoadMesh> = IdMap::new();
         for i in 0..segment_ids.len() {
             mesh_map.insert(segment_ids[i], road_meshes[i].clone());
         }
@@ -607,7 +575,7 @@ impl ToolInstance<ConstructTool> {
         road_builder
             .get_segments()
             .iter()
-            .map(|s| segment_gen::generate_simple_mesh(s.guide_points(), node_type))
+            .map(|s| segment_gen::gen_road_mesh_with_lanes(s.spine(), node_type))
             .collect::<Vec<RoadMesh>>()
     }
 

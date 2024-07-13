@@ -4,14 +4,13 @@ use crate::render_utils::create_color;
 use crate::renderer::simple_renderer::RenderSimpleModel;
 use crate::resources;
 
-use utils::id::SegmentId;
+use utils::id::{IdMap, SegmentId};
 
 // temporary, remove once proper road markings
 use gfx_api::colors::{self, rgba};
 use gfx_api::RoadMesh;
 use glam::*;
 
-use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::simple_renderer::SimpleRenderer;
@@ -107,7 +106,7 @@ pub struct RoadState {
 
     road_render_pipeline: wgpu::RenderPipeline,
 
-    road_meshes: HashMap<SegmentId, RoadMesh>,
+    road_meshes: IdMap<SegmentId, RoadMesh>,
     marked_meshes: Vec<SegmentId>,
 
     markers_buffer: DBuffer,
@@ -203,7 +202,7 @@ impl RoadState {
             tool_buffer,
             marked_buffer,
             road_render_pipeline,
-            road_meshes: HashMap::new(),
+            road_meshes: IdMap::new(),
             marked_meshes: Vec::new(),
             markers_buffer,
             markers_color,
@@ -214,8 +213,8 @@ impl RoadState {
     /// Combines the road meshes that road renderer stores in memory, and writes this to the gpu.
     fn write_road_mesh(&mut self) {
         let all = self.road_meshes.keys().fold(vec![], |mut acc, x| {
-            if !self.marked_meshes.contains(x) {
-                acc.push(*x);
+            if !self.marked_meshes.contains(&x) {
+                acc.push(x);
             }
             acc
         });
@@ -231,7 +230,7 @@ impl RoadState {
 impl gfx_api::GfxRoadData for RoadState {
     /// Adds a set of road meshes to what is stored in memory, and updates the gpu road meshes
     /// buffer.
-    fn add_road_meshes(&mut self, meshes: HashMap<SegmentId, RoadMesh>) {
+    fn add_road_meshes(&mut self, meshes: IdMap<SegmentId, RoadMesh>) {
         self.road_meshes.extend(meshes);
         self.write_road_mesh();
     }
@@ -240,7 +239,7 @@ impl gfx_api::GfxRoadData for RoadState {
     /// the gpu road meshes buffer.
     fn remove_road_meshes(&mut self, ids: Vec<SegmentId>) {
         ids.iter().for_each(|id| {
-            self.road_meshes.remove(id);
+            self.road_meshes.remove(*id);
         });
         self.write_road_mesh();
     }
@@ -282,14 +281,14 @@ impl gfx_api::GfxRoadData for RoadState {
 
 /// Iterates over the given road_meshes and returns a vec of {`RoadVertex`} for writing to the gpu.
 fn combine_road_meshes(
-    road_meshes: &HashMap<SegmentId, RoadMesh>,
+    road_meshes: &IdMap<SegmentId, RoadMesh>,
     selected_segments: &Vec<SegmentId>,
 ) -> RoadMesh {
     let mut indices_count = 0;
     let mut road_mesh: RoadMesh = RoadMesh::default();
 
     for (id, mesh) in road_meshes.iter() {
-        if !selected_segments.contains(id) {
+        if !selected_segments.contains(&id) {
             continue;
         }
         road_mesh.vertices.append(&mut mesh.vertices.clone());
@@ -306,7 +305,7 @@ fn combine_road_meshes(
 
     indices_count = 0;
     for (id, mesh) in road_meshes.iter() {
-        if !selected_segments.contains(id) {
+        if !selected_segments.contains(&id) {
             continue;
         }
         road_mesh

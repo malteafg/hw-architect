@@ -42,22 +42,46 @@ impl LaneWidth {
 /// lane width.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct NodeType {
-    pub lane_width: LaneWidth,
-    pub no_lanes: u8,
+    lane_width: LaneWidth,
+    no_lanes: u8,
 }
 
 impl Default for NodeType {
     fn default() -> Self {
-        Self {
-            lane_width: LaneWidth::default(),
-            no_lanes: 3,
-        }
+        Self::new(LaneWidth::default(), 3)
     }
 }
 
 impl NodeType {
+    pub fn new(lane_width: LaneWidth, no_lanes: u8) -> Self {
+        Self {
+            lane_width,
+            no_lanes,
+        }
+    }
+
     pub fn compute_width(&self) -> f32 {
-        self.lane_width.getf32() * self.no_lanes as f32
+        self.lane_width_f32() * self.no_lanes as f32
+    }
+
+    pub fn lane_width(&self) -> LaneWidth {
+        self.lane_width
+    }
+
+    pub fn lane_width_f32(&self) -> f32 {
+        self.lane_width.getf32()
+    }
+
+    pub fn no_lanes(&self) -> u8 {
+        self.no_lanes
+    }
+
+    pub fn set_lane_width(&mut self, lane_width: LaneWidth) {
+        self.lane_width = lane_width;
+    }
+
+    pub fn set_no_lanes(&mut self, no_lanes: u8) {
+        self.no_lanes = no_lanes;
     }
 }
 

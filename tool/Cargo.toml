@@ -10,9 +10,10 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-utils = { path = "../utils" }
-world-api = { path = "../world-api" }
-gfx-api = { path = "../gfx-api" }
+curves = { workspace = true }
+utils = { workspace = true }
+world-api = { workspace = true }
+gfx-api = { workspace = true }
 
 bytemuck = { workspace = true }
 

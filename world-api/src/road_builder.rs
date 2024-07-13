@@ -1,7 +1,7 @@
 use super::{LNodeBuilder, LSegmentBuilder, NodeType, SegmentType, SnapConfig};
 
+use curves::GuidePoints;
 use utils::consts::ROAD_MIN_LENGTH;
-use utils::curves::{curve_gen, GuidePoints};
 use utils::VecUtils;
 
 use glam::Vec3;
@@ -36,6 +36,13 @@ impl LNodeBuilderType {
         match self {
             New(node_builder) => (node_builder.pos(), node_builder.dir()),
             Old(snap_config) => (snap_config.pos(), snap_config.dir()),
+        }
+    }
+
+    fn node_type(&self) -> NodeType {
+        match self {
+            New(b) => b.node_type(),
+            Old(s) => s.node_type(),
         }
     }
 }
@@ -78,6 +85,11 @@ impl LRoadBuilder {
         (self.nodes, self.segments, self.reverse)
     }
 
+    /// NOTE: temporary should be removed once transition segments
+    pub fn get_first_node_type(&self) -> NodeType {
+        self.nodes[0].node_type()
+    }
+
     pub fn get_segments(&self) -> &Vec<LSegmentBuilder> {
         &self.segments
     }
@@ -109,10 +121,10 @@ impl LRoadBuilder {
         }
 
         let segments = vec![LSegmentBuilder::new(
-            first_type.compute_width(),
             SegmentType {
                 curve_type: super::CurveType::Straight,
             },
+            first_type,
             GuidePoints::from_two_points(first_pos, end_pos),
         )];
 
@@ -150,10 +162,10 @@ impl LRoadBuilder {
         }
 
         let segments = vec![LSegmentBuilder::new(
-            last_type.compute_width(),
             SegmentType {
                 curve_type: super::CurveType::Straight,
             },
+            last_type,
             GuidePoints::from_two_points(nodes[0].get_pos(), nodes[1].get_pos()),
         )];
 
@@ -179,7 +191,7 @@ impl LRoadBuilder {
         } else {
             last_pos
         };
-        let mut g_points_vec = curve_gen::three_quarter_circle_curve(
+        let mut g_points_vec = curves::three_quarter_circle_curve(
             start_pos,
             start_dir,
             last_pos,
@@ -190,10 +202,11 @@ impl LRoadBuilder {
         .expect("Should allow projection");
 
         if reverse {
+            // TODO shouldn't we use GuidePoints::reverse_vec?
             g_points_vec.reverse()
         }
 
-        let (g_points_vec, _) = curve_gen::guide_points_and_direction(g_points_vec);
+        let (g_points_vec, _) = curves::guide_points_and_direction(g_points_vec);
 
         let mut nodes = vec![];
         if reverse {
@@ -214,10 +227,10 @@ impl LRoadBuilder {
         let mut segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, _)| {
             segments.push(LSegmentBuilder::new(
-                last_type.compute_width(),
                 SegmentType {
                     curve_type: super::CurveType::Curved,
                 },
+                last_type,
                 g_points,
             ));
         });
@@ -235,7 +248,7 @@ impl LRoadBuilder {
         reverse: bool,
     ) -> Result<Self, RoadGenErr> {
         let end_dir = last_node.dir().flip(!reverse);
-        let mut g_points_vec = curve_gen::three_quarter_circle_curve(
+        let mut g_points_vec = curves::three_quarter_circle_curve(
             last_node.pos(),
             end_dir,
             first_pos,
@@ -246,10 +259,10 @@ impl LRoadBuilder {
         .ok_or(RoadGenErr::CCSFailed)?;
 
         if !reverse {
-            curve_gen::reverse_g_points_vec(&mut g_points_vec);
+            GuidePoints::reverse_vec(&mut g_points_vec);
         }
 
-        let (g_points_vec, first_dir) = curve_gen::guide_points_and_direction(g_points_vec);
+        let (g_points_vec, first_dir) = curves::guide_points_and_direction(g_points_vec);
 
         let mut nodes = vec![];
         if reverse {
@@ -272,10 +285,10 @@ impl LRoadBuilder {
         let mut segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, _)| {
             segments.push(LSegmentBuilder::new(
-                first_type.compute_width(),
                 SegmentType {
                     curve_type: super::CurveType::Curved,
                 },
+                first_type,
                 g_points,
             ));
         });
@@ -313,19 +326,18 @@ impl LRoadBuilder {
             )
         };
 
-        let snap_case = curve_gen::double_snap_curve_case(
+        let snap_case = curves::double_snap_curve_case(
             start_pos,
             start_dir,
             end_pos,
             end_dir,
-            node_type.no_lanes,
+            node_type.no_lanes(),
         )
         .map_err(|_| RoadGenErr::DoubleSnapFailed)?;
 
-        let (g_points_vec, _) =
-            curve_gen::guide_points_and_direction(curve_gen::match_double_snap_curve_case(
-                start_pos, start_dir, end_pos, end_dir, snap_case,
-            ));
+        let (g_points_vec, _) = curves::guide_points_and_direction(
+            curves::match_double_snap_curve_case(start_pos, start_dir, end_pos, end_dir, snap_case),
+        );
 
         let mut nodes = vec![start_node];
         g_points_vec.iter().for_each(|(g_points, dir)| {
@@ -338,10 +350,10 @@ impl LRoadBuilder {
         let mut segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, _)| {
             segments.push(LSegmentBuilder::new(
-                node_type.compute_width(),
                 SegmentType {
                     curve_type: super::CurveType::Curved,
                 },
+                node_type,
                 g_points,
             ));
         });

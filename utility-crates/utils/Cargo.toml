@@ -1,5 +1,5 @@
 [package]
-name = "gfx-api"
+name = "utils"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,6 +10,13 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-utils = { workspace = true }
+glam = { workspace = true }
 
-bytemuck = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+num = { workspace = true }
+fixedbitset = { workspace = true }
+rand = { workspace = true }
+
+strum = "0.24.0"
+strum_macros = "0.24.0"

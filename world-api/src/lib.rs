@@ -4,6 +4,8 @@ mod road_type;
 mod snap;
 mod tree;
 
+use std::time::Duration;
+
 pub use builder::*;
 pub use road_builder::*;
 pub use road_type::*;
@@ -16,6 +18,7 @@ use utils::id::{NodeId, SegmentId, TreeId};
 pub trait WorldManipulator:
     RoadManipulator + TreeManipulator + IdGetter + SimController + SimData
 {
+    fn update(&mut self, dt: Duration);
 }
 
 pub trait RoadManipulator {

@@ -3,8 +3,11 @@
 //! crate does not care about constraints such as road curvature, it only concerns itself with the
 //! logical state of the world. For stuff like road curvature the tool crate is intended to enforce
 //! it.
-pub mod nature;
-pub mod roads;
+mod nature;
+mod roads;
+mod simulation;
+
+use std::time::Duration;
 
 use world_api::{
     IdGetter, RoadManipulator, SimController, SimData, TreeManipulator, WorldManipulator,
@@ -13,6 +16,7 @@ use world_api::{LRoadBuilder, NodeType, Side, SnapConfig, Tree};
 
 use nature::Trees;
 use roads::RoadGraph;
+// use simulation::SimHandler;
 
 use utils::id::{NodeId, SegmentId, TreeId};
 
@@ -22,6 +26,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Default)]
 pub struct World {
     road_graph: RoadGraph,
+    // sim_handler: SimHandler,
     trees: Trees,
 }
 
@@ -31,7 +36,13 @@ impl World {
     }
 }
 
-impl WorldManipulator for World {}
+impl WorldManipulator for World {
+    /// TODO add check for dt. If dt is too large (maybe larger than 1/10 second) fix it to be some
+    /// smaller value. Large values of dt can cause bad behaviour in the simulation.
+    fn update(&mut self, _dt: Duration) {
+        // self.sim_handler.update(dt, &self.road_graph);
+    }
+}
 
 impl RoadManipulator for World {
     fn add_road(
@@ -39,11 +50,33 @@ impl RoadManipulator for World {
         road: LRoadBuilder,
         sel_node_type: NodeType,
     ) -> (Option<SnapConfig>, Vec<SegmentId>) {
-        self.road_graph.add_road(road, sel_node_type)
+        // capture the spine to create lane paths for sim_handler
+        let _lane_paths: Vec<_> = {
+            // temporary until transition segments
+            let node_type = road.get_first_node_type();
+            let width = node_type.lane_width_f32();
+            let no_paths = node_type.no_lanes();
+            road.get_segments()
+                .iter()
+                .map(|b| b.spine().gen_parallel(width, no_paths))
+                .collect()
+        };
+
+        let (snap, segments) = self.road_graph.add_road(road, sel_node_type);
+
+        // for (i, lane_path) in lane_paths.into_iter().enumerate() {
+        //     self.sim_handler.add_segment(segments[i], lane_path);
+        // }
+
+        (snap, segments)
     }
 
     fn remove_segment(&mut self, segment_id: SegmentId) -> bool {
-        self.road_graph.remove_segment(segment_id)
+        let result = self.road_graph.remove_segment(segment_id);
+        // if result {
+        //     self.sim_handler.remove_segment(segment_id);
+        // }
+        result
     }
 
     fn get_possible_snap_nodes(

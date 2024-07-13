@@ -26,6 +26,7 @@ pub trait ToolShared {
 
     fn get_state(&self) -> &ToolState;
     fn get_world(&self) -> &Box<dyn WorldManipulator>;
+    fn get_world_mut(&mut self) -> &mut Box<dyn WorldManipulator>;
 
     fn update_ground_pos(&mut self, ground_pos: Vec3);
 }
@@ -85,6 +86,10 @@ impl<A: Default> ToolShared for ToolInstance<A> {
 
     fn get_world(&self) -> &Box<dyn WorldManipulator> {
         &self.world
+    }
+
+    fn get_world_mut(&mut self) -> &mut Box<dyn WorldManipulator> {
+        &mut self.world
     }
 
     fn update_ground_pos(&mut self, ground_pos: Vec3) {

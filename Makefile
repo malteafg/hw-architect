@@ -26,7 +26,11 @@ loc:
 	loc gfx-api
 	loc gfx-wgpu
 	loc tool
-	loc utils
+	loc utility-crates/curves
+	loc utility-crates/utils
 	loc world
 	loc world-api
 	loc
+
+# use to print layout of types
+# cargo +nightly rustc -- -Zprint-type-sizes

@@ -1,5 +1,5 @@
 [package]
-name = "utils"
+name = "curves"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,10 +10,9 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+utils = { workspace = true }
+
 glam = { workspace = true }
 
 anyhow = { workspace = true }
 serde = { workspace = true }
-
-strum = "0.24.0"
-strum_macros = "0.24.0"

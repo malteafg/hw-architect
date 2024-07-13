@@ -1,0 +1,344 @@
+use super::vehicle::{StaticVehicleData, VehicleAi, VehicleLoc};
+use crate::roads::RoadGraph;
+
+use curves::SpinePoints;
+use serde::{Deserialize, Serialize};
+use utils::id::{IdMap, IdSet, NodeId, SegmentId, UnsafeMap, VehicleId};
+
+use glam::Vec3;
+
+use std::{collections::VecDeque, time::Duration};
+
+const DEFAULT_VEHICLE_CAP: usize = 8;
+
+/// The Vec of option represents the distance travelled of the vehicles in each lane that has
+/// travelled the smallest distance on the next segments.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct EndConfig {
+    lanes: Vec<Option<VehicleAi>>,
+}
+
+impl core::ops::Deref for EndConfig {
+    type Target = Vec<Option<VehicleAi>>;
+
+    fn deref(self: &'_ Self) -> &'_ Self::Target {
+        &self.lanes
+    }
+}
+
+impl core::ops::DerefMut for EndConfig {
+    fn deref_mut(self: &'_ mut Self) -> &'_ mut Self::Target {
+        &mut self.lanes
+    }
+}
+
+impl EndConfig {
+    fn new(no_lanes: u8) -> Self {
+        let mut lanes = Vec::with_capacity(no_lanes as usize);
+        (0..no_lanes).for_each(|_| lanes.push(None));
+        Self { lanes }
+    }
+
+    fn fake_sim(&mut self, dt: Duration) {
+        for v in self.lanes.iter_mut() {
+            if let Some(v) = v.as_mut() {
+                v.travel(dt);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct LaneState {
+    /// The VecDeque is sorted by the dist_travelled field inside VehicleAi in order from largest
+    /// to smallest, ie. the vehicle that has reached the furtest (and thus should be simulated
+    /// first) is located at the beginning.
+    state: VecDeque<VehicleAi>,
+    path: SpinePoints,
+    /// Length of this lane given in meters.
+    length: f32,
+}
+
+impl LaneState {
+    fn new(path: SpinePoints) -> Self {
+        let state = VecDeque::with_capacity(DEFAULT_VEHICLE_CAP);
+        let length = path.compute_length();
+
+        Self {
+            state,
+            path,
+            length,
+        }
+    }
+
+    /// Maybe iterate over all vehicles first, and then cars will make decision, and then simulate
+    /// can be called?
+    fn iter_vehicles(&self) -> impl Iterator<Item = &VehicleAi> + '_ {
+        self.state.iter()
+    }
+
+    /// Updates all the vehicles and returns the vehicle that has reached a new segment if such
+    /// vehicle exists. If dt is sufficiently low there would never be several vehicles crossing at
+    /// once, and if so they will just be transferred one frame later, which should only make their
+    /// render location slightly wrong for a few frames, but not affect the logic otherwise.
+    fn simulate(&mut self, dt: Duration, shortest_on_next: Option<VehicleAi>) -> Option<VehicleAi> {
+        if self.state.is_empty() {
+            return None;
+        }
+
+        // TODO add support for using shortest_on_next in the vehicle travel method.
+        for vehicle in self.state.iter_mut() {
+            vehicle.travel(dt)
+        }
+
+        if self.state[0].has_reached_end(self.length) {
+            return Some(self.state.pop_front().unwrap());
+        }
+
+        None
+    }
+
+    /// Requires that the distance the vehicle has travelled is smaller than all other distances
+    /// travelled in this segment.
+    /// Returns the position and y_rot of the car inserted.
+    fn insert(&mut self, id: VehicleId, vehicle_ai: VehicleAi) -> (Vec3, f32) {
+        #[cfg(debug_assertions)]
+        if let Some(v) = self.state.back() {
+            assert!(vehicle_ai.dist_travelled < v.dist_travelled);
+        }
+
+        self.state.push_back(vehicle_ai);
+        // TODO
+        (Vec3::new(0., 0., 0.), 0.)
+
+        // let num_vehicles = self.state.len();
+        // let lowest_f32 = self
+        //     .state
+        //     .get(num_vehicles - 1)
+        //     .map(|v| v.dist_travelled)
+        //     .unwrap_or(0.);
+        // if vehicle_ai.dist_travelled < lowest_f32 {}
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SegmentState {
+    lane_map: Vec<LaneState>,
+    /// Represents the vehicle that needs to be transferred to their next segment in this iteration.
+    overflow_map: Vec<Option<VehicleAi>>,
+    next_config: EndConfig,
+    prev_config: EndConfig,
+}
+
+impl SegmentState {
+    fn new(lane_paths: Vec<SpinePoints>) -> Self {
+        let no_lanes = lane_paths.len() as u8;
+        let next_config = EndConfig::new(no_lanes);
+        let prev_config = EndConfig::new(no_lanes);
+
+        let mut lane_map = Vec::with_capacity(lane_paths.len());
+        for lane_path in lane_paths.into_iter() {
+            lane_map.push(LaneState::new(lane_path));
+        }
+
+        let overflow_map = Vec::new();
+        Self {
+            lane_map,
+            overflow_map,
+            next_config,
+            prev_config,
+        }
+    }
+
+    /// Simulates each lane in this segment. Writes to overflow_map the vehicles that have reached
+    /// the end of this segment for each lane.
+    fn simulate(&mut self, dt: Duration) {
+        #[cfg(debug_assertions)]
+        {
+            assert_eq!(self.lane_map.len(), self.overflow_map.len());
+            assert_eq!(self.lane_map.len(), self.next_config.len());
+            assert_eq!(self.lane_map.len(), self.prev_config.len());
+            self.overflow_map.iter().for_each(|m| {
+                if let Some(_) = m {
+                    panic!("overflow_map of segment has not been cleared");
+                }
+            })
+        }
+        // iter over vehicles and make decisions for each vehicle
+        // loop over segment_state and simulate all lane states
+        // move done vehicles into their next segment, or remove if they are done
+        // iter over vehicles and write their new positions to vehicles_loc
+
+        for i in 0..self.lane_map.len() {
+            let shortest = self.next_config[i];
+            let overflow = self.lane_map[i].simulate(dt, shortest);
+            self.overflow_map[i] = overflow;
+        }
+    }
+
+    fn fake_front_sim(&mut self, dt: Duration) {
+        self.next_config.fake_sim(dt);
+    }
+}
+
+// in the backwards pass, when a segment is processed, it should be sufficient to report data about
+// the vehicles that have reached the smallest distance for each lane, and probably those vehicles'
+// speed.
+/// Maybe add random shrink_to_fit, such that the memory will not become too large.
+///
+/// Have two maps for each SegmentState, containing the front vehicles and back vehicles.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimHandler {
+    /// Sim needs to read from this, but StaticVehicleData can be read only.
+    vehicles_data: IdMap<VehicleId, StaticVehicleData, UnsafeMap>,
+
+    /// Sim needs to write to this, so VehicleLoc is mut.
+    vehicles_loc: IdMap<VehicleId, VehicleLoc, UnsafeMap>,
+
+    /// Maybe wrap the SegmentState in an Arc<RwLock<>>, when doing parallelism.
+    vehicle_tracker: IdMap<SegmentId, SegmentState, UnsafeMap>,
+
+    /// Represents all the segments currently in game. Must only be modified when a segment is
+    /// added or removed.
+    segments_to_dispatch: IdSet<SegmentId>,
+    segments_to_dispatch_buffer: IdSet<SegmentId>,
+
+    ending_segments: Vec<(NodeId, SegmentId)>,
+
+    /// Memory allocated for the segments that are ready to be dispatched.
+    ready_to_dispatch: Vec<(NodeId, SegmentId)>,
+
+    /// Memory allocated for highlighting when a segment has been processed in each update
+    /// iteration.
+    processed_segments: IdSet<SegmentId>,
+
+    /// Memory allocated for indicating which vehicles need to be removed as a result of having
+    /// reached their destination in this update iteration.
+    /// An IdSet could be used instead but it is probably not worth it as there will only be a few
+    /// cars each iteration.
+    vehicles_to_remove: Vec<VehicleId>,
+}
+
+impl Default for SimHandler {
+    fn default() -> Self {
+        let vehicles_data = IdMap::new();
+        let vehicles_loc = IdMap::new();
+        let vehicle_tracker = IdMap::new();
+
+        let segments_to_dispatch = IdSet::new();
+        let ending_segments = Vec::new();
+
+        let segments_to_dispatch_buffer = IdSet::new();
+        let ready_to_dispatch = Vec::new();
+
+        let processed_segments = IdSet::new();
+        let vehicles_to_remove = Vec::new();
+
+        Self {
+            vehicles_data,
+            vehicles_loc,
+            vehicle_tracker,
+
+            segments_to_dispatch,
+            ending_segments,
+
+            segments_to_dispatch_buffer,
+            ready_to_dispatch,
+
+            processed_segments,
+            vehicles_to_remove,
+        }
+    }
+}
+
+fn process(dt: Duration, segment_state: &mut SegmentState) {
+    segment_state.simulate(dt);
+    // send signal back and request more to process
+}
+
+impl SimHandler {
+    pub fn spawn_vehicle(&mut self, segment: SegmentId, lane: u8) {}
+    fn remove_vehicle(&mut self, vehicle: VehicleId) {}
+
+    /// Dispatching a segment always implies that the segment will be processed
+    pub fn update(&mut self, dt: Duration, road_graph: &RoadGraph) {
+        // Prepare the memory that we need for this iteration.
+        // TODO add assertions for those that we already expect to be clear.
+        self.vehicles_to_remove.clear();
+        self.processed_segments.clear();
+        self.ready_to_dispatch.clear();
+        self.segments_to_dispatch
+            .write_into(&mut self.segments_to_dispatch_buffer);
+
+        // List of ending segments that can always be processed first. In the future intersections
+        // should also be some of the first things to get simulated.
+        for ns in self.ending_segments.iter() {
+            self.ready_to_dispatch.push(*ns);
+        }
+
+        // start looping until segments_to_dispatch_buffer is empty. Then we have dispatched all
+        // segments.
+        while !self.segments_to_dispatch_buffer.is_empty() {
+            let next_segment = self.ready_to_dispatch.pop();
+            let Some((node_id, segment_id)) = next_segment else {
+                // If there is no segment that is ready to dispatch but we still have segments to
+                // dispatch we just select a random segment.
+                let rand_segment = self.segments_to_dispatch_buffer.get_random();
+                let prev_node = road_graph.get_lsegment(rand_segment).get_from_node();
+                let rand_state = self.vehicle_tracker.get_mut(rand_segment);
+                rand_state.fake_front_sim(dt);
+
+                self.ready_to_dispatch.push((prev_node, rand_segment));
+                continue;
+            };
+
+            self.segments_to_dispatch.remove(segment_id);
+            // Maybe pass ownership to the thread and reinsert the segment once the thread has
+            // completed.
+            let segment_state = self.vehicle_tracker.get_mut(segment_id);
+            // TODO update front config
+            process(dt, segment_state);
+            // update the backwards segments from this segments with the vehicles new positions
+            self.processed_segments.insert(segment_id);
+
+            // check if the node that the processed segment backwards pointed to is ready
+            let mut ready = true;
+            for (_, required_segment) in road_graph.get_forwards_ref(node_id) {
+                if !self.processed_segments.contains(*required_segment) {
+                    ready = false;
+                    break;
+                }
+            }
+            if ready {
+                // todo add the forward data from the segments just processed
+                for ns in road_graph.get_backwards_ref(node_id).iter() {
+                    self.ready_to_dispatch.push(*ns);
+                }
+            }
+        }
+
+        // Move vehicles to next segment if we use one data structure where we write all the
+        // vehicles that need to move.
+        // update with the contents of segment_state.overflow_map
+        // move vehicles to the next segments
+
+        // remove vehicles that are done
+        // TODO find a way to remove this unnecessary clone
+        for id in self.vehicles_to_remove.clone().iter() {
+            self.remove_vehicle(*id);
+        }
+    }
+
+    pub fn add_segment(&mut self, segment: SegmentId, lane_paths: Vec<SpinePoints>) {
+        // TODO update the front map
+        self.vehicle_tracker
+            .insert(segment, SegmentState::new(lane_paths));
+        self.segments_to_dispatch.insert(segment);
+    }
+
+    pub fn remove_segment(&mut self, segment: SegmentId) {
+        // TODO what about the vehicles in the segment?
+        self.vehicle_tracker.remove(segment);
+        self.segments_to_dispatch.remove(segment);
+    }
+}

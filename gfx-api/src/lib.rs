@@ -1,7 +1,6 @@
 //! This crate defines the api for the graphics engine that hw-architect uses. The only interaction
 //! that other crates are allowed to have to a graphics engine must go through this api, to keep
 //! things modular.
-//! Dependency on wgpu in Gfx.render should be removed
 pub mod colors;
 mod data;
 mod error;
@@ -9,8 +8,8 @@ mod error;
 pub use data::*;
 pub use error::*;
 
-use std::collections::HashMap;
-use utils::id::{SegmentId, TreeId};
+use std::time::Duration;
+use utils::id::{IdMap, SegmentId, TreeId};
 
 /// This trait defines all the behavior that a gpu backend must implement to render all of
 /// hw-architect.
@@ -26,7 +25,7 @@ pub trait Gfx {
     /// Resizes the window. The unit of the parameters are in pixels.
     fn resize(&mut self, width: u32, height: u32);
 
-    fn update(&mut self, dt: instant::Duration);
+    fn update(&mut self, dt: Duration);
 }
 
 /// This trait defines all the data that a gpu backend must implement in order to render the world.
@@ -38,7 +37,7 @@ impl<T: GfxRoadData + GfxTreeData> GfxWorldData for T {}
 pub trait GfxRoadData {
     /// Adds a set of road meshes to the renderer such that they are now rendered. Fewer calls
     /// to this is strongly preferred, for performance reasons.
-    fn add_road_meshes(&mut self, meshes: HashMap<SegmentId, RoadMesh>);
+    fn add_road_meshes(&mut self, meshes: IdMap<SegmentId, RoadMesh>);
 
     /// Removes a set of road meshes given by their ids, such that their are no longer rendered
     /// and stored by the renderer. Fewer calls to this is strongly preferred, for performance

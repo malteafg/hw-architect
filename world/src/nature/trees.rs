@@ -1,18 +1,18 @@
 use world_api::Tree;
 
-use utils::id::{IdManager, TreeId};
+use utils::id::{IdManager, IdMap, SafeMap, TreeId};
 
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 /// Maybe temporary, but specifies the clickable radius of a tree.
 const TREE_RADIUS: f32 = 2.0;
 
 /// The u128 represents a hash of a tree model. For now it is not used as there is only one tree
 /// model.
-pub type TreeMap = BTreeMap<u128, HashMap<TreeId, Tree>>;
+pub type TreeMap = BTreeMap<u128, IdMap<TreeId, Tree, SafeMap>>;
 
 #[derive(Serialize, Deserialize)]
 pub struct Trees {
@@ -30,15 +30,11 @@ impl Default for Trees {
 }
 
 impl Trees {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     pub fn get_tree_from_pos(&self, pos: Vec3) -> Option<TreeId> {
         for model_map in self.tree_map.values() {
             for (id, tree) in model_map.iter() {
                 if (tree.pos() - pos).length() < TREE_RADIUS {
-                    return Some(*id);
+                    return Some(id);
                 }
             }
         }
@@ -47,7 +43,7 @@ impl Trees {
 
     fn get_tree(&self, id: &TreeId) -> &Tree {
         for model_map in self.tree_map.values() {
-            if let Some(tree) = model_map.get(id) {
+            if let Some(tree) = model_map.get(*id) {
                 return tree;
             }
         }
@@ -65,7 +61,7 @@ impl crate::TreeManipulator for Trees {
                 ()
             }
             None => {
-                let mut new_model_map = HashMap::new();
+                let mut new_model_map: IdMap<TreeId, Tree> = IdMap::new();
                 new_model_map.insert(tree_id, tree);
                 self.tree_map.insert(model_id, new_model_map);
             }
@@ -75,7 +71,7 @@ impl crate::TreeManipulator for Trees {
 
     fn remove_tree(&mut self, tree_id: TreeId) -> u128 {
         for (model_id, model_map) in self.tree_map.iter_mut() {
-            if model_map.remove(&tree_id).is_some() {
+            if model_map.remove(tree_id).is_some() {
                 return *model_id;
             }
         }

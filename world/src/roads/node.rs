@@ -98,11 +98,11 @@ impl LNode {
     /// Returns the number of lanes of this node's type. This is the number of lanes in the main
     /// segment.
     pub fn no_lanes(&self) -> u8 {
-        self.node_type.no_lanes
+        self.node_type.no_lanes()
     }
 
     pub fn lane_width(&self) -> f32 {
-        self.node_type.lane_width.getf32()
+        self.node_type.lane_width_f32()
     }
 
     fn width(&self) -> f32 {
@@ -111,6 +111,67 @@ impl LNode {
 
     pub fn contains_pos(&self, pos: Vec3) -> bool {
         (self.pos - pos).length() < self.width()
+    }
+
+    pub fn is_starting(&self) -> bool {
+        match self.mode {
+            Basic { main_side, .. } => main_side == Side::Out,
+            Open { open_side, .. } => open_side == Side::In,
+            _ => false,
+        }
+    }
+
+    pub fn is_ending(&self) -> bool {
+        match self.mode {
+            Basic { main_side, .. } => main_side == Side::In,
+            Open { open_side, .. } => open_side == Side::Out,
+            _ => false,
+        }
+    }
+
+    /// Requires that `incoming_segment` is in fact an incoming_segment of this node, and that this
+    /// node has an outgoing segment.
+    pub fn get_next_segment_lane(
+        &self,
+        incoming_segment: SegmentId,
+        lane: u8,
+    ) -> Option<(SegmentId, u8)> {
+        match &self.mode {
+            Basic { main_side, .. } => {
+                #[cfg(debug_assertions)]
+                assert_eq!(*main_side, Side::In);
+                None
+            }
+            Sym { incoming, outgoing } => {
+                #[cfg(debug_assertions)]
+                assert_eq!(*incoming, incoming_segment);
+                Some((*outgoing, lane))
+            }
+            Asym {
+                main_segment,
+                main_side,
+                attached_segments,
+            } => match main_side {
+                Side::In => {
+                    #[cfg(debug_assertions)]
+                    assert_eq!(*main_segment, incoming_segment);
+                    attached_segments.get_segment_at_index(lane)
+                }
+                Side::Out => {
+                    #[cfg(debug_assertions)]
+                    assert!(attached_segments.contains_segment(incoming_segment));
+                    Some((
+                        *main_segment,
+                        attached_segments.get_lane_from_segment_and_index(incoming_segment, lane),
+                    ))
+                }
+            },
+            Open { open_side, .. } => {
+                #[cfg(debug_assertions)]
+                assert_eq!(*open_side, Side::Out);
+                None
+            }
+        }
     }
 
     /// Returns true if the given segment_id is part of this node.
@@ -325,14 +386,14 @@ impl LNode {
                 // must switch the side of this node.
                 if attached_segments.len() == 1 {
                     let new_main = &attached_segments[0];
-                    let segment_id = new_main.get_segment_id();
+                    let segment_id = new_main.segment_id();
 
                     // Compute new node pos.
                     let left_space = new_main.snap_range().smallest();
                     let right_space = self_no_lanes as i8 - (new_main.snap_range().largest() + 1);
                     self.pos += ((left_space - right_space) as f32 / 2.0) * lane_width_dir;
 
-                    self.node_type = new_main.get_node_type();
+                    self.node_type = new_main.node_type();
                     self.mode = Basic {
                         main_segment: segment_id,
                         main_side: main_side.switch(),
@@ -349,10 +410,7 @@ impl LNode {
 
                 attached_segments.shift(-(left_space as i8));
                 attached_segments.update_no_lanes(new_no_lanes);
-                self.node_type = NodeType {
-                    no_lanes: new_no_lanes,
-                    ..self.node_type
-                };
+                self.node_type = NodeType::new(self.node_type.lane_width(), new_no_lanes);
                 self.mode = Open {
                     open_side: *main_side,
                     attached_segments: mem::take(attached_segments),
@@ -368,14 +426,14 @@ impl LNode {
                 // We must move to be an Asym node, as there is only one segment in the node now.
                 if attached_segments.len() == 1 {
                     let new_main = &attached_segments[0];
-                    let segment_id = new_main.get_segment_id();
+                    let segment_id = new_main.segment_id();
 
                     // Compute new node pos.
                     let left_space = new_main.snap_range().smallest();
                     let right_space = self_no_lanes as i8 - (new_main.snap_range().largest() + 1);
                     self.pos += ((left_space - right_space) as f32 / 2.0) * lane_width_dir;
 
-                    self.node_type = new_main.get_node_type();
+                    self.node_type = new_main.node_type();
                     self.mode = Basic {
                         main_segment: segment_id,
                         main_side: open_side.switch(),
@@ -391,16 +449,13 @@ impl LNode {
                 attached_segments.update_no_lanes(new_no_lanes);
 
                 let pos_shift_change = if empty_space == 0 {
-                    -((self.node_type.no_lanes - new_no_lanes) as i8)
+                    -((self.node_type.no_lanes() - new_no_lanes) as i8)
                 } else {
                     empty_space as i8
                 };
                 self.pos += (pos_shift_change as f32 / 2.0) * lane_width_dir;
 
-                self.node_type = NodeType {
-                    no_lanes: new_no_lanes,
-                    ..self.node_type
-                };
+                self.node_type = NodeType::new(self.node_type.lane_width(), new_no_lanes);
                 // It is safe to return false, because if attached_segments is now empty, then it
                 // would have been an Asym node in the first place, so this code would never have
                 // been run.
@@ -438,12 +493,12 @@ impl LNode {
     /// trying to snap and the id of this node.
     pub fn construct_snap_configs(&self, node_type: NodeType, node_id: NodeId) -> Vec<SnapConfig> {
         // TODO in the future we should generate a transition segment probably
-        if self.node_type.lane_width != node_type.lane_width {
+        if self.node_type.lane_width_f32() != node_type.lane_width_f32() {
             return vec![];
         }
 
         let lane_width_dir = self.dir.right_hand() * self.lane_width();
-        let snap_no_lanes = node_type.no_lanes;
+        let snap_no_lanes = node_type.no_lanes();
 
         let (snap_ranges_with_pos, side): (Vec<(SnapRange, Vec3)>, Side) = match &self.mode {
             Basic { main_side, .. } => {
@@ -524,10 +579,10 @@ mod lanes {
         }
 
         pub fn no_lanes(&self) -> u8 {
-            self.node_type.no_lanes
+            self.node_type.no_lanes()
         }
 
-        pub fn get_segment_id(&self) -> SegmentId {
+        pub fn segment_id(&self) -> SegmentId {
             self.segment_id
         }
 
@@ -535,7 +590,21 @@ mod lanes {
             &self.snap_range
         }
 
-        pub fn get_node_type(&self) -> NodeType {
+        pub fn smallest(&self) -> u8 {
+            self.snap_range().smallest() as u8
+        }
+
+        pub fn largest(&self) -> u8 {
+            self.snap_range().largest() as u8
+        }
+
+        pub fn contains(&self, index: u8) -> bool {
+            #[cfg(debug_assertions)]
+            assert!(self.snap_range().smallest() >= 0);
+            self.snap_range().contains(index as i8)
+        }
+
+        pub fn node_type(&self) -> NodeType {
             self.node_type
         }
     }
@@ -585,6 +654,27 @@ mod lanes {
                 }
             }
             panic!("Requested segment_id does not exist in node");
+        }
+
+        /// Returns the lane number of this node for which the lane given by `id` and
+        /// `index` is located at.
+        pub fn get_lane_from_segment_and_index(&self, id: SegmentId, index: u8) -> u8 {
+            for s in self.iter() {
+                if id == s.segment_id {
+                    return s.smallest() + index;
+                }
+            }
+            panic!("Requested segment_id does not exist in node");
+        }
+
+        pub fn get_segment_at_index(&self, index: u8) -> Option<(SegmentId, u8)> {
+            for s in self.iter() {
+                if s.contains(index) {
+                    let new_index = index - s.smallest();
+                    return Some((s.segment_id(), new_index));
+                }
+            }
+            None
         }
 
         /// Returns true if this lane map contains the given snap, i.e. that this snap point is

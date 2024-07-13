@@ -10,12 +10,12 @@ use crate::primitives;
 use crate::render_utils::create_render_pipeline;
 use crate::resources;
 
-use utils::id::{SegmentId, TreeId};
+use utils::id::{IdMap, SegmentId, TreeId};
 
 use gfx_api::{colors, GfxFrameError, RawCameraData, RoadMesh};
 
-use std::collections::HashMap;
 use std::rc::Rc;
+use std::time::Duration;
 
 pub struct GfxState {
     surface: wgpu::Surface,
@@ -226,14 +226,14 @@ impl gfx_api::Gfx for GfxState {
         self.camera.resize(width, height);
     }
 
-    fn update(&mut self, dt: instant::Duration) {
+    fn update(&mut self, dt: Duration) {
         self.main_renderer.update(dt, &self.queue);
     }
 }
 
 /// This implementation simply passes the information along to the road_renderer
 impl gfx_api::GfxRoadData for GfxState {
-    fn add_road_meshes(&mut self, meshes: HashMap<SegmentId, RoadMesh>) {
+    fn add_road_meshes(&mut self, meshes: IdMap<SegmentId, RoadMesh>) {
         self.main_renderer.road_renderer.add_road_meshes(meshes);
     }
 

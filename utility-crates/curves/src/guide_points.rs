@@ -1,11 +1,8 @@
-use glam::*;
-
+use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GuidePoints(Vec<Vec3>);
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SpinePoints(Vec<Vec3>);
 
 impl core::ops::Deref for GuidePoints {
     type Target = Vec<Vec3>;
@@ -21,25 +18,16 @@ impl core::ops::DerefMut for GuidePoints {
     }
 }
 
-impl core::ops::Deref for SpinePoints {
-    type Target = Vec<Vec3>;
-
-    fn deref(self: &'_ Self) -> &'_ Self::Target {
-        &self.0
-    }
-}
-
-impl core::ops::DerefMut for SpinePoints {
-    fn deref_mut(self: &'_ mut Self) -> &'_ mut Self::Target {
-        &mut self.0
-    }
-}
-
 impl GuidePoints {
-    pub fn from_vec(vec: Vec<Vec3>) -> Self {
-        GuidePoints(vec)
+    pub(crate) fn from_vec(vec: Vec<Vec3>) -> Self {
+        Self(vec)
     }
 
+    pub(crate) fn _empty() -> Self {
+        Self(vec![])
+    }
+
+    /// Creates four points on a straight line between the two given points (containing them).
     /// # Panics
     /// Panics if the points are the same.
     pub fn from_two_points(p1: Vec3, p2: Vec3) -> Self {
@@ -49,13 +37,9 @@ impl GuidePoints {
         GuidePoints::from_vec(vec![p1, p1 + dist_dir, p1 + (2. * dist_dir), p2])
     }
 
-    pub fn empty() -> Self {
-        GuidePoints(vec![])
-    }
-
     /// Computes and returns the summed distance from the path starting in the first point to the
     /// last point, visiting all points.
-    pub fn dist(&self) -> f32 {
+    pub(crate) fn dist(&self) -> f32 {
         let mut sum = 0.0;
         for i in 0..self.len() - 1 {
             sum += (self[i] - self[i + 1]).length()
@@ -63,7 +47,7 @@ impl GuidePoints {
         sum
     }
 
-    pub fn calc_bezier_pos(&self, t: f32) -> Vec3 {
+    pub(crate) fn calc_bezier_pos(&self, t: f32) -> Vec3 {
         let mut v = Vec3::new(0.0, 0.0, 0.0);
         let mut r = (1.0 - t).powi(self.len() as i32 - 1);
         let mut l = 1.0;
@@ -84,7 +68,7 @@ impl GuidePoints {
         v
     }
 
-    pub fn calc_bezier_dir(&self, t: f32) -> Vec3 {
+    pub(crate) fn calc_bezier_dir(&self, t: f32) -> Vec3 {
         let mut v = Vec3::new(0.0, 0.0, 0.0);
         let mut r = (1.0 - t).powi(self.len() as i32 - 2);
         let mut l = 1.0;
@@ -101,17 +85,14 @@ impl GuidePoints {
             }
             l *= (self.len() as f32 - 1.0) / (1.0 + p as f32) - 1.0;
         }
-        v * self.len() as f32
+        v.normalize()
     }
 
-    pub fn get_spine_points(&self, dt: f32) -> SpinePoints {
-        let mut spine_points = SpinePoints::empty();
-        let mut t = 0.0;
-        for _ in 0..((1. / dt) as u32) {
-            spine_points.push(self.calc_bezier_pos(t));
-            t += dt;
+    pub fn reverse_vec(vec: &mut Vec<Self>) {
+        vec.reverse();
+        for guide_points in vec.iter_mut() {
+            guide_points.reverse();
         }
-        spine_points
     }
 
     pub fn is_inside(&self, ground_pos: Vec3, width: f32) -> bool {
@@ -153,15 +134,5 @@ impl GuidePoints {
             }
         }
         false
-    }
-}
-
-impl SpinePoints {
-    pub fn from_vec(vec: Vec<Vec3>) -> Self {
-        SpinePoints(vec)
-    }
-
-    pub fn empty() -> Self {
-        SpinePoints(vec![])
     }
 }

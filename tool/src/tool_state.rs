@@ -1,4 +1,4 @@
-use world_api::{NodeType, SegmentType};
+use world_api::{CurveType, LaneWidth, NodeType, SegmentType};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ToolState {
@@ -35,6 +35,20 @@ impl Default for RoadState {
             snapping: true,
             reverse: false,
         }
+    }
+}
+
+impl RoadState {
+    pub fn set_curve_type(&mut self, curve_type: CurveType) {
+        self.selected_road.segment_type.curve_type = curve_type;
+    }
+
+    pub fn set_lane_width(&mut self, lane_width: LaneWidth) {
+        self.selected_road.node_type.set_lane_width(lane_width);
+    }
+
+    pub fn set_no_lanes(&mut self, no_lanes: u8) {
+        self.selected_road.node_type.set_no_lanes(no_lanes);
     }
 }
 

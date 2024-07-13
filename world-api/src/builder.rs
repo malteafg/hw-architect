@@ -1,6 +1,6 @@
 use super::{NodeType, SegmentType};
 
-use utils::curves::GuidePoints;
+use curves::{GuidePoints, Spine};
 use utils::id::SegmentId;
 
 use glam::*;
@@ -63,26 +63,48 @@ pub enum LaneMapConfig {
 // Definition for others to construct an LSegment
 // #################################################################################################
 #[derive(Debug, Clone)]
+pub enum LSegmentBuilderType {
+    /// Find a better naming convention for these types.
+    Same(NodeType),
+    // SameWidth
+    // SameNoLanes
+}
+
+#[derive(Debug, Clone)]
 pub struct LSegmentBuilder {
-    width: f32,
     segment_type: SegmentType,
+    node_config: LSegmentBuilderType,
     guide_points: GuidePoints,
+    spine: Spine,
 }
 
 impl LSegmentBuilder {
-    pub fn new(width: f32, segment_type: SegmentType, guide_points: GuidePoints) -> Self {
-        LSegmentBuilder {
-            width,
+    pub fn new(segment_type: SegmentType, node_type: NodeType, guide_points: GuidePoints) -> Self {
+        let node_config = LSegmentBuilderType::Same(node_type);
+        let spine = Spine::from_guide_points(&guide_points);
+
+        Self {
             segment_type,
+            node_config,
             guide_points,
+            spine,
         }
     }
 
-    pub fn consume(self) -> (f32, SegmentType, GuidePoints) {
-        (self.width, self.segment_type, self.guide_points)
+    pub fn consume(self) -> (SegmentType, LSegmentBuilderType, GuidePoints, Spine) {
+        (
+            self.segment_type,
+            self.node_config,
+            self.guide_points,
+            self.spine,
+        )
     }
 
     pub fn guide_points(&self) -> &GuidePoints {
         &self.guide_points
+    }
+
+    pub fn spine(&self) -> &Spine {
+        &self.spine
     }
 }
