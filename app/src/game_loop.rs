@@ -1,4 +1,4 @@
-use super::{configuration, input_handler, state};
+use super::{config, input_handler, state};
 
 use utils::input;
 
@@ -18,11 +18,11 @@ pub async fn run() {
     env_logger::init();
 
     // load configuration
-    let config = configuration::load_config().unwrap();
+    let config = config::load_config().unwrap();
     let window_width = config.window.width as u32;
     let window_height = config.window.height as u32;
 
-    let key_map = configuration::load_key_map(config.key_map).unwrap();
+    let key_map = config::load_key_map(config.key_map).unwrap();
     let input_handler = input_handler::InputHandler::new(key_map);
 
     // create event_loop and window
@@ -33,7 +33,8 @@ pub async fn run() {
     window.set_outer_position(PhysicalPosition::new(0, 0));
 
     // Create handle to graphics card. Change line to use different gpu backend.
-    let gfx = gfx_wgpu::GfxState::new(&window, window_width, window_height).await;
+    let gfx =
+        gfx_wgpu::GfxState::new(&window, window_width, window_height).await;
 
     let mut state = state::State::new(
         Rc::new(RefCell::new(gfx)),
@@ -62,21 +63,35 @@ pub async fn run() {
             InputEvent::Absorb => {}
             InputEvent::Proceed => match event {
                 Event::MainEventsCleared => window.request_redraw(),
-                Event::WindowEvent { event, window_id } if window_id == window.id() => {
+                Event::WindowEvent { event, window_id }
+                    if window_id == window.id() =>
+                {
                     match event {
                         #[cfg(not(target_arch = "wasm32"))]
-                        WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                        WindowEvent::Resized(physical_size) => {
-                            state.resize(physical_size.width, physical_size.height);
+                        WindowEvent::CloseRequested => {
+                            *control_flow = ControlFlow::Exit
                         }
-                        WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                            state.resize(new_inner_size.width, new_inner_size.height);
+                        WindowEvent::Resized(physical_size) => {
+                            state.resize(
+                                physical_size.width,
+                                physical_size.height,
+                            );
+                        }
+                        WindowEvent::ScaleFactorChanged {
+                            new_inner_size,
+                            ..
+                        } => {
+                            state.resize(
+                                new_inner_size.width,
+                                new_inner_size.height,
+                            );
                         }
                         _ => {}
                     }
                 }
                 Event::RedrawRequested(window_id) if window_id == window.id() => {
                     let now = Instant::now();
+
                     let dt = now - last_render_time;
                     last_render_time = now;
                     state.update(dt);
@@ -90,9 +105,13 @@ pub async fn run() {
                             state.redraw();
                         }
                         // The system is out of memory, we should probably quit
-                        Err(GfxFrameError::OutOfMemory) => *control_flow = ControlFlow::Exit,
+                        Err(GfxFrameError::OutOfMemory) => {
+                            *control_flow = ControlFlow::Exit
+                        }
                         // We're ignoring timeouts
-                        Err(GfxFrameError::Timeout) => log::warn!("Surface timeout"),
+                        Err(GfxFrameError::Timeout) => {
+                            log::warn!("Surface timeout")
+                        }
                     }
                 }
                 _ => {}
