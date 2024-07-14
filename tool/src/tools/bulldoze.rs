@@ -2,20 +2,23 @@ use super::{Tool, ToolInstance, ToolStrategy};
 
 use utils::input;
 
-use gfx_api::colors::{self, rgba_d};
+use gfx_api::{
+    colors::{self, rgba_d},
+    GfxWorldData,
+};
 use glam::*;
 
 #[derive(Default)]
 pub struct BulldozeTool;
 
-impl Tool for ToolInstance<BulldozeTool> {}
+impl<G: GfxWorldData> Tool<G> for ToolInstance<BulldozeTool> {}
 
-impl ToolStrategy for ToolInstance<BulldozeTool> {
-    fn init(&mut self) {
-        self.update_view();
+impl<G: GfxWorldData> ToolStrategy<G> for ToolInstance<BulldozeTool> {
+    fn init(&mut self, gfx_handle: &mut G) {
+        self.update_view(gfx_handle);
     }
 
-    fn process_keyboard(&mut self, key: input::KeyAction) {
+    fn process_keyboard(&mut self, gfx_handle: &mut G, key: input::KeyAction) {
         use input::Action::*;
         use input::KeyState::*;
         match key {
@@ -23,27 +26,25 @@ impl ToolStrategy for ToolInstance<BulldozeTool> {
                 let curr = self.bd_segments();
                 self.state_handle.bulldoze_state.bulldoze_segments = !curr;
                 if curr {
-                    self.gfx_handle.borrow_mut().mark_road_segments(vec![]);
+                    gfx_handle.mark_road_segments(vec![]);
                 }
-                self.update_markings();
+                self.update_markings(gfx_handle);
             }
             (ToggleBulldozeTrees, Press) => {
                 let curr = self.bd_trees();
                 self.state_handle.bulldoze_state.bulldoze_trees = !curr;
-                self.update_markings();
+                self.update_markings(gfx_handle);
             }
             _ => {}
         }
     }
 
-    fn left_click(&mut self) {
+    fn left_click(&mut self, gfx_handle: &mut G) {
         if self.bd_trees() {
             if let Some(tree_id) = self.world.get_tree_from_pos(self.ground_pos) {
                 self.world.remove_tree(tree_id);
-                self.gfx_handle
-                    .borrow_mut()
-                    .remove_tree(tree_id, utils::consts::TREE_MODEL_ID);
-                self.update_markings();
+                gfx_handle.remove_tree(tree_id, utils::consts::TREE_MODEL_ID);
+                self.update_markings(gfx_handle);
                 return;
             }
         }
@@ -51,25 +52,23 @@ impl ToolStrategy for ToolInstance<BulldozeTool> {
         if self.bd_segments() {
             if let Some(segment_id) = self.world.get_segment_from_pos(self.ground_pos) {
                 if self.world.remove_segment(segment_id) {
-                    self.gfx_handle
-                        .borrow_mut()
-                        .remove_road_meshes(vec![segment_id]);
-                    self.update_markings();
+                    gfx_handle.remove_road_meshes(vec![segment_id]);
+                    self.update_markings(gfx_handle);
                 }
             }
         }
     }
 
-    fn right_click(&mut self) {}
+    fn right_click(&mut self, _gfx_handle: &mut G) {}
 
-    fn update_view(&mut self) {
-        self.update_markings();
+    fn update_view(&mut self, gfx_handle: &mut G) {
+        self.update_markings(gfx_handle);
     }
 
     /// Unmark any marked segment.
-    fn clean_gfx(&mut self) {
-        self.gfx_handle.borrow_mut().set_tree_markers(vec![], None);
-        self.gfx_handle.borrow_mut().mark_road_segments(vec![]);
+    fn clean_gfx(&mut self, gfx_handle: &mut G) {
+        gfx_handle.set_tree_markers(vec![], None);
+        gfx_handle.mark_road_segments(vec![]);
     }
 }
 
@@ -82,13 +81,13 @@ impl ToolInstance<BulldozeTool> {
         self.state_handle.bulldoze_state.bulldoze_segments
     }
 
-    fn update_markings(&mut self) {
-        self.gfx_handle.borrow_mut().set_tree_markers(vec![], None);
-        self.gfx_handle.borrow_mut().mark_road_segments(vec![]);
+    fn update_markings<G: GfxWorldData>(&mut self, gfx_handle: &mut G) {
+        gfx_handle.set_tree_markers(vec![], None);
+        gfx_handle.mark_road_segments(vec![]);
 
         if self.bd_trees() {
             if let Some(id) = self.world.get_tree_from_pos(self.ground_pos) {
-                self.gfx_handle.borrow_mut().set_tree_markers(
+                gfx_handle.set_tree_markers(
                     vec![self.world.get_tree_pos(id).into()],
                     Some(rgba_d(colors::RED)),
                 );
@@ -97,7 +96,7 @@ impl ToolInstance<BulldozeTool> {
         }
         if self.bd_segments() {
             if let Some(id) = self.world.get_segment_from_pos(self.ground_pos) {
-                self.gfx_handle.borrow_mut().mark_road_segments(vec![id]);
+                gfx_handle.mark_road_segments(vec![id]);
             }
         }
     }

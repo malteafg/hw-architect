@@ -3,14 +3,12 @@ use super::{
 };
 use crate::tool_state::ToolState;
 
-use gfx_api::GfxSuper;
+use gfx_api::GfxWorldData;
 use utils::input;
 use world_api::WorldManipulator;
 
 use glam::Vec3;
 
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::time::Duration;
 
 #[derive(Debug, Clone, Copy)]
@@ -22,77 +20,65 @@ enum ToolMarker {
 }
 
 /// The main tool that controls how other tools are invoked.
-pub struct WorldTool {
-    // gfx_handle: Rc<RefCell<dyn GfxWorldData>>,
-    gfx_handle: Rc<RefCell<dyn GfxSuper>>,
+pub struct WorldTool<G: GfxWorldData> {
     ground_pos: glam::Vec3,
 
-    curr_tool_handle: Box<dyn Tool>,
+    curr_tool_handle: Box<dyn Tool<G>>,
     curr_tool: ToolMarker,
     saved_tool: Option<ToolMarker>,
 }
 
-impl WorldTool {
-    pub fn new(gfx_handle: Rc<RefCell<dyn GfxSuper>>, world: Box<dyn WorldManipulator>) -> Self {
+impl<G: GfxWorldData> WorldTool<G> {
+    pub fn new(gfx_handle: &mut G, world: Box<dyn WorldManipulator>) -> Self {
         let state = ToolState::default();
-        let start_tool = Box::new(ToolInstance::<NoTool>::new(
-            Rc::clone(&gfx_handle),
-            state,
-            world,
-            Vec3::ZERO,
-        ));
+        let start_tool = Box::new(ToolInstance::<NoTool>::new(state, world, Vec3::ZERO));
         let mut result = WorldTool {
-            gfx_handle,
             ground_pos: Vec3::ZERO,
             curr_tool_handle: start_tool,
             curr_tool: ToolMarker::NoTool,
             saved_tool: None,
         };
-        result.enter_construct_mode();
+        result.enter_construct_mode(gfx_handle);
         result
     }
 
-    fn enter_bulldoze_mode(&mut self) {
+    fn enter_bulldoze_mode(&mut self, gfx_handle: &mut G) {
         self.curr_tool = ToolMarker::Bulldoze;
-        self.enter_tool::<BulldozeTool>();
+        self.enter_tool::<BulldozeTool>(gfx_handle);
     }
 
-    fn enter_construct_mode(&mut self) {
+    fn enter_construct_mode(&mut self, gfx_handle: &mut G) {
         self.saved_tool = None;
         self.curr_tool = ToolMarker::Construct;
-        self.enter_tool::<ConstructTool>();
+        self.enter_tool::<ConstructTool>(gfx_handle);
     }
 
-    fn enter_tree_plopper_mode(&mut self) {
+    fn enter_tree_plopper_mode(&mut self, gfx_handle: &mut G) {
         self.saved_tool = None;
         self.curr_tool = ToolMarker::TreePlopper;
-        self.enter_tool::<TreePlopperTool>();
+        self.enter_tool::<TreePlopperTool>(gfx_handle);
     }
 
-    fn enter_no_tool(&mut self) {
+    fn enter_no_tool(&mut self, gfx_handle: &mut G) {
         self.saved_tool = None;
         self.curr_tool = ToolMarker::NoTool;
-        self.enter_tool::<NoTool>();
+        self.enter_tool::<NoTool>(gfx_handle);
     }
 
-    fn enter_tool<A: Default + 'static>(&mut self)
+    fn enter_tool<A: Default + 'static>(&mut self, gfx_handle: &mut G)
     where
-        ToolInstance<A>: Tool,
+        ToolInstance<A>: Tool<G>,
     {
         let mut old_tool = std::mem::replace(&mut self.curr_tool_handle, Box::new(DummyTool));
-        old_tool.clean_gfx();
+        old_tool.clean_gfx(gfx_handle);
         let (tool_state, world) = old_tool.destroy();
 
-        self.curr_tool_handle = Box::new(ToolInstance::<A>::new(
-            Rc::clone(&self.gfx_handle),
-            tool_state,
-            world,
-            self.ground_pos,
-        ));
-        self.curr_tool_handle.init();
+        self.curr_tool_handle =
+            Box::new(ToolInstance::<A>::new(tool_state, world, self.ground_pos));
+        self.curr_tool_handle.init(gfx_handle);
     }
 
-    pub fn process_keyboard(&mut self, key: input::KeyAction) {
+    pub fn process_keyboard(&mut self, gfx_handle: &mut G, key: input::KeyAction) {
         // TODO add leader keybindings, but maybe they should be in InputHandler.
         use input::Action::*;
         use input::KeyState::*;
@@ -101,87 +87,83 @@ impl WorldTool {
             (EnterBulldoze, Press) => match &mut self.curr_tool {
                 Construct => {
                     self.saved_tool = Some(Construct);
-                    self.enter_bulldoze_mode();
+                    self.enter_bulldoze_mode(gfx_handle);
                 }
                 Bulldoze => return,
-                _ => self.enter_bulldoze_mode(),
+                _ => self.enter_bulldoze_mode(gfx_handle),
             },
             (EnterConstruct, Press) => match &mut self.curr_tool {
                 Construct => return,
-                _ => self.enter_construct_mode(),
+                _ => self.enter_construct_mode(gfx_handle),
             },
             (EnterTreePlopper, Press) => match &mut self.curr_tool {
                 TreePlopper => return,
-                _ => self.enter_tree_plopper_mode(),
+                _ => self.enter_tree_plopper_mode(gfx_handle),
             },
             (Esc, Press) => match &mut self.curr_tool {
                 Bulldoze => match &self.saved_tool {
-                    Some(_) => self.enter_construct_mode(),
-                    None => self.enter_no_tool(),
+                    Some(_) => self.enter_construct_mode(gfx_handle),
+                    None => self.enter_no_tool(gfx_handle),
                 },
                 NoTool => return,
-                _ => self.enter_no_tool(),
+                _ => self.enter_no_tool(gfx_handle),
             },
-            _ => self.curr_tool_handle.process_keyboard(key),
+            _ => self.curr_tool_handle.process_keyboard(gfx_handle, key),
         }
     }
 
-    pub fn mouse_input(&mut self, event: input::MouseEvent) {
+    pub fn mouse_input(&mut self, gfx_handle: &mut G, event: input::MouseEvent) {
         use input::{Mouse, MouseEvent};
 
         let MouseEvent::Press(button) = event else {
-            return
+            return;
         };
 
         match button {
-            Mouse::Left => self.curr_tool_handle.left_click(),
-            Mouse::Right => self.curr_tool_handle.right_click(),
+            Mouse::Left => self.curr_tool_handle.left_click(gfx_handle),
+            Mouse::Right => self.curr_tool_handle.right_click(gfx_handle),
             _ => {}
         }
     }
 
-    pub fn update_ground_pos(&mut self, ground_pos: glam::Vec3) {
+    pub fn update_ground_pos(&mut self, gfx_handle: &mut G, ground_pos: glam::Vec3) {
         self.ground_pos = ground_pos;
         self.curr_tool_handle.update_ground_pos(ground_pos);
-        self.curr_tool_handle.update_view();
+        self.curr_tool_handle.update_view(gfx_handle);
     }
 
     pub fn update(&mut self, dt: Duration) {
         self.curr_tool_handle.get_world_mut().update(dt);
-    }
-
-    pub fn prepare_gfx(&mut self) {
-        self.gfx_handle.borrow_mut().set_cars(vec![]);
     }
 }
 
 /// Used as the default tool, when no tool is used.
 #[derive(Default)]
 struct NoTool;
-impl Tool for ToolInstance<NoTool> {}
-impl ToolStrategy for ToolInstance<NoTool> {
-    fn init(&mut self) {}
-    fn process_keyboard(&mut self, _key: input::KeyAction) {}
-    fn left_click(&mut self) {}
-    fn right_click(&mut self) {}
-    fn update_view(&mut self) {}
-    fn clean_gfx(&mut self) {}
+impl<G: GfxWorldData> Tool<G> for ToolInstance<NoTool> {}
+impl<G: GfxWorldData> ToolStrategy<G> for ToolInstance<NoTool> {
+    fn init(&mut self, _gfx_handle: &mut G) {}
+    fn process_keyboard(&mut self, _gfx_handle: &mut G, _key: input::KeyAction) {}
+    fn left_click(&mut self, _gfx_handle: &mut G) {}
+    fn right_click(&mut self, _gfx_handle: &mut G) {}
+    fn update_view(&mut self, _gfx_handle: &mut G) {}
+    fn clean_gfx(&mut self, _gfx_handle: &mut G) {}
 }
 
 /// This is a bit silly maybe find a cleaner implementation?
 #[derive(Default)]
 struct DummyTool;
-impl Tool for DummyTool {}
-impl ToolStrategy for DummyTool {
-    fn init(&mut self) {}
-    fn process_keyboard(&mut self, _key: input::KeyAction) {}
-    fn left_click(&mut self) {}
-    fn right_click(&mut self) {}
-    fn update_view(&mut self) {}
-    fn clean_gfx(&mut self) {}
+impl<G: GfxWorldData> Tool<G> for DummyTool {}
+impl<G: GfxWorldData> ToolStrategy<G> for DummyTool {
+    fn init(&mut self, _gfx_handle: &mut G) {}
+    fn process_keyboard(&mut self, _gfx_handle: &mut G, _key: input::KeyAction) {}
+    fn left_click(&mut self, _gfx_handle: &mut G) {}
+    fn right_click(&mut self, _gfx_handle: &mut G) {}
+    fn update_view(&mut self, _gfx_handle: &mut G) {}
+    fn clean_gfx(&mut self, _gfx_handle: &mut G) {}
 }
 
-impl ToolShared for DummyTool {
+impl<G: GfxWorldData> ToolShared<G> for DummyTool {
     fn destroy(self: Box<Self>) -> (ToolState, Box<dyn WorldManipulator>) {
         panic!()
     }
