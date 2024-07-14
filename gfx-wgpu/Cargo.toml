@@ -13,8 +13,8 @@ crate-type = ["cdylib", "rlib"]
 utils = { workspace = true }
 gfx-api = { workspace = true }
 
-wgpu = "0.20"
-raw-window-handle = "0.6"
+wgpu = { workspace = true }
+raw-window-handle = { workspace = true }
 
 bytemuck = { workspace = true }
 

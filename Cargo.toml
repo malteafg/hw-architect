@@ -22,6 +22,10 @@ curves = { path = "utility-crates/curves" }
 world = { path = "world" }
 world-api = { path = "world-api" }
 
+winit = "0.29"
+wgpu = "0.20"
+raw-window-handle = "0.6"
+
 bytemuck = { version = "1.13", features = [ "derive" ] }
 
 anyhow = "1.0"
