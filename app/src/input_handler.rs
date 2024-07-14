@@ -5,13 +5,14 @@ use std::collections::BTreeMap;
 use utils::input::*;
 use winit::dpi::PhysicalPosition;
 use winit::event::*;
+use winit::keyboard::{Key, ModifiersKeyState};
 use winit::window::WindowId;
 
 /// Represents which key combinations from the keyboard are associated with each of the
 /// hw-architect actions. Note that a keybinding can be associated to multiple actions, and the
 /// input handler will send out all actions once such a keybinding is pressed. It is the
 /// configuration loader's responsibility to make sure that no keybindings are conflicting.
-pub type KeyMap = BTreeMap<(VirtualKeyCode, ModifierState), Vec<Action>>;
+pub type KeyMap = BTreeMap<(Key, ModifierState), Vec<Action>>;
 
 pub enum InputEvent {
     /// Signals a key event. The winit event should not be further processed.
@@ -117,7 +118,7 @@ impl InputHandler {
 
     /// Release states are only sent if the key pressed is the most recent key to have been pressed
     /// of those keys that are pressed.
-    fn process_keyboard_input(&mut self, key: VirtualKeyCode, state: ElementState) -> InputEvent {
+    fn process_keyboard_input(&mut self, key: Key, state: ElementState) -> InputEvent {
         let actions = self.key_map.get(&(key, self.modifiers));
         let Some(actions) = actions else {
             return InputEvent::Absorb;
@@ -168,22 +169,36 @@ impl InputHandler {
                 self.process_mouse_press(*button, *state)
             }
             WindowEvent::ModifiersChanged(m) => {
-                self.modifiers = ModifierState {
-                    ctrl: m.ctrl(),
-                    alt: m.alt(),
-                    shift: m.shift(),
+                let ctrl = match m.lcontrol_state() {
+                    ModifiersKeyState::Pressed => true,
+                    ModifiersKeyState::Unknown => match m.rcontrol_state() {
+                        ModifiersKeyState::Pressed => true,
+                        ModifiersKeyState::Unknown => false,
+                    },
                 };
+                let alt = match m.lalt_state() {
+                    ModifiersKeyState::Pressed => true,
+                    ModifiersKeyState::Unknown => match m.ralt_state() {
+                        ModifiersKeyState::Pressed => true,
+                        ModifiersKeyState::Unknown => false,
+                    },
+                };
+                let shift = match m.lshift_state() {
+                    ModifiersKeyState::Pressed => true,
+                    ModifiersKeyState::Unknown => match m.rshift_state() {
+                        ModifiersKeyState::Pressed => true,
+                        ModifiersKeyState::Unknown => false,
+                    },
+                };
+                self.modifiers = ModifierState { ctrl, alt, shift };
                 InputEvent::Absorb
             }
             WindowEvent::KeyboardInput {
-                input:
-                    KeyboardInput {
-                        virtual_keycode: Some(key),
-                        state,
-                        ..
-                    },
+                event: KeyEvent {
+                    logical_key, state, ..
+                },
                 ..
-            } => self.process_keyboard_input(*key, *state),
+            } => self.process_keyboard_input(logical_key.clone(), *state),
             _ => InputEvent::Proceed,
         }
     }
@@ -203,6 +218,6 @@ fn translate_button(button: MouseButton) -> Mouse {
         MouseButton::Left => Mouse::Left,
         MouseButton::Middle => Mouse::Middle,
         MouseButton::Right => Mouse::Right,
-        MouseButton::Other(_) => Mouse::Other,
+        MouseButton::Other(_) | MouseButton::Back | MouseButton::Forward => Mouse::Other,
     }
 }
