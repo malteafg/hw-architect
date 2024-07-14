@@ -16,7 +16,7 @@ tool = { workspace = true }
 utils = { workspace = true }
 world = { workspace = true }
 
-winit = "0.27"
+winit = "0.29"
 
 anyhow = { workspace = true }
 

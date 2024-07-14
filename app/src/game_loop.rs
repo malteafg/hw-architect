@@ -6,7 +6,7 @@ use glam::*;
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::*,
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::ControlFlow,
     window::WindowBuilder,
 };
 
@@ -26,15 +26,14 @@ pub async fn run() {
     let input_handler = input_handler::InputHandler::new(key_map);
 
     // create event_loop and window
-    let event_loop = EventLoop::new();
+    let event_loop = winit::event_loop::EventLoop::new().unwrap();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
     window.set_title("Highway Architect");
-    window.set_inner_size(PhysicalSize::new(window_width, window_height));
+    window.set_min_inner_size(Some(PhysicalSize::new(window_width, window_height)));
     window.set_outer_position(PhysicalPosition::new(0, 0));
 
     // Create handle to graphics card. Change line to use different gpu backend.
-    let gfx =
-        gfx_wgpu::GfxState::new(&window, window_width, window_height).await;
+    let gfx = gfx_wgpu::GfxState::new(&window, window_width, window_height).await;
 
     let mut state = state::State::new(
         Rc::new(RefCell::new(gfx)),
@@ -44,14 +43,14 @@ pub async fn run() {
     );
 
     let mut last_render_time = Instant::now();
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Poll;
+    event_loop.run(move |event, window_target| {
+        window_target.set_control_flow(ControlFlow::Poll);
         use input::Action;
         use input_handler::InputEvent;
         match state.input_handler.process_input(&event, window.id()) {
             InputEvent::KeyActions(actions) => {
                 if actions.contains(&(Action::Exit, input::KeyState::Press)) {
-                    *control_flow = ControlFlow::Exit
+                    window_target.exit();
                 } else {
                     for a in actions {
                         // dbg!(a.clone());
@@ -62,56 +61,38 @@ pub async fn run() {
             InputEvent::MouseEvent(e) => state.mouse_input(e),
             InputEvent::Absorb => {}
             InputEvent::Proceed => match event {
-                Event::MainEventsCleared => window.request_redraw(),
-                Event::WindowEvent { event, window_id }
-                    if window_id == window.id() =>
-                {
+                Event::Resumed => window.request_redraw(),
+                Event::WindowEvent { event, window_id } if window_id == window.id() => {
                     match event {
                         #[cfg(not(target_arch = "wasm32"))]
-                        WindowEvent::CloseRequested => {
-                            *control_flow = ControlFlow::Exit
-                        }
+                        WindowEvent::CloseRequested => window_target.exit(),
                         WindowEvent::Resized(physical_size) => {
-                            state.resize(
-                                physical_size.width,
-                                physical_size.height,
-                            );
+                            state.resize(physical_size.width, physical_size.height);
                         }
-                        WindowEvent::ScaleFactorChanged {
-                            new_inner_size,
-                            ..
-                        } => {
-                            state.resize(
-                                new_inner_size.width,
-                                new_inner_size.height,
-                            );
+                        WindowEvent::RedrawRequested => {
+                            let now = Instant::now();
+
+                            let dt = now - last_render_time;
+                            last_render_time = now;
+                            state.update(dt);
+                            let render_error = state.render();
+
+                            use gfx_api::GfxFrameError;
+                            match render_error {
+                                Ok(_) => {}
+                                // Reconfigure the surface if it's lost or outdated
+                                Err(GfxFrameError::Lost | GfxFrameError::Outdated) => {
+                                    state.redraw();
+                                }
+                                // The system is out of memory, we should probably quit
+                                Err(GfxFrameError::OutOfMemory) => window_target.exit(),
+                                // We're ignoring timeouts
+                                Err(GfxFrameError::Timeout) => {
+                                    log::warn!("Surface timeout")
+                                }
+                            }
                         }
                         _ => {}
-                    }
-                }
-                Event::RedrawRequested(window_id) if window_id == window.id() => {
-                    let now = Instant::now();
-
-                    let dt = now - last_render_time;
-                    last_render_time = now;
-                    state.update(dt);
-                    let render_error = state.render();
-
-                    use gfx_api::GfxFrameError;
-                    match render_error {
-                        Ok(_) => {}
-                        // Reconfigure the surface if it's lost or outdated
-                        Err(GfxFrameError::Lost | GfxFrameError::Outdated) => {
-                            state.redraw();
-                        }
-                        // The system is out of memory, we should probably quit
-                        Err(GfxFrameError::OutOfMemory) => {
-                            *control_flow = ControlFlow::Exit
-                        }
-                        // We're ignoring timeouts
-                        Err(GfxFrameError::Timeout) => {
-                            log::warn!("Surface timeout")
-                        }
                     }
                 }
                 _ => {}

@@ -10,12 +10,13 @@ use utils::loader;
 use anyhow::anyhow;
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
-use winit::event::VirtualKeyCode;
+use winit::keyboard::Key;
 
 use figment::{
     providers::{Format, Yaml},
     Figment,
 };
+use winit::keyboard::NamedKey;
 
 /// Returns the user config stored at:
 ///
@@ -99,32 +100,33 @@ pub fn load_key_map(key_map: String) -> anyhow::Result<input_handler::KeyMap> {
     let key_config_file = loader::load_string(&key_config_path)?;
     let key_config: KeyLoaderConfig = serde_yaml::from_str(&key_config_file)?;
 
-    let mut group_maps: BTreeMap<String, input_handler::KeyMap> =
-        BTreeMap::new();
+    let mut group_maps: BTreeMap<String, input_handler::KeyMap> = BTreeMap::new();
     for (group, key_maps) in key_config.into_iter() {
         let mut group_map: input_handler::KeyMap = BTreeMap::new();
         for key_map in key_maps.into_iter() {
             // this loop is silly as there is only one entry in the map
             for (action, keys) in key_map.into_iter() {
                 let key_code = parse_key_code(&keys[0]).unwrap();
-                let mod_state = keys.iter().fold(
-                    input::ModifierState::default(),
-                    |mod_state, key| match key.as_str() {
-                        "shift" => input::ModifierState {
-                            shift: true,
-                            ..mod_state
-                        },
-                        "ctrl" => input::ModifierState {
-                            ctrl: true,
-                            ..mod_state
-                        },
-                        "alt" => input::ModifierState {
-                            alt: true,
-                            ..mod_state
-                        },
-                        _ => mod_state,
-                    },
-                );
+                let mod_state =
+                    keys.iter()
+                        .fold(
+                            input::ModifierState::default(),
+                            |mod_state, key| match key.as_str() {
+                                "shift" => input::ModifierState {
+                                    shift: true,
+                                    ..mod_state
+                                },
+                                "ctrl" => input::ModifierState {
+                                    ctrl: true,
+                                    ..mod_state
+                                },
+                                "alt" => input::ModifierState {
+                                    alt: true,
+                                    ..mod_state
+                                },
+                                _ => mod_state,
+                            },
+                        );
                 let action = input::Action::from_str(&action).unwrap();
                 group_map.insert((key_code, mod_state), vec![action]);
             }
@@ -159,44 +161,44 @@ pub fn load_key_map(key_map: String) -> anyhow::Result<input_handler::KeyMap> {
 
 /// Translates the keycode as it is written in the keymap config to a winit
 /// [`VirtualKeyCode`]
-fn parse_key_code(key: &String) -> anyhow::Result<VirtualKeyCode> {
+fn parse_key_code(key: &String) -> anyhow::Result<Key> {
     match key.to_lowercase().as_str() {
-        "a" => Ok(VirtualKeyCode::A),
-        "b" => Ok(VirtualKeyCode::B),
-        "c" => Ok(VirtualKeyCode::C),
-        "d" => Ok(VirtualKeyCode::D),
-        "e" => Ok(VirtualKeyCode::E),
-        "f" => Ok(VirtualKeyCode::F),
-        "g" => Ok(VirtualKeyCode::G),
-        "h" => Ok(VirtualKeyCode::H),
-        "j" => Ok(VirtualKeyCode::J),
-        "k" => Ok(VirtualKeyCode::K),
-        "l" => Ok(VirtualKeyCode::L),
-        "m" => Ok(VirtualKeyCode::M),
-        "n" => Ok(VirtualKeyCode::N),
-        "o" => Ok(VirtualKeyCode::O),
-        "p" => Ok(VirtualKeyCode::P),
-        "q" => Ok(VirtualKeyCode::Q),
-        "r" => Ok(VirtualKeyCode::R),
-        "s" => Ok(VirtualKeyCode::S),
-        "t" => Ok(VirtualKeyCode::T),
-        "u" => Ok(VirtualKeyCode::U),
-        "v" => Ok(VirtualKeyCode::V),
-        "w" => Ok(VirtualKeyCode::W),
-        "x" => Ok(VirtualKeyCode::X),
-        "y" => Ok(VirtualKeyCode::Y),
-        "z" => Ok(VirtualKeyCode::Z),
-        "1" => Ok(VirtualKeyCode::Key1),
-        "2" => Ok(VirtualKeyCode::Key2),
-        "3" => Ok(VirtualKeyCode::Key3),
-        "4" => Ok(VirtualKeyCode::Key4),
-        "5" => Ok(VirtualKeyCode::Key5),
-        "6" => Ok(VirtualKeyCode::Key6),
-        "7" => Ok(VirtualKeyCode::Key7),
-        "8" => Ok(VirtualKeyCode::Key8),
-        "9" => Ok(VirtualKeyCode::Key9),
-        "esc" => Ok(VirtualKeyCode::Escape),
-        "space" => Ok(VirtualKeyCode::Space),
+        "esc" => Ok(Key::Named(NamedKey::Escape)),
+        "space" => Ok(Key::Named(NamedKey::Space)),
+        "a" => Ok(Key::Character("a".into())),
+        "b" => Ok(Key::Character("b".into())),
+        "c" => Ok(Key::Character("c".into())),
+        "d" => Ok(Key::Character("d".into())),
+        "e" => Ok(Key::Character("e".into())),
+        "f" => Ok(Key::Character("f".into())),
+        "g" => Ok(Key::Character("g".into())),
+        "h" => Ok(Key::Character("h".into())),
+        "j" => Ok(Key::Character("j".into())),
+        "k" => Ok(Key::Character("k".into())),
+        "l" => Ok(Key::Character("l".into())),
+        "m" => Ok(Key::Character("m".into())),
+        "n" => Ok(Key::Character("n".into())),
+        "o" => Ok(Key::Character("o".into())),
+        "p" => Ok(Key::Character("p".into())),
+        "q" => Ok(Key::Character("q".into())),
+        "r" => Ok(Key::Character("r".into())),
+        "s" => Ok(Key::Character("s".into())),
+        "t" => Ok(Key::Character("t".into())),
+        "u" => Ok(Key::Character("u".into())),
+        "v" => Ok(Key::Character("v".into())),
+        "w" => Ok(Key::Character("w".into())),
+        "x" => Ok(Key::Character("x".into())),
+        "y" => Ok(Key::Character("y".into())),
+        "z" => Ok(Key::Character("z".into())),
+        "1" => Ok(Key::Character("1".into())),
+        "2" => Ok(Key::Character("2".into())),
+        "3" => Ok(Key::Character("3".into())),
+        "4" => Ok(Key::Character("4".into())),
+        "5" => Ok(Key::Character("5".into())),
+        "6" => Ok(Key::Character("6".into())),
+        "7" => Ok(Key::Character("7".into())),
+        "8" => Ok(Key::Character("8".into())),
+        "9" => Ok(Key::Character("9".into())),
         _ => Err(anyhow::anyhow!(format!("could not parse key: {}", key))),
     }
 }
@@ -212,8 +214,7 @@ mod tests {
     #[ignore]
     fn write_baseconfig() {
         let baseconfig = Config::default();
-        let baseconfigyaml =
-            serde_yaml::to_string(&baseconfig).unwrap().to_lowercase();
+        let baseconfigyaml = serde_yaml::to_string(&baseconfig).unwrap().to_lowercase();
         println!("{}", baseconfigyaml);
 
         let mut file = File::create("../res/config/base_config.yml").unwrap();

@@ -17,8 +17,8 @@ use gfx_api::{colors, GfxFrameError, RawCameraData, RoadMesh};
 use std::rc::Rc;
 use std::time::Duration;
 
-pub struct GfxState {
-    surface: wgpu::Surface,
+pub struct GfxState<'a> {
+    surface: wgpu::Surface<'a>,
     device: Rc<wgpu::Device>,
     queue: Rc<wgpu::Queue>,
     depth_texture: primitives::Texture,
@@ -29,18 +29,28 @@ pub struct GfxState {
     main_renderer: main_renderer::MainRenderer,
 }
 
-impl GfxState {
+impl<'a> GfxState<'a> {
     /// The units of the window sizes are in pixels and should be without the window decorations.
-    pub async fn new<W>(window: &W, window_width: u32, window_height: u32) -> Self
+    pub async fn new<W>(window: &'a W, window_width: u32, window_height: u32) -> Self
     where
-        W: raw_window_handle::HasRawWindowHandle + raw_window_handle::HasRawDisplayHandle,
+        W: raw_window_handle::HasWindowHandle
+            + raw_window_handle::HasDisplayHandle
+            + wgpu::WasmNotSendSync,
     {
         // instance is a handle to the GPU in use
-        // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
+        let backends = wgpu::util::backend_bits_from_env().unwrap_or_default();
+        let dx12_shader_compiler = wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default();
+        let gles_minor_version = wgpu::util::gles_minor_version_from_env().unwrap_or_default();
+
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends,
+            flags: wgpu::InstanceFlags::from_build_config().with_env(),
+            dx12_shader_compiler,
+            gles_minor_version,
+        });
 
         // surface is the part of the window that we draw to
-        let surface = unsafe { instance.create_surface(window) };
+        let surface = instance.create_surface(window).unwrap();
 
         // Adapter is direct handle to graphics card to retrieve information about it.
         // Is locked to specific backend; to graphics cards yield 4 adapters on window 2 for Vulkan
@@ -57,9 +67,10 @@ impl GfxState {
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    features: wgpu::Features::empty(),
-                    // disable wgpu features that does not work for WebGL when building for WebGL
-                    limits: if cfg!(target_arch = "wasm32") {
+                    required_features: wgpu::Features::empty(),
+                    // WebGL doesn't support all of wgpu's features, so if
+                    // we're building for the web, we'll have to disable some.
+                    required_limits: if cfg!(target_arch = "wasm32") {
                         wgpu::Limits::downlevel_webgl2_defaults()
                     } else {
                         wgpu::Limits::default()
@@ -74,15 +85,23 @@ impl GfxState {
         let device = Rc::new(device);
         let queue = Rc::new(queue);
 
+        let surface_caps = surface.get_capabilities(&adapter);
+        let surface_format = surface_caps
+            .formats
+            .iter()
+            .find(|f| f.is_srgb())
+            .copied()
+            .unwrap_or(surface_caps.formats[0]);
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(&adapter)[0],
+            format: surface_format,
             width: window_width,
             height: window_height,
-            present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: wgpu::CompositeAlphaMode::Opaque,
+            present_mode: surface_caps.present_modes[0],
+            alpha_mode: surface_caps.alpha_modes[0],
+            view_formats: vec![],
+            desired_maximum_frame_latency: 2,
         };
-        surface.configure(&device, &config);
 
         let depth_texture =
             primitives::Texture::create_depth_texture(&device, &config, "depth_texture");
@@ -144,7 +163,7 @@ fn map_error(err: wgpu::SurfaceError) -> GfxFrameError {
     }
 }
 
-impl gfx_api::Gfx for GfxState {
+impl<'a> gfx_api::Gfx for GfxState<'a> {
     fn render(&mut self) -> Result<(), GfxFrameError> {
         let output = self.surface.get_current_texture().map_err(map_error)?;
         let view = output
@@ -170,17 +189,19 @@ impl gfx_api::Gfx for GfxState {
                             b: 0.3,
                             a: 0.5,
                         }),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &self.depth_texture.view,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(1.0),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     }),
                     stencil_ops: None,
                 }),
+                occlusion_query_set: None,
+                timestamp_writes: None,
             });
 
             use terrain_renderer::RenderTerrain;
@@ -232,7 +253,7 @@ impl gfx_api::Gfx for GfxState {
 }
 
 /// This implementation simply passes the information along to the road_renderer
-impl gfx_api::GfxRoadData for GfxState {
+impl<'a> gfx_api::GfxRoadData for GfxState<'a> {
     fn add_road_meshes(&mut self, meshes: IdMap<SegmentId, RoadMesh>) {
         self.main_renderer.road_renderer.add_road_meshes(meshes);
     }
@@ -258,7 +279,7 @@ impl gfx_api::GfxRoadData for GfxState {
     }
 }
 
-impl gfx_api::GfxTreeData for GfxState {
+impl<'a> gfx_api::GfxTreeData for GfxState<'a> {
     fn add_trees(&mut self, model_id: u128, trees: Vec<(TreeId, [f32; 3], f32)>) {
         self.main_renderer.tree_renderer.add_trees(model_id, trees);
     }
@@ -286,7 +307,7 @@ impl gfx_api::GfxTreeData for GfxState {
     }
 }
 
-impl gfx_api::GfxCameraData for GfxState {
+impl<'a> gfx_api::GfxCameraData for GfxState<'a> {
     fn update_camera(&mut self, camera: RawCameraData) {
         self.camera.update_camera(camera, &self.queue);
     }
@@ -296,6 +317,6 @@ impl gfx_api::GfxCameraData for GfxState {
     }
 }
 
-impl gfx_api::GfxCarData for GfxState {
+impl<'a> gfx_api::GfxCarData for GfxState<'a> {
     fn set_cars(&mut self, _pos_yrots: Vec<([f32; 3], f32)>) {}
 }
