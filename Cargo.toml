@@ -32,11 +32,11 @@ anyhow = "1.0"
 serde = { version = "1.0.204", features = ["derive", "rc"] }
 
 num = { version = "0.4", default-features = false }
-glam = { version = "0.22", default-features = false, features = ["serde", "bytemuck"] }
-rand = "^0.8"
+glam = { version = "0.28", default-features = false, features = ["serde", "bytemuck"] }
+rand = "0.8"
 
-bit-vec = { version = "0.6", features = ["serde"] }
-fixedbitset = { version = "0.4.2", features = ["serde"] }
+bit-vec = { version = "0.7", features = ["serde"] }
+fixedbitset = { version = "0.5", features = ["serde"] }
 
 [profile.dev]
 opt-level = 1

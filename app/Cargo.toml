@@ -17,18 +17,17 @@ utils = { workspace = true }
 world = { workspace = true }
 
 winit = { workspace = true }
-wgpu = { workspace = true }
 
 anyhow = { workspace = true }
 
 glam = { workspace = true }
 
-env_logger = "0.10"
+env_logger = "0.11"
 log = "0.4"
 
-pollster = "0.2"
+pollster = "0.3"
 
 serde = { workspace = true }
-serde_yaml = "0.9"
-directories = "4.0"
-figment = { version = "0.10.10", features = ["yaml"] }
+serde_yaml = "0.9.33"
+directories = "5.0"
+figment = { version = "0.10", features = ["yaml"] }
