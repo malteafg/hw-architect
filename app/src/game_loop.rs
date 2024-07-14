@@ -3,12 +3,7 @@ use super::{config, input_handler, state};
 use utils::input;
 
 use glam::*;
-use winit::{
-    dpi::{PhysicalPosition, PhysicalSize},
-    event::*,
-    event_loop::ControlFlow,
-    window::WindowBuilder,
-};
+use winit::{dpi::PhysicalSize, event::*, event_loop::ControlFlow, window::WindowBuilder};
 
 use std::time::Instant;
 
@@ -25,11 +20,11 @@ pub async fn run() {
 
     // create event_loop and window
     let event_loop = winit::event_loop::EventLoop::new().unwrap();
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
-    window.set_title("Highway Architect");
-    window.set_min_inner_size(Some(PhysicalSize::new(window_width, window_height)));
-    window.set_max_inner_size(Some(PhysicalSize::new(window_width, window_height)));
-    window.set_outer_position(PhysicalPosition::new(700, 700));
+    let window = WindowBuilder::new()
+        .with_inner_size(PhysicalSize::new(window_width, window_height))
+        .with_title("Highway Architect")
+        .build(&event_loop)
+        .unwrap();
 
     // Create handle to graphics card. Change line to use different gpu backend.
     let gfx = gfx_wgpu::GfxState::new(&window, window_width, window_height).await;
@@ -67,8 +62,6 @@ pub async fn run() {
                             }
                             WindowEvent::RedrawRequested => {
                                 state.window().request_redraw();
-
-                                println!("{}", state.window().inner_size().width);
 
                                 let now = Instant::now();
 
