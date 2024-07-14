@@ -29,7 +29,7 @@ pub async fn run() {
     window.set_title("Highway Architect");
     window.set_min_inner_size(Some(PhysicalSize::new(window_width, window_height)));
     window.set_max_inner_size(Some(PhysicalSize::new(window_width, window_height)));
-    window.set_outer_position(PhysicalPosition::new(0, 0));
+    window.set_outer_position(PhysicalPosition::new(700, 700));
 
     // Create handle to graphics card. Change line to use different gpu backend.
     let gfx = gfx_wgpu::GfxState::new(&window, window_width, window_height).await;
@@ -61,13 +61,14 @@ pub async fn run() {
                 InputEvent::Proceed => match event {
                     Event::WindowEvent { event, window_id } if window_id == state.window().id() => {
                         match event {
-                            #[cfg(not(target_arch = "wasm32"))]
                             WindowEvent::CloseRequested => window_target.exit(),
                             WindowEvent::Resized(physical_size) => {
                                 state.resize(physical_size.width, physical_size.height);
                             }
                             WindowEvent::RedrawRequested => {
                                 state.window().request_redraw();
+
+                                println!("{}", state.window().inner_size().width);
 
                                 let now = Instant::now();
 
