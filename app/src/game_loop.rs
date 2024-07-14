@@ -26,16 +26,15 @@ pub async fn run() {
     // create event_loop and window
     let event_loop = winit::event_loop::EventLoop::new().unwrap();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
-    let this_window_id = window.id();
     window.set_title("Highway Architect");
     window.set_min_inner_size(Some(PhysicalSize::new(window_width, window_height)));
+    window.set_max_inner_size(Some(PhysicalSize::new(window_width, window_height)));
     window.set_outer_position(PhysicalPosition::new(0, 0));
 
     // Create handle to graphics card. Change line to use different gpu backend.
     let gfx = gfx_wgpu::GfxState::new(&window, window_width, window_height).await;
 
     let mut state = state::State::new(gfx, &window, window_width, window_height, input_handler);
-    let mut surface_configured = false;
 
     let mut last_render_time = Instant::now();
     event_loop
@@ -43,7 +42,10 @@ pub async fn run() {
             window_target.set_control_flow(ControlFlow::Poll);
             use input::Action;
             use input_handler::InputEvent;
-            match state.input_handler.process_input(&event, this_window_id) {
+            match state
+                .input_handler
+                .process_input(&event, state.window().id())
+            {
                 InputEvent::KeyActions(actions) => {
                     if actions.contains(&(Action::Exit, input::KeyState::Press)) {
                         window_target.exit();
@@ -57,20 +59,15 @@ pub async fn run() {
                 InputEvent::MouseEvent(e) => state.mouse_input(e),
                 InputEvent::Absorb => {}
                 InputEvent::Proceed => match event {
-                    Event::WindowEvent { event, window_id } if window_id == this_window_id => {
+                    Event::WindowEvent { event, window_id } if window_id == state.window().id() => {
                         match event {
                             #[cfg(not(target_arch = "wasm32"))]
                             WindowEvent::CloseRequested => window_target.exit(),
                             WindowEvent::Resized(physical_size) => {
-                                surface_configured = true;
                                 state.resize(physical_size.width, physical_size.height);
                             }
                             WindowEvent::RedrawRequested => {
                                 state.window().request_redraw();
-
-                                if !surface_configured {
-                                    return;
-                                }
 
                                 let now = Instant::now();
 
