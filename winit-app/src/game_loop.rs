@@ -2,7 +2,6 @@ use super::input_handler;
 
 use utils::input;
 
-use glam::*;
 use winit::{dpi::PhysicalSize, event::*, event_loop::ControlFlow, window::WindowBuilder};
 
 use std::time::Instant;
@@ -12,8 +11,8 @@ pub async fn run() {
 
     // load configuration
     let config = hw_architect::config::load_config();
-    let window_width = config.window.width as u32;
-    let window_height = config.window.height as u32;
+    let window_width = config.window.width;
+    let window_height = config.window.height;
 
     let key_map = input_handler::load_key_map(config.key_map).unwrap();
     let mut input_handler = input_handler::InputHandler::new(key_map);
@@ -22,7 +21,7 @@ pub async fn run() {
     let event_loop = winit::event_loop::EventLoop::new().unwrap();
     let window = WindowBuilder::new()
         .with_inner_size(PhysicalSize::new(window_width, window_height))
-        .with_title("Highway Architect")
+        .with_title(config.window.title)
         .build(&event_loop)
         .unwrap();
 

@@ -27,9 +27,10 @@ pub fn get_config_dir() -> std::path::PathBuf {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct WindowConfig {
     /// Width of the window given in pixels.
-    pub width: i32,
+    pub width: u32,
     /// Height of the window given in pixels.
-    pub height: i32,
+    pub height: u32,
+    pub title: String,
 }
 
 /// Configuration of highway architect.
@@ -47,6 +48,7 @@ impl Default for Config {
         let win_config = WindowConfig {
             width: 1920,
             height: 1080,
+            title: "Highway Architect".to_string(),
         };
 
         Self {
