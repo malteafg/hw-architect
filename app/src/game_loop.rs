@@ -29,15 +29,15 @@ pub async fn run() {
     // Create handle to graphics card. Change line to use different gpu backend.
     let gfx = gfx_wgpu::GfxState::new(&window, window_width, window_height).await;
 
-    let mut state = state::State::new(gfx, &window, window_width, window_height);
+    let mut state = state::State::new(gfx, window_width, window_height);
 
     let mut last_render_time = Instant::now();
     event_loop
-        .run(move |event, window_target| {
+        .run(|event, window_target| {
             window_target.set_control_flow(ControlFlow::Poll);
             use input::Action;
             use input_handler::InputEvent;
-            match input_handler.process_input(&event, state.window().id()) {
+            match input_handler.process_input(&event, window.id()) {
                 InputEvent::KeyActions(actions) => {
                     if actions.contains(&(Action::Exit, input::KeyState::Press)) {
                         window_target.exit();
@@ -51,14 +51,14 @@ pub async fn run() {
                 InputEvent::MouseEvent(e) => state.mouse_input(e),
                 InputEvent::Absorb => {}
                 InputEvent::Proceed => match event {
-                    Event::WindowEvent { event, window_id } if window_id == state.window().id() => {
+                    Event::WindowEvent { event, window_id } if window_id == window.id() => {
                         match event {
                             WindowEvent::CloseRequested => window_target.exit(),
                             WindowEvent::Resized(physical_size) => {
                                 state.resize(physical_size.width, physical_size.height);
                             }
                             WindowEvent::RedrawRequested => {
-                                state.window().request_redraw();
+                                window.request_redraw();
 
                                 let now = Instant::now();
 

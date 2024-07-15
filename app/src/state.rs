@@ -5,13 +5,11 @@ use tool::ToolHandler;
 use utils::input::{self, InputState};
 
 use glam::*;
-use winit::window::Window;
 
 use std::time::Duration;
 
-pub struct State<'window, G: GfxSuper> {
+pub struct State<G: GfxSuper> {
     gfx_handle: G,
-    window: &'window Window,
     window_width: u32,
     window_height: u32,
     camera_controller: CameraController,
@@ -20,13 +18,8 @@ pub struct State<'window, G: GfxSuper> {
     ground_pos: Vec3,
 }
 
-impl<'window, G: GfxSuper> State<'window, G> {
-    pub fn new(
-        mut gfx_handle: G,
-        window: &'window Window,
-        window_width: u32,
-        window_height: u32,
-    ) -> Self {
+impl<G: GfxSuper> State<G> {
+    pub fn new(mut gfx_handle: G, window_width: u32, window_height: u32) -> Self {
         let camera_controller = CameraController::new(
             Vec3::new(0.0, 0.0, 0.0),
             50.0f32.to_radians(),
@@ -39,7 +32,6 @@ impl<'window, G: GfxSuper> State<'window, G> {
 
         Self {
             gfx_handle,
-            window,
             window_width,
             window_height,
             camera_controller,
@@ -104,9 +96,5 @@ impl<'window, G: GfxSuper> State<'window, G> {
 
     pub fn render(&mut self) -> Result<(), gfx_api::GfxFrameError> {
         self.gfx_handle.render()
-    }
-
-    pub fn window(&self) -> &'window Window {
-        &self.window
     }
 }
