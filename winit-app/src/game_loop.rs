@@ -11,7 +11,7 @@ pub async fn run() {
     env_logger::init();
 
     // load configuration
-    let config = hw_architect::config::load_config().unwrap();
+    let config = hw_architect::config::load_config();
     let window_width = config.window.width as u32;
     let window_height = config.window.height as u32;
 

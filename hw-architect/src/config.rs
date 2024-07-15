@@ -57,7 +57,7 @@ impl Default for Config {
 }
 
 /// Loads the configuration for highway architect
-pub fn load_config() -> anyhow::Result<Config> {
+pub fn load_config() -> Config {
     let mut user_conf = get_config_dir();
     user_conf.push("config.yml");
 
@@ -67,7 +67,7 @@ pub fn load_config() -> anyhow::Result<Config> {
     let figment = figment.merge(Yaml::file("config.yml"));
 
     let config = figment.extract().unwrap();
-    Ok(config)
+    config
 }
 
 #[cfg(test)]

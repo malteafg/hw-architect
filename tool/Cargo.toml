@@ -17,6 +17,4 @@ gfx-api = { workspace = true }
 
 bytemuck = { workspace = true }
 
-anyhow = { workspace = true }
-
 glam = { workspace = true }
