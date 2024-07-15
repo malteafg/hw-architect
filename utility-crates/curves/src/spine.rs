@@ -28,7 +28,8 @@ impl Spine {
         Self(vec)
     }
 
-    fn empty() -> Self {
+    /// Should be made not public
+    pub fn empty() -> Self {
         Self(Vec::new())
     }
 

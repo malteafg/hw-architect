@@ -35,5 +35,7 @@ rand = "0.8"
 bit-vec = { version = "0.7", features = ["serde"] }
 fixedbitset = { version = "0.5", features = ["serde"] }
 
+enum_dispatch = "0.3"
+
 [profile.dev]
 opt-level = 1

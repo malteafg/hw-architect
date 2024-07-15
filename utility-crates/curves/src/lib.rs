@@ -1,4 +1,5 @@
 mod curve_gen;
+mod curves;
 mod guide_points;
 mod spine;
 mod spine_points;

@@ -16,3 +16,5 @@ glam = { workspace = true }
 
 anyhow = { version = "1.0" }
 serde = { workspace = true }
+
+enum_dispatch = { workspace = true }
