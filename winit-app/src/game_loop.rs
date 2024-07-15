@@ -1,4 +1,4 @@
-use super::{config, input_handler, state};
+use super::input_handler;
 
 use utils::input;
 
@@ -11,11 +11,11 @@ pub async fn run() {
     env_logger::init();
 
     // load configuration
-    let config = config::load_config().unwrap();
+    let config = hw_architect::config::load_config().unwrap();
     let window_width = config.window.width as u32;
     let window_height = config.window.height as u32;
 
-    let key_map = config::load_key_map(config.key_map).unwrap();
+    let key_map = input_handler::load_key_map(config.key_map).unwrap();
     let mut input_handler = input_handler::InputHandler::new(key_map);
 
     // create event_loop and window
@@ -29,7 +29,7 @@ pub async fn run() {
     // Create handle to graphics card. Change line to use different gpu backend.
     let gfx = gfx_wgpu::GfxState::new(&window, window_width, window_height).await;
 
-    let mut state = state::State::new(gfx, window_width, window_height);
+    let mut state = hw_architect::State::new(gfx, window_width, window_height);
 
     let mut last_render_time = Instant::now();
     event_loop

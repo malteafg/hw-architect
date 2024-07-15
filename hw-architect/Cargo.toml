@@ -10,22 +10,16 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-gfx-wgpu = { workspace = true }
 gfx-api = { workspace = true }
 tool = { workspace = true }
 utils = { workspace = true }
 world = { workspace = true }
 
-winit = { workspace = true }
-
 anyhow = { workspace = true }
 
 glam = { workspace = true }
 
-env_logger = "0.11"
 log = "0.4"
-
-pollster = "0.3"
 
 serde = { workspace = true }
 serde_yaml = "0.9.33"
