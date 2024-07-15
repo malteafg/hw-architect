@@ -2,7 +2,7 @@ use super::camera_controller::CameraController;
 use super::input_handler::InputHandler;
 
 use gfx_api::GfxSuper;
-use tool::WorldTool;
+use tool::ToolHandler;
 use utils::input;
 
 use glam::*;
@@ -11,16 +11,13 @@ use winit::window::Window;
 use std::time::Duration;
 
 pub struct State<'window, G: GfxSuper> {
-    /// The handle to the graphics card. A reference counter is used such that tools can
-    /// also have a reference to the gfx_handle. Functionality is still separated as tools have
-    /// specific traits for interacting with the gpu.
     gfx_handle: G,
     window: &'window Window,
     window_width: u32,
     window_height: u32,
     camera_controller: CameraController,
     pub input_handler: InputHandler,
-    tool: WorldTool<G>,
+    tool: ToolHandler<G>,
     ground_pos: Vec3,
 }
 
@@ -40,7 +37,7 @@ impl<'window, G: GfxSuper> State<'window, G> {
         );
 
         let world = world::World::new();
-        let tool = WorldTool::new(&mut gfx_handle, Box::new(world));
+        let tool = ToolHandler::new(&mut gfx_handle, Box::new(world));
 
         Self {
             gfx_handle,
