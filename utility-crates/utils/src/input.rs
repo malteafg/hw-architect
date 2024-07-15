@@ -1,5 +1,13 @@
 //! Defines all types associated with different types of input events.
 
+/// This specifies the state of general events that are influenced by inputs.
+#[derive(Default, Clone, Copy, Debug)]
+pub struct InputState {
+    /// Maintains the current mouse position on the window in pixels, relative
+    /// to the top left corner.
+    pub mouse_pos: MousePos,
+}
+
 /// A state of the modifier keys, shift, ctrl and alt. Does not distinguish
 /// between right and left modifier keys.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Default, Clone, Copy, Debug)]
@@ -69,7 +77,7 @@ pub enum KeyState {
 }
 
 /// Position of mouse given in pixels from top left corner of window.
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct MousePos {
     pub x: f64,
     pub y: f64,
@@ -95,7 +103,7 @@ pub enum Mouse {
 pub enum MouseEvent {
     Press(Mouse),
     Release(Mouse),
-    Moved(MouseDelta),
-    Dragged(Mouse, MouseDelta),
+    Moved(MousePos, MouseDelta),
+    Dragged(Mouse, MousePos, MouseDelta),
     Scrolled(f32),
 }

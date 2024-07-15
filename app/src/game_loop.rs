@@ -16,7 +16,7 @@ pub async fn run() {
     let window_height = config.window.height as u32;
 
     let key_map = config::load_key_map(config.key_map).unwrap();
-    let input_handler = input_handler::InputHandler::new(key_map);
+    let mut input_handler = input_handler::InputHandler::new(key_map);
 
     // create event_loop and window
     let event_loop = winit::event_loop::EventLoop::new().unwrap();
@@ -29,7 +29,7 @@ pub async fn run() {
     // Create handle to graphics card. Change line to use different gpu backend.
     let gfx = gfx_wgpu::GfxState::new(&window, window_width, window_height).await;
 
-    let mut state = state::State::new(gfx, &window, window_width, window_height, input_handler);
+    let mut state = state::State::new(gfx, &window, window_width, window_height);
 
     let mut last_render_time = Instant::now();
     event_loop
@@ -37,10 +37,7 @@ pub async fn run() {
             window_target.set_control_flow(ControlFlow::Poll);
             use input::Action;
             use input_handler::InputEvent;
-            match state
-                .input_handler
-                .process_input(&event, state.window().id())
-            {
+            match input_handler.process_input(&event, state.window().id()) {
                 InputEvent::KeyActions(actions) => {
                     if actions.contains(&(Action::Exit, input::KeyState::Press)) {
                         window_target.exit();

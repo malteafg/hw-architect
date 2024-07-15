@@ -95,9 +95,9 @@ impl InputHandler {
         self.mouse_pos.x = new_pos.x;
         self.mouse_pos.y = new_pos.y;
         if let Some(&button) = self.pressed_buttons.last() {
-            InputEvent::MouseEvent(MouseEvent::Dragged(button, delta))
+            InputEvent::MouseEvent(MouseEvent::Dragged(button, self.mouse_pos, delta))
         } else {
-            InputEvent::MouseEvent(MouseEvent::Moved(delta))
+            InputEvent::MouseEvent(MouseEvent::Moved(self.mouse_pos, delta))
         }
     }
 

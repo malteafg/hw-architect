@@ -1,9 +1,8 @@
 use super::camera_controller::CameraController;
-use super::input_handler::InputHandler;
 
 use gfx_api::GfxSuper;
 use tool::ToolHandler;
-use utils::input;
+use utils::input::{self, InputState};
 
 use glam::*;
 use winit::window::Window;
@@ -16,8 +15,8 @@ pub struct State<'window, G: GfxSuper> {
     window_width: u32,
     window_height: u32,
     camera_controller: CameraController,
-    pub input_handler: InputHandler,
     tool: ToolHandler<G>,
+    input_state: InputState,
     ground_pos: Vec3,
 }
 
@@ -27,7 +26,6 @@ impl<'window, G: GfxSuper> State<'window, G> {
         window: &'window Window,
         window_width: u32,
         window_height: u32,
-        input_handler: InputHandler,
     ) -> Self {
         let camera_controller = CameraController::new(
             Vec3::new(0.0, 0.0, 0.0),
@@ -45,8 +43,8 @@ impl<'window, G: GfxSuper> State<'window, G> {
             window_width,
             window_height,
             camera_controller,
-            input_handler,
             tool,
+            input_state: InputState::default(),
             ground_pos: Vec3::new(0.0, 0.0, 0.0),
         }
     }
@@ -59,7 +57,9 @@ impl<'window, G: GfxSuper> State<'window, G> {
     pub fn mouse_input(&mut self, event: input::MouseEvent) {
         self.camera_controller.process_mouse(event);
         match event {
-            input::MouseEvent::Dragged(_, _) | input::MouseEvent::Moved(_) => {
+            input::MouseEvent::Dragged(_, mouse_pos, _)
+            | input::MouseEvent::Moved(mouse_pos, _) => {
+                self.input_state.mouse_pos = mouse_pos;
                 self.update_ground_pos();
             }
             _ => {}
@@ -79,9 +79,11 @@ impl<'window, G: GfxSuper> State<'window, G> {
     }
 
     fn update_ground_pos(&mut self) {
-        let mouse_pos = self.input_handler.get_mouse_pos();
         let ray_dir = self.gfx_handle.compute_ray(
-            [mouse_pos.x as f32, mouse_pos.y as f32],
+            [
+                self.input_state.mouse_pos.x as f32,
+                self.input_state.mouse_pos.y as f32,
+            ],
             self.camera_controller.get_raw_camera(),
         );
         let ray_dir = Vec3::from_array(ray_dir);
