@@ -2,11 +2,17 @@
 //! events into the desired hw-architect events.
 
 use std::collections::BTreeMap;
-use utils::input::*;
+use std::str::FromStr;
+
+use anyhow::anyhow;
+
 use winit::dpi::PhysicalPosition;
 use winit::event::*;
-use winit::keyboard::{Key, ModifiersKeyState};
+use winit::keyboard::{Key, ModifiersKeyState, NamedKey};
 use winit::window::WindowId;
+
+use utils::input::*;
+use utils::loader;
 
 /// Represents which key combinations from the keyboard are associated with each of the
 /// hw-architect actions. Note that a keybinding can be associated to multiple actions, and the
@@ -95,9 +101,9 @@ impl InputHandler {
         self.mouse_pos.x = new_pos.x;
         self.mouse_pos.y = new_pos.y;
         if let Some(&button) = self.pressed_buttons.last() {
-            InputEvent::MouseEvent(MouseEvent::Dragged(button, delta))
+            InputEvent::MouseEvent(MouseEvent::Dragged(button, self.mouse_pos, delta))
         } else {
-            InputEvent::MouseEvent(MouseEvent::Moved(delta))
+            InputEvent::MouseEvent(MouseEvent::Moved(self.mouse_pos, delta))
         }
     }
 
@@ -202,15 +208,6 @@ impl InputHandler {
             _ => InputEvent::Proceed,
         }
     }
-
-    /// Returns the last recorded mouse position in pixels from the top left
-    /// corner of the window
-    pub fn get_mouse_pos(&self) -> MousePos {
-        self.mouse_pos
-    }
-    // pub fn get_modifier_state(&self) -> ModifierState {
-    //     self.modifiers
-    // }
 }
 
 fn translate_button(button: MouseButton) -> Mouse {
@@ -219,5 +216,151 @@ fn translate_button(button: MouseButton) -> Mouse {
         MouseButton::Middle => Mouse::Middle,
         MouseButton::Right => Mouse::Right,
         MouseButton::Other(_) | MouseButton::Back | MouseButton::Forward => Mouse::Other,
+    }
+}
+
+/// This type corresponds to the structure of the yaml files that define keybindings:
+/// TODO: Right now the inner BTreeMap always only has one element, so maybe come up with a better
+/// structure.
+type KeyLoaderConfig = BTreeMap<String, Vec<BTreeMap<String, Vec<String>>>>;
+
+/// Loads and returns the given keymap
+///
+/// # Arguments
+///
+/// * `key_map` - Default and ONLY (for now) options are "qwerty" "wokmok"
+pub fn load_key_map(key_map: String) -> anyhow::Result<KeyMap> {
+    let key_config_path = format!("config/{}.yml", &key_map);
+    #[cfg(debug_assertions)]
+    {
+        dbg!(key_config_path.clone());
+    }
+    let key_config_file = loader::load_string(&key_config_path)?;
+    let key_config: KeyLoaderConfig = serde_yaml::from_str(&key_config_file)?;
+
+    let mut group_maps: BTreeMap<String, KeyMap> = BTreeMap::new();
+    for (group, key_maps) in key_config.into_iter() {
+        let mut group_map: KeyMap = BTreeMap::new();
+        for key_map in key_maps.into_iter() {
+            // this loop is silly as there is only one entry in the map
+            for (action, keys) in key_map.into_iter() {
+                let key_code = parse_key_code(&keys[0]).unwrap();
+                let mod_state = keys
+                    .iter()
+                    .fold(ModifierState::default(), |mod_state, key| {
+                        match key.as_str() {
+                            "shift" => ModifierState {
+                                shift: true,
+                                ..mod_state
+                            },
+                            "ctrl" => ModifierState {
+                                ctrl: true,
+                                ..mod_state
+                            },
+                            "alt" => ModifierState {
+                                alt: true,
+                                ..mod_state
+                            },
+                            _ => mod_state,
+                        }
+                    });
+                let action = Action::from_str(&action).unwrap();
+                group_map.insert((key_code, mod_state), vec![action]);
+            }
+        }
+        group_maps.insert(group, group_map);
+    }
+
+    // Merge group maps and check for conflicting keybindings
+    let mut general_key_bindings: KeyMap = group_maps
+        .remove("general")
+        .ok_or(anyhow!("Could not find general key bindings"))?;
+
+    let mut final_key_map: KeyMap = BTreeMap::new();
+    for (_, group_map) in group_maps.into_iter() {
+        for (key, mut action) in group_map.into_iter() {
+            if general_key_bindings.contains_key(&key) {
+                dbg!(key);
+                return Err(anyhow!("Duplicate key binding"));
+            }
+            let Some(actions) = final_key_map.get_mut(&key) else {
+                final_key_map.insert(key, action);
+                continue;
+            };
+            actions.append(&mut action);
+        }
+    }
+
+    // Add general_key_bindings to final_key_map
+    final_key_map.append(&mut general_key_bindings);
+    Ok(final_key_map)
+}
+
+/// Translates the keycode as it is written in the keymap config to a winit [`Key`]
+fn parse_key_code(key: &String) -> anyhow::Result<Key> {
+    match key.to_lowercase().as_str() {
+        "esc" => Ok(Key::Named(NamedKey::Escape)),
+        "space" => Ok(Key::Named(NamedKey::Space)),
+        "a" => Ok(Key::Character("a".into())),
+        "b" => Ok(Key::Character("b".into())),
+        "c" => Ok(Key::Character("c".into())),
+        "d" => Ok(Key::Character("d".into())),
+        "e" => Ok(Key::Character("e".into())),
+        "f" => Ok(Key::Character("f".into())),
+        "g" => Ok(Key::Character("g".into())),
+        "h" => Ok(Key::Character("h".into())),
+        "j" => Ok(Key::Character("j".into())),
+        "k" => Ok(Key::Character("k".into())),
+        "l" => Ok(Key::Character("l".into())),
+        "m" => Ok(Key::Character("m".into())),
+        "n" => Ok(Key::Character("n".into())),
+        "o" => Ok(Key::Character("o".into())),
+        "p" => Ok(Key::Character("p".into())),
+        "q" => Ok(Key::Character("q".into())),
+        "r" => Ok(Key::Character("r".into())),
+        "s" => Ok(Key::Character("s".into())),
+        "t" => Ok(Key::Character("t".into())),
+        "u" => Ok(Key::Character("u".into())),
+        "v" => Ok(Key::Character("v".into())),
+        "w" => Ok(Key::Character("w".into())),
+        "x" => Ok(Key::Character("x".into())),
+        "y" => Ok(Key::Character("y".into())),
+        "z" => Ok(Key::Character("z".into())),
+        "1" => Ok(Key::Character("1".into())),
+        "2" => Ok(Key::Character("2".into())),
+        "3" => Ok(Key::Character("3".into())),
+        "4" => Ok(Key::Character("4".into())),
+        "5" => Ok(Key::Character("5".into())),
+        "6" => Ok(Key::Character("6".into())),
+        "7" => Ok(Key::Character("7".into())),
+        "8" => Ok(Key::Character("8".into())),
+        "9" => Ok(Key::Character("9".into())),
+        _ => Err(anyhow::anyhow!(format!("could not parse key: {}", key))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs::*;
+    use std::io::prelude::*;
+
+    // Run with cargo test write_keyconfig -- --ignored --nocapture in this crate
+    #[test]
+    #[ignore]
+    fn write_keyconfig() {
+        let mut key_map = std::collections::BTreeMap::new();
+        key_map.insert(
+            "camera_left".to_string(),
+            vec!["a".to_string(), "shift".to_string()],
+        );
+        key_map.insert(
+            "camera_right".to_string(),
+            vec!["d".to_string(), "shift".to_string(), "ctrl".to_string()],
+        );
+        let keyconfigyaml = serde_yaml::to_string(&key_map).unwrap();
+        println!("{}", keyconfigyaml);
+
+        let mut file = File::create("../res/config/qwerty.yml").unwrap();
+        file.write_all(keyconfigyaml.as_bytes()).unwrap();
     }
 }

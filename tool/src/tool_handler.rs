@@ -1,7 +1,7 @@
-use super::{
-    BulldozeTool, ConstructTool, Tool, ToolInstance, ToolShared, ToolStrategy, TreePlopperTool,
-};
 use crate::tool_state::ToolState;
+use crate::tools::{
+    BulldozeTool, ConstructTool, DummyTool, NoTool, Tool, ToolInstance, TreePlopperTool,
+};
 
 use gfx_api::GfxWorldData;
 use utils::input;
@@ -20,7 +20,7 @@ enum ToolMarker {
 }
 
 /// The main tool that controls how other tools are invoked.
-pub struct WorldTool<G: GfxWorldData> {
+pub struct ToolHandler<G: GfxWorldData> {
     ground_pos: glam::Vec3,
 
     curr_tool_handle: Box<dyn Tool<G>>,
@@ -28,11 +28,11 @@ pub struct WorldTool<G: GfxWorldData> {
     saved_tool: Option<ToolMarker>,
 }
 
-impl<G: GfxWorldData> WorldTool<G> {
+impl<G: GfxWorldData> ToolHandler<G> {
     pub fn new(gfx_handle: &mut G, world: Box<dyn WorldManipulator>) -> Self {
         let state = ToolState::default();
         let start_tool = Box::new(ToolInstance::<NoTool>::new(state, world, Vec3::ZERO));
-        let mut result = WorldTool {
+        let mut result = ToolHandler {
             ground_pos: Vec3::ZERO,
             curr_tool_handle: start_tool,
             curr_tool: ToolMarker::NoTool,
@@ -134,53 +134,5 @@ impl<G: GfxWorldData> WorldTool<G> {
 
     pub fn update(&mut self, dt: Duration) {
         self.curr_tool_handle.get_world_mut().update(dt);
-    }
-}
-
-/// Used as the default tool, when no tool is used.
-#[derive(Default)]
-struct NoTool;
-impl<G: GfxWorldData> Tool<G> for ToolInstance<NoTool> {}
-impl<G: GfxWorldData> ToolStrategy<G> for ToolInstance<NoTool> {
-    fn init(&mut self, _gfx_handle: &mut G) {}
-    fn process_keyboard(&mut self, _gfx_handle: &mut G, _key: input::KeyAction) {}
-    fn left_click(&mut self, _gfx_handle: &mut G) {}
-    fn right_click(&mut self, _gfx_handle: &mut G) {}
-    fn update_view(&mut self, _gfx_handle: &mut G) {}
-    fn clean_gfx(&mut self, _gfx_handle: &mut G) {}
-}
-
-/// This is a bit silly maybe find a cleaner implementation?
-#[derive(Default)]
-struct DummyTool;
-impl<G: GfxWorldData> Tool<G> for DummyTool {}
-impl<G: GfxWorldData> ToolStrategy<G> for DummyTool {
-    fn init(&mut self, _gfx_handle: &mut G) {}
-    fn process_keyboard(&mut self, _gfx_handle: &mut G, _key: input::KeyAction) {}
-    fn left_click(&mut self, _gfx_handle: &mut G) {}
-    fn right_click(&mut self, _gfx_handle: &mut G) {}
-    fn update_view(&mut self, _gfx_handle: &mut G) {}
-    fn clean_gfx(&mut self, _gfx_handle: &mut G) {}
-}
-
-impl<G: GfxWorldData> ToolShared<G> for DummyTool {
-    fn destroy(self: Box<Self>) -> (ToolState, Box<dyn WorldManipulator>) {
-        panic!()
-    }
-
-    fn get_state(&self) -> &ToolState {
-        panic!()
-    }
-
-    fn get_world(&self) -> &Box<dyn WorldManipulator> {
-        panic!()
-    }
-
-    fn get_world_mut(&mut self) -> &mut Box<dyn WorldManipulator> {
-        panic!()
-    }
-
-    fn update_ground_pos(&mut self, _ground_pos: Vec3) {
-        panic!()
     }
 }

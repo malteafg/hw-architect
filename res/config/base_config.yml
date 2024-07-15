@@ -2,4 +2,5 @@
 window:
   width: 1920
   height: 1080
+  title: Highway Architect
 key_map: qwerty

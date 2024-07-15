@@ -1,5 +1,5 @@
 [package]
-name = "hw-architect"
+name = "hw-architect-winit"
 version = "0.1.0"
 edition = "2021"
 
@@ -12,15 +12,12 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 gfx-wgpu = { workspace = true }
 gfx-api = { workspace = true }
-tool = { workspace = true }
+hw-architect = { workspace = true }
 utils = { workspace = true }
-world = { workspace = true }
 
-winit = { workspace = true }
+winit = "0.29"
 
-anyhow = { workspace = true }
-
-glam = { workspace = true }
+anyhow = "1.0"
 
 env_logger = "0.11"
 log = "0.4"
@@ -29,5 +26,3 @@ pollster = "0.3"
 
 serde = { workspace = true }
 serde_yaml = "0.9.33"
-directories = "5.0"
-figment = { version = "0.10", features = ["yaml"] }

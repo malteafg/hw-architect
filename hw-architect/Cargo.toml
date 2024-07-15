@@ -1,5 +1,5 @@
 [package]
-name = "tool"
+name = "hw-architect"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,11 +10,16 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-curves = { workspace = true }
-utils = { workspace = true }
-world-api = { workspace = true }
 gfx-api = { workspace = true }
-
-bytemuck = { workspace = true }
+tool = { workspace = true }
+utils = { workspace = true }
+world = { workspace = true }
 
 glam = { workspace = true }
+
+log = "0.4"
+
+serde = { workspace = true }
+serde_yaml = "0.9.33"
+directories = "5.0"
+figment = { version = "0.10", features = ["yaml"] }

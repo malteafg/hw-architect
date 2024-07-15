@@ -14,7 +14,6 @@ curves = { workspace = true }
 utils = { workspace = true }
 world-api = { workspace = true }
 
-anyhow = { workspace = true }
 serde = { workspace = true }
 
 glam = { workspace = true }

@@ -1,37 +1,25 @@
 use super::camera_controller::CameraController;
-use super::input_handler::InputHandler;
 
 use gfx_api::GfxSuper;
-use tool::WorldTool;
-use utils::input;
+use tool::ToolHandler;
+use utils::input::{self, InputState};
 
 use glam::*;
-use winit::window::Window;
 
 use std::time::Duration;
 
-pub struct State<'window, G: GfxSuper> {
-    /// The handle to the graphics card. A reference counter is used such that tools can
-    /// also have a reference to the gfx_handle. Functionality is still separated as tools have
-    /// specific traits for interacting with the gpu.
+pub struct State<G: GfxSuper> {
     gfx_handle: G,
-    window: &'window Window,
     window_width: u32,
     window_height: u32,
     camera_controller: CameraController,
-    pub input_handler: InputHandler,
-    tool: WorldTool<G>,
+    tool: ToolHandler<G>,
+    input_state: InputState,
     ground_pos: Vec3,
 }
 
-impl<'window, G: GfxSuper> State<'window, G> {
-    pub fn new(
-        mut gfx_handle: G,
-        window: &'window Window,
-        window_width: u32,
-        window_height: u32,
-        input_handler: InputHandler,
-    ) -> Self {
+impl<G: GfxSuper> State<G> {
+    pub fn new(mut gfx_handle: G, window_width: u32, window_height: u32) -> Self {
         let camera_controller = CameraController::new(
             Vec3::new(0.0, 0.0, 0.0),
             50.0f32.to_radians(),
@@ -40,16 +28,15 @@ impl<'window, G: GfxSuper> State<'window, G> {
         );
 
         let world = world::World::new();
-        let tool = WorldTool::new(&mut gfx_handle, Box::new(world));
+        let tool = ToolHandler::new(&mut gfx_handle, Box::new(world));
 
         Self {
             gfx_handle,
-            window,
             window_width,
             window_height,
             camera_controller,
-            input_handler,
             tool,
+            input_state: InputState::default(),
             ground_pos: Vec3::new(0.0, 0.0, 0.0),
         }
     }
@@ -62,7 +49,9 @@ impl<'window, G: GfxSuper> State<'window, G> {
     pub fn mouse_input(&mut self, event: input::MouseEvent) {
         self.camera_controller.process_mouse(event);
         match event {
-            input::MouseEvent::Dragged(_, _) | input::MouseEvent::Moved(_) => {
+            input::MouseEvent::Dragged(_, mouse_pos, _)
+            | input::MouseEvent::Moved(mouse_pos, _) => {
+                self.input_state.mouse_pos = mouse_pos;
                 self.update_ground_pos();
             }
             _ => {}
@@ -82,9 +71,11 @@ impl<'window, G: GfxSuper> State<'window, G> {
     }
 
     fn update_ground_pos(&mut self) {
-        let mouse_pos = self.input_handler.get_mouse_pos();
         let ray_dir = self.gfx_handle.compute_ray(
-            [mouse_pos.x as f32, mouse_pos.y as f32],
+            [
+                self.input_state.mouse_pos.x as f32,
+                self.input_state.mouse_pos.y as f32,
+            ],
             self.camera_controller.get_raw_camera(),
         );
         let ray_dir = Vec3::from_array(ray_dir);
@@ -105,9 +96,5 @@ impl<'window, G: GfxSuper> State<'window, G> {
 
     pub fn render(&mut self) -> Result<(), gfx_api::GfxFrameError> {
         self.gfx_handle.render()
-    }
-
-    pub fn window(&self) -> &'window Window {
-        &self.window
     }
 }

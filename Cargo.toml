@@ -1,6 +1,7 @@
 [workspace]
 members = [
-"app",
+"winit-app",
+"hw-architect",
 "gfx-api",
 "gfx-wgpu",
 "tool",
@@ -9,26 +10,22 @@ members = [
 "world-api",
 ]
 default-members = [
-"app",
+"winit-app",
 ]
 resolver="2"
 
 [workspace.dependencies]
 gfx-api = { path = "gfx-api" }
 gfx-wgpu = { path = "gfx-wgpu" }
+hw-architect = { path = "hw-architect" }
 tool = { path = "tool" }
 utils = { path = "utility-crates/utils" }
 curves = { path = "utility-crates/curves" }
 world = { path = "world" }
 world-api = { path = "world-api" }
 
-winit = "0.29"
-wgpu = "0.20"
-raw-window-handle = "0.6"
-
 bytemuck = { version = "1.13", features = [ "derive" ] }
 
-anyhow = "1.0"
 serde = { version = "1.0.204", features = ["derive", "rc"] }
 
 num = { version = "0.4", default-features = false }
