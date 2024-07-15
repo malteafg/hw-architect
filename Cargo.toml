@@ -24,7 +24,7 @@ curves = { path = "utility-crates/curves" }
 world = { path = "world" }
 world-api = { path = "world-api" }
 
-bytemuck = { version = "1.13", features = [ "derive" ] }
+bytemuck = { version = "=1.16", features = [ "derive" ] }
 
 serde = { version = "1.0.204", features = ["derive", "rc"] }
 
