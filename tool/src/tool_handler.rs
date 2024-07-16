@@ -1,7 +1,5 @@
 use crate::tool_state::ToolState;
-use crate::tools::{
-    Bulldoze, Construct, DummyTool, NoTool, Tool, ToolSpec, TreePlopper,
-};
+use crate::tools::{Bulldoze, Construct, DummyTool, NoTool, Tool, ToolSpec, TreePlopper};
 
 use gfx_api::GfxWorldData;
 use utils::input;
@@ -65,16 +63,15 @@ impl<G: GfxWorldData> ToolHandler<G> {
         self.enter_tool::<NoTool>(gfx_handle);
     }
 
-    fn enter_tool<A: Default + 'static>(&mut self, gfx_handle: &mut G)
+    fn enter_tool<T: Default + 'static>(&mut self, gfx_handle: &mut G)
     where
-        Tool<A>: ToolSpec<G>,
+        Tool<T>: ToolSpec<G>,
     {
         let mut old_tool = std::mem::replace(&mut self.curr_tool_handle, Box::new(DummyTool));
         old_tool.clean_gfx(gfx_handle);
         let (tool_state, world) = old_tool.destroy();
 
-        self.curr_tool_handle =
-            Box::new(Tool::<A>::new(tool_state, world, self.ground_pos));
+        self.curr_tool_handle = Box::new(Tool::<T>::new(tool_state, world, self.ground_pos));
         self.curr_tool_handle.init(gfx_handle);
     }
 

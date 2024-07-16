@@ -1,16 +1,12 @@
 use crate::Spine;
 
-use super::CurveSpec;
+use super::{Curve, CurveUnique};
 
 /// A circular curve approximated using cubic bezier curves
 pub struct Circular;
 
-impl CurveSpec for Circular {
-    fn get_spine(&self) -> Spine {
+impl CurveUnique for Curve<Circular> {
+    fn compute_spine(&self) -> Spine {
         Spine::empty()
-    }
-
-    fn get_length(&self) -> f32 {
-        0.0
     }
 }

@@ -52,21 +52,21 @@ pub trait ToolUnique<G: GfxWorldData> {
     fn clean_gfx(&mut self, gfx_handle: &mut G);
 }
 
-pub struct Tool<A: Default> {
-    instance: A,
+pub struct Tool<T: Default> {
+    instance: T,
     state_handle: ToolState,
     world: Box<dyn WorldManipulator>,
     ground_pos: Vec3,
 }
 
-impl<A: Default> Tool<A> {
+impl<T: Default> Tool<T> {
     pub fn new(
         state_handle: ToolState,
         world: Box<dyn WorldManipulator>,
         ground_pos: Vec3,
     ) -> Self {
         Self {
-            instance: A::default(),
+            instance: T::default(),
             state_handle,
             world,
             ground_pos,
@@ -74,7 +74,7 @@ impl<A: Default> Tool<A> {
     }
 }
 
-impl<A: Default, G: GfxWorldData> ToolShared<G> for Tool<A> {
+impl<T: Default, G: GfxWorldData> ToolShared<G> for Tool<T> {
     // fn get_state(&self) -> &ToolState {
     //     &self.state_handle
     // }
