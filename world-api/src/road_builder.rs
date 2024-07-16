@@ -121,7 +121,6 @@ impl LRoadBuilder {
         }
 
         let raw_curve = curves::Straight::new(first_pos, end_pos);
-
         let segments = vec![LSegmentBuilder::new(first_type, raw_curve.into())];
 
         // TODO fix such that it does not set false, or maybe remove reverse from LRoadBuilder
@@ -157,13 +156,8 @@ impl LRoadBuilder {
             flip_dir_on_new(&mut nodes);
         }
 
-        let segments = vec![LSegmentBuilder::new(
-            SegmentType {
-                curve_type: super::CurveType::Straight,
-            },
-            last_type,
-            GuidePoints::from_two_points(nodes[0].get_pos(), nodes[1].get_pos()),
-        )];
+        let raw_curve = curves::Straight::new(nodes[0].get_pos(), nodes[1].get_pos());
+        let segments = vec![LSegmentBuilder::new(last_type, raw_curve.into())];
 
         Self::new(nodes, segments, reverse)
     }

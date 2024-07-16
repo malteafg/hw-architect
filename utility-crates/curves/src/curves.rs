@@ -69,8 +69,9 @@ impl<C: RawCurveSpec> From<C> for Curve<C> {
 
 impl<C: RawCurveSpec> From<C> for CurveType {
     fn from(value: C) -> Self {
-        let curve = Curve::<C>::from(value);
-        CurveType::from(curve)
+        // let curve: Curve<C> = value.into();
+        let res: CurveType = value.into();
+        res
     }
 }
 
