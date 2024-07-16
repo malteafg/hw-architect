@@ -1,11 +1,11 @@
 use crate::Spine;
 
-use super::{Curve, CurveUnique};
+use super::RawCurveSpec;
 
 /// A quadratic bezier curve
 pub struct Quadratic;
 
-impl CurveUnique for Curve<Quadratic> {
+impl RawCurveSpec for Quadratic {
     fn compute_spine(&self) -> Spine {
         Spine::empty()
     }

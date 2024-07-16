@@ -13,7 +13,9 @@ use crate::Spine;
 use enum_dispatch::enum_dispatch;
 
 #[enum_dispatch]
-pub trait CurveShared {
+pub trait CurveSpec<C: RawCurveSpec> {
+    fn from_raw_curve(raw_curve: C) -> Self;
+
     /// Returns the spine of this curve segment
     fn get_spine(&self) -> &Spine;
 
@@ -22,13 +24,11 @@ pub trait CurveShared {
 }
 
 #[enum_dispatch]
-pub trait CurveUnique {
+pub trait RawCurveSpec {
     fn compute_spine(&self) -> Spine;
 }
 
-pub trait CurveSpec: CurveUnique + CurveShared {}
-
-#[enum_dispatch(CurveUnique, CurveShared)]
+#[enum_dispatch(CurveSpec)]
 pub enum CurveType {
     Straight(Curve<Straight>),
     Circular(Curve<Circular>),
@@ -36,13 +36,31 @@ pub enum CurveType {
     Cubic(Curve<Cubic>),
 }
 
-pub struct Curve<C> {
+#[enum_dispatch(RawCurveSpec)]
+pub enum RawCurveType {
+    Straight(Straight),
+    Circular(Circular),
+    Quadratic(Quadratic),
+    Cubic(Cubic),
+}
+
+pub struct Curve<C: RawCurveSpec> {
     instance: C,
     length: f32,
     spine: Spine,
 }
 
-impl<C> CurveShared for Curve<C> {
+impl<C: RawCurveSpec> CurveSpec<C> for Curve<C> {
+    fn from_raw_curve(raw_curve: C) -> Self {
+        let spine = raw_curve.compute_spine();
+
+        Self {
+            instance: raw_curve,
+            length: 0.0,
+            spine,
+        }
+    }
+
     fn get_spine(&self) -> &Spine {
         &self.spine
     }

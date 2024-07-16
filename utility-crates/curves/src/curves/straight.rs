@@ -1,11 +1,11 @@
 use crate::Spine;
 
-use super::{Curve, CurveUnique};
+use super::RawCurveSpec;
 
 /// Represent a completely straight line
 pub struct Straight;
 
-impl CurveUnique for Curve<Straight> {
+impl RawCurveSpec for Straight {
     fn compute_spine(&self) -> Spine {
         Spine::empty()
     }
