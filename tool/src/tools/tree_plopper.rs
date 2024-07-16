@@ -1,4 +1,4 @@
-use super::{Tool, ToolInstance, ToolStrategy};
+use super::{Tool, ToolSpec, ToolUnique};
 
 use gfx_api::{
     colors::{self, rgba_d},
@@ -6,19 +6,19 @@ use gfx_api::{
 };
 use world_api::Tree;
 
-pub struct TreePlopperTool {
+pub struct TreePlopper {
     tree_builder: Option<Tree>,
 }
 
-impl<G: GfxWorldData> Tool<G> for ToolInstance<TreePlopperTool> {}
+impl<G: GfxWorldData> ToolSpec<G> for Tool<TreePlopper> {}
 
-impl Default for TreePlopperTool {
+impl Default for TreePlopper {
     fn default() -> Self {
         Self { tree_builder: None }
     }
 }
 
-impl<G: GfxWorldData> ToolStrategy<G> for ToolInstance<TreePlopperTool> {
+impl<G: GfxWorldData> ToolUnique<G> for Tool<TreePlopper> {
     fn init(&mut self, gfx_handle: &mut G) {
         self.update_view(gfx_handle);
     }
@@ -26,7 +26,7 @@ impl<G: GfxWorldData> ToolStrategy<G> for ToolInstance<TreePlopperTool> {
     fn process_keyboard(&mut self, _gfx_handle: &mut G, _key: utils::input::KeyAction) {}
 
     fn left_click(&mut self, gfx_handle: &mut G) {
-        if let Some(tree) = self.self_tool.tree_builder {
+        if let Some(tree) = self.instance.tree_builder {
             let id = self.world.add_tree(tree, utils::consts::TREE_MODEL_ID);
             let raw_trees = vec![(id, tree.pos().into(), tree.yrot())];
             gfx_handle.add_trees(utils::consts::TREE_MODEL_ID, raw_trees);
@@ -41,11 +41,11 @@ impl<G: GfxWorldData> ToolStrategy<G> for ToolInstance<TreePlopperTool> {
             let tree = Tree::new(self.ground_pos);
             gfx_handle.set_tree_tool(0, vec![(tree.pos().into(), tree.yrot())]);
             gfx_handle.set_tree_markers(vec![ground_pos.to_array()], Some(rgba_d(colors::GREEN)));
-            self.self_tool.tree_builder = Some(tree);
+            self.instance.tree_builder = Some(tree);
         } else {
             gfx_handle.set_tree_tool(0, vec![]);
             gfx_handle.set_tree_markers(vec![ground_pos.to_array()], Some(rgba_d(colors::RED)));
-            self.self_tool.tree_builder = None;
+            self.instance.tree_builder = None;
         }
     }
 

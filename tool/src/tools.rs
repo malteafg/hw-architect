@@ -2,9 +2,9 @@ mod bulldoze;
 mod construct;
 mod tree_plopper;
 
-pub use bulldoze::BulldozeTool;
-pub use construct::ConstructTool;
-pub use tree_plopper::TreePlopperTool;
+pub use bulldoze::Bulldoze;
+pub use construct::Construct;
+pub use tree_plopper::TreePlopper;
 
 use crate::tool_state::ToolState;
 
@@ -14,8 +14,10 @@ use world_api::WorldManipulator;
 
 use glam::Vec3;
 
-pub trait Tool<G: GfxWorldData>: ToolStrategy<G> + ToolShared<G> {}
+/// The total specification of a tool with both its shared and unique behaviour.
+pub trait ToolSpec<G: GfxWorldData>: ToolUnique<G> + ToolShared<G> {}
 
+/// Specification of the behaviour that is shared between tools.
 pub trait ToolShared<G: GfxWorldData> {
     fn destroy(self: Box<Self>) -> (ToolState, Box<dyn WorldManipulator>);
 
@@ -26,7 +28,8 @@ pub trait ToolShared<G: GfxWorldData> {
     fn update_ground_pos(&mut self, ground_pos: Vec3);
 }
 
-pub trait ToolStrategy<G: GfxWorldData> {
+/// Specification of the behaviour that is unique to a single tool.
+pub trait ToolUnique<G: GfxWorldData> {
     /// Called when the tool is first created.
     fn init(&mut self, gfx_handle: &mut G);
 
@@ -49,29 +52,29 @@ pub trait ToolStrategy<G: GfxWorldData> {
     fn clean_gfx(&mut self, gfx_handle: &mut G);
 }
 
-pub struct ToolInstance<A: Default> {
+pub struct Tool<A: Default> {
+    instance: A,
     state_handle: ToolState,
     world: Box<dyn WorldManipulator>,
     ground_pos: Vec3,
-    self_tool: A,
 }
 
-impl<A: Default> ToolInstance<A> {
+impl<A: Default> Tool<A> {
     pub fn new(
         state_handle: ToolState,
         world: Box<dyn WorldManipulator>,
         ground_pos: Vec3,
     ) -> Self {
         Self {
+            instance: A::default(),
             state_handle,
             world,
             ground_pos,
-            self_tool: A::default(),
         }
     }
 }
 
-impl<A: Default, G: GfxWorldData> ToolShared<G> for ToolInstance<A> {
+impl<A: Default, G: GfxWorldData> ToolShared<G> for Tool<A> {
     // fn get_state(&self) -> &ToolState {
     //     &self.state_handle
     // }
@@ -96,8 +99,8 @@ impl<A: Default, G: GfxWorldData> ToolShared<G> for ToolInstance<A> {
 /// Used as the default tool, when no tool is used.
 #[derive(Default)]
 pub struct NoTool;
-impl<G: GfxWorldData> Tool<G> for ToolInstance<NoTool> {}
-impl<G: GfxWorldData> ToolStrategy<G> for ToolInstance<NoTool> {
+impl<G: GfxWorldData> ToolSpec<G> for Tool<NoTool> {}
+impl<G: GfxWorldData> ToolUnique<G> for Tool<NoTool> {
     fn init(&mut self, _gfx_handle: &mut G) {}
     fn process_keyboard(&mut self, _gfx_handle: &mut G, _key: input::KeyAction) {}
     fn left_click(&mut self, _gfx_handle: &mut G) {}
@@ -109,8 +112,8 @@ impl<G: GfxWorldData> ToolStrategy<G> for ToolInstance<NoTool> {
 /// This is a bit silly maybe find a cleaner implementation?
 #[derive(Default)]
 pub struct DummyTool;
-impl<G: GfxWorldData> Tool<G> for DummyTool {}
-impl<G: GfxWorldData> ToolStrategy<G> for DummyTool {
+impl<G: GfxWorldData> ToolSpec<G> for DummyTool {}
+impl<G: GfxWorldData> ToolUnique<G> for DummyTool {
     fn init(&mut self, _gfx_handle: &mut G) {}
     fn process_keyboard(&mut self, _gfx_handle: &mut G, _key: input::KeyAction) {}
     fn left_click(&mut self, _gfx_handle: &mut G) {}

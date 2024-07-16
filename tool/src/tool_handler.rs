@@ -1,6 +1,6 @@
 use crate::tool_state::ToolState;
 use crate::tools::{
-    BulldozeTool, ConstructTool, DummyTool, NoTool, Tool, ToolInstance, TreePlopperTool,
+    Bulldoze, Construct, DummyTool, NoTool, Tool, ToolSpec, TreePlopper,
 };
 
 use gfx_api::GfxWorldData;
@@ -23,7 +23,7 @@ enum ToolMarker {
 pub struct ToolHandler<G: GfxWorldData> {
     ground_pos: glam::Vec3,
 
-    curr_tool_handle: Box<dyn Tool<G>>,
+    curr_tool_handle: Box<dyn ToolSpec<G>>,
     curr_tool: ToolMarker,
     saved_tool: Option<ToolMarker>,
 }
@@ -31,7 +31,7 @@ pub struct ToolHandler<G: GfxWorldData> {
 impl<G: GfxWorldData> ToolHandler<G> {
     pub fn new(gfx_handle: &mut G, world: Box<dyn WorldManipulator>) -> Self {
         let state = ToolState::default();
-        let start_tool = Box::new(ToolInstance::<NoTool>::new(state, world, Vec3::ZERO));
+        let start_tool = Box::new(Tool::<NoTool>::new(state, world, Vec3::ZERO));
         let mut result = ToolHandler {
             ground_pos: Vec3::ZERO,
             curr_tool_handle: start_tool,
@@ -44,19 +44,19 @@ impl<G: GfxWorldData> ToolHandler<G> {
 
     fn enter_bulldoze_mode(&mut self, gfx_handle: &mut G) {
         self.curr_tool = ToolMarker::Bulldoze;
-        self.enter_tool::<BulldozeTool>(gfx_handle);
+        self.enter_tool::<Bulldoze>(gfx_handle);
     }
 
     fn enter_construct_mode(&mut self, gfx_handle: &mut G) {
         self.saved_tool = None;
         self.curr_tool = ToolMarker::Construct;
-        self.enter_tool::<ConstructTool>(gfx_handle);
+        self.enter_tool::<Construct>(gfx_handle);
     }
 
     fn enter_tree_plopper_mode(&mut self, gfx_handle: &mut G) {
         self.saved_tool = None;
         self.curr_tool = ToolMarker::TreePlopper;
-        self.enter_tool::<TreePlopperTool>(gfx_handle);
+        self.enter_tool::<TreePlopper>(gfx_handle);
     }
 
     fn enter_no_tool(&mut self, gfx_handle: &mut G) {
@@ -67,14 +67,14 @@ impl<G: GfxWorldData> ToolHandler<G> {
 
     fn enter_tool<A: Default + 'static>(&mut self, gfx_handle: &mut G)
     where
-        ToolInstance<A>: Tool<G>,
+        Tool<A>: ToolSpec<G>,
     {
         let mut old_tool = std::mem::replace(&mut self.curr_tool_handle, Box::new(DummyTool));
         old_tool.clean_gfx(gfx_handle);
         let (tool_state, world) = old_tool.destroy();
 
         self.curr_tool_handle =
-            Box::new(ToolInstance::<A>::new(tool_state, world, self.ground_pos));
+            Box::new(Tool::<A>::new(tool_state, world, self.ground_pos));
         self.curr_tool_handle.init(gfx_handle);
     }
 
