@@ -1,4 +1,4 @@
-use super::{LNodeBuilder, LSegmentBuilder, NodeType, SegmentType, SnapConfig};
+use super::{LNodeBuilder, LSegmentBuilder, NodeType, SnapConfig};
 
 use curves::GuidePoints;
 use utils::consts::ROAD_MIN_LENGTH;
@@ -120,13 +120,9 @@ impl LRoadBuilder {
             flip_dir_on_new(&mut nodes);
         }
 
-        let segments = vec![LSegmentBuilder::new(
-            SegmentType {
-                curve_type: super::CurveType::Straight,
-            },
-            first_type,
-            GuidePoints::from_two_points(first_pos, end_pos),
-        )];
+        let raw_curve = curves::Straight::new(first_pos, end_pos);
+
+        let segments = vec![LSegmentBuilder::new(first_type, raw_curve.into())];
 
         // TODO fix such that it does not set false, or maybe remove reverse from LRoadBuilder
         Self::new(nodes, segments, reverse)

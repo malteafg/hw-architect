@@ -3,16 +3,6 @@
 //! discrete.
 use serde::{Deserialize, Serialize};
 
-/// Defines the type of curves that are possible for roads.
-///
-/// TODO: add euler spirals.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum CurveType {
-    Straight,
-    #[default]
-    Curved,
-}
-
 /// This enum defines the discrete set of road widths that are possible. This is discrete, such
 /// that it is easy to see if two road nodes are compatible (same lane width).
 ///
@@ -82,20 +72,6 @@ impl NodeType {
 
     pub fn set_no_lanes(&mut self, no_lanes: u8) {
         self.no_lanes = no_lanes;
-    }
-}
-
-/// Defines the types of segments that can be constructed.
-///
-/// TODO: expand to include transition segments.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct SegmentType {
-    pub curve_type: CurveType,
-}
-
-impl SegmentType {
-    pub fn new(curve_type: CurveType) -> Self {
-        Self { curve_type }
     }
 }
 

@@ -3,6 +3,7 @@ use crate::Spine;
 use super::RawCurveSpec;
 
 /// A cubic bezier curve
+#[derive(Debug, Clone)]
 pub struct Cubic;
 
 impl RawCurveSpec for Cubic {
