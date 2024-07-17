@@ -1,6 +1,6 @@
 use super::{LNodeBuilder, LSegmentBuilder, NodeType, SnapConfig};
 
-use curves::{Curve, GuidePoints, Straight};
+use curves::GuidePoints;
 use utils::consts::ROAD_MIN_LENGTH;
 use utils::VecUtils;
 

@@ -18,18 +18,18 @@ enum ToolMarker {
 }
 
 /// The main tool that controls how other tools are invoked.
-pub struct ToolHandler<G: GfxWorldData> {
+pub struct ToolHandler<G: GfxWorldData, W: WorldManipulator> {
     ground_pos: glam::Vec3,
 
-    curr_tool_handle: Box<dyn ToolSpec<G>>,
+    curr_tool_handle: Box<dyn ToolSpec<G, W>>,
     curr_tool: ToolMarker,
     saved_tool: Option<ToolMarker>,
 }
 
-impl<G: GfxWorldData> ToolHandler<G> {
-    pub fn new(gfx_handle: &mut G, world: Box<dyn WorldManipulator>) -> Self {
+impl<G: GfxWorldData, W: WorldManipulator + 'static> ToolHandler<G, W> {
+    pub fn new(gfx_handle: &mut G, world: W) -> Self {
         let state = ToolState::default();
-        let start_tool = Box::new(Tool::<NoTool>::new(state, world, Vec3::ZERO));
+        let start_tool = Box::new(Tool::<NoTool, W>::new(state, world, Vec3::ZERO));
         let mut result = ToolHandler {
             ground_pos: Vec3::ZERO,
             curr_tool_handle: start_tool,
@@ -65,13 +65,13 @@ impl<G: GfxWorldData> ToolHandler<G> {
 
     fn enter_tool<T: Default + 'static>(&mut self, gfx_handle: &mut G)
     where
-        Tool<T>: ToolSpec<G>,
+        Tool<T, W>: ToolSpec<G, W>,
     {
         let mut old_tool = std::mem::replace(&mut self.curr_tool_handle, Box::new(DummyTool));
         old_tool.clean_gfx(gfx_handle);
         let (tool_state, world) = old_tool.destroy();
 
-        self.curr_tool_handle = Box::new(Tool::<T>::new(tool_state, world, self.ground_pos));
+        self.curr_tool_handle = Box::new(Tool::<T, W>::new(tool_state, world, self.ground_pos));
         self.curr_tool_handle.init(gfx_handle);
     }
 

@@ -7,6 +7,7 @@ use utils::id::{IdMap, SegmentId};
 use utils::{input, VecUtils};
 use world_api::{
     LNodeBuilder, LNodeBuilderType, LRoadBuilder, LaneWidth, NodeType, Side, SnapConfig,
+    WorldManipulator,
 };
 
 use gfx_api::{GfxWorldData, RoadMesh};
@@ -46,7 +47,7 @@ pub struct Construct {
     mode: Mode,
 }
 
-impl<G: GfxWorldData> ToolSpec<G> for Tool<Construct> {}
+impl<G: GfxWorldData, W: WorldManipulator> ToolSpec<G, W> for Tool<Construct, W> {}
 
 impl Default for Construct {
     fn default() -> Self {
@@ -57,7 +58,7 @@ impl Default for Construct {
     }
 }
 
-impl<G: GfxWorldData> ToolUnique<G> for Tool<Construct> {
+impl<G: GfxWorldData, W: WorldManipulator> ToolUnique<G> for Tool<Construct, W> {
     fn init(&mut self, gfx_handle: &mut G) {
         self.update_view(gfx_handle);
         self.show_snappable_nodes(gfx_handle);
@@ -153,7 +154,7 @@ impl<G: GfxWorldData> ToolUnique<G> for Tool<Construct> {
     }
 }
 
-impl Tool<Construct> {
+impl<W: WorldManipulator> Tool<Construct, W> {
     fn get_sel_road_type(&self) -> SelectedRoad {
         self.state_handle.road_state.selected_road
     }
