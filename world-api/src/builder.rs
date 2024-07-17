@@ -1,6 +1,6 @@
-use super::{NodeType, SegmentType};
+use super::NodeType;
 
-use curves::{GuidePoints, Spine};
+use curves::{CurveSpec, CurveSum, Spine};
 use utils::id::SegmentId;
 
 use glam::*;
@@ -72,39 +72,26 @@ pub enum LSegmentBuilderType {
 
 #[derive(Debug, Clone)]
 pub struct LSegmentBuilder {
-    segment_type: SegmentType,
     node_config: LSegmentBuilderType,
-    guide_points: GuidePoints,
-    spine: Spine,
+    curve: CurveSum,
 }
 
 impl LSegmentBuilder {
-    pub fn new(segment_type: SegmentType, node_type: NodeType, guide_points: GuidePoints) -> Self {
+    pub fn new(node_type: NodeType, curve: CurveSum) -> Self {
         let node_config = LSegmentBuilderType::Same(node_type);
-        let spine = Spine::from_guide_points(&guide_points);
 
-        Self {
-            segment_type,
-            node_config,
-            guide_points,
-            spine,
-        }
+        Self { node_config, curve }
     }
 
-    pub fn consume(self) -> (SegmentType, LSegmentBuilderType, GuidePoints, Spine) {
-        (
-            self.segment_type,
-            self.node_config,
-            self.guide_points,
-            self.spine,
-        )
+    pub fn consume(self) -> (LSegmentBuilderType, CurveSum) {
+        (self.node_config, self.curve)
     }
 
-    pub fn guide_points(&self) -> &GuidePoints {
-        &self.guide_points
+    pub fn get_curve(&self) -> &CurveSum {
+        &self.curve
     }
 
-    pub fn spine(&self) -> &Spine {
-        &self.spine
+    pub fn get_spine(&self) -> &Spine {
+        &self.curve.get_spine()
     }
 }

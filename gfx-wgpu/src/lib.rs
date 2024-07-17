@@ -1,3 +1,5 @@
+#![allow(warnings)]
+
 mod primitives;
 mod render_utils;
 mod renderer;

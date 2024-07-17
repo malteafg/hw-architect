@@ -1,13 +1,12 @@
 use super::{Tool, ToolSpec, ToolUnique};
 use crate::cycle_selection;
 use crate::gfx_gen::segment_gen;
-use crate::tool_state::SelectedRoad;
+use crate::tool_state::{CurveType, SelectedRoad};
 
 use utils::id::{IdMap, SegmentId};
 use utils::{input, VecUtils};
 use world_api::{
-    CurveType, LNodeBuilder, LNodeBuilderType, LRoadBuilder, LaneWidth, NodeType, SegmentType,
-    Side, SnapConfig,
+    LNodeBuilder, LNodeBuilderType, LRoadBuilder, LaneWidth, NodeType, Side, SnapConfig,
 };
 
 use gfx_api::{GfxWorldData, RoadMesh};
@@ -107,7 +106,7 @@ impl<G: GfxWorldData> ToolUnique<G> for Tool<Construct> {
                 road_builder,
             } => match self.get_sel_curve_type() {
                 CurveType::Straight => self.build_road(gfx_handle, road_builder),
-                CurveType::Curved => {
+                CurveType::Circular => {
                     if self.instance.snapped_node.is_some() {
                         self.build_road(gfx_handle, road_builder)
                     } else {
@@ -160,15 +159,7 @@ impl Tool<Construct> {
     }
 
     fn get_sel_curve_type(&self) -> CurveType {
-        self.state_handle
-            .road_state
-            .selected_road
-            .segment_type
-            .curve_type
-    }
-
-    fn _get_sel_segment_type(&self) -> SegmentType {
-        self.state_handle.road_state.selected_road.segment_type
+        self.state_handle.road_state.selected_road.curve_type
     }
 
     fn get_sel_node_type(&self) -> NodeType {
@@ -244,7 +235,7 @@ impl Tool<Construct> {
                 }
                 SelNode { .. } => self.update_no_snap(gfx_handle),
             },
-            CurveType::Curved => match &self.instance.mode {
+            CurveType::Circular => match &self.instance.mode {
                 SelectPos | SelectDir { .. } => {}
                 CurveEnd { .. } | SelNode { .. } => self.update_no_snap(gfx_handle),
             },
@@ -420,7 +411,7 @@ impl Tool<Construct> {
             } => self.update_to_cc_curve_end(gfx_handle, *pos, *dir, *init_node_type),
             SelNode { snap_config, .. } => match self.get_sel_curve_type() {
                 CurveType::Straight => self.update_to_sld(gfx_handle, snap_config.clone()),
-                CurveType::Curved => self.update_to_cc_sel_node(gfx_handle, snap_config.clone()),
+                CurveType::Circular => self.update_to_cc_sel_node(gfx_handle, snap_config.clone()),
             },
         };
     }
@@ -588,7 +579,7 @@ impl Tool<Construct> {
         road_builder
             .get_segments()
             .iter()
-            .map(|s| segment_gen::gen_road_mesh_with_lanes(s.spine(), node_type))
+            .map(|s| segment_gen::gen_road_mesh_with_lanes(s.get_spine(), node_type))
             .collect::<Vec<RoadMesh>>()
     }
 

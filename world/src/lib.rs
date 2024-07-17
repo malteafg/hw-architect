@@ -58,7 +58,7 @@ impl RoadManipulator for World {
             let no_paths = node_type.no_lanes();
             road.get_segments()
                 .iter()
-                .map(|b| b.spine().gen_parallel(width, no_paths))
+                .map(|b| b.get_spine().gen_parallel(width, no_paths))
                 .collect()
         };
 

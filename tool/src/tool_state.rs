@@ -1,4 +1,4 @@
-use world_api::{CurveType, LaneWidth, NodeType, SegmentType};
+use world_api::{LaneWidth, NodeType};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ToolState {
@@ -40,7 +40,7 @@ impl Default for RoadState {
 
 impl RoadState {
     pub fn set_curve_type(&mut self, curve_type: CurveType) {
-        self.selected_road.segment_type.curve_type = curve_type;
+        self.selected_road.curve_type = curve_type;
     }
 
     pub fn set_lane_width(&mut self, lane_width: LaneWidth) {
@@ -52,18 +52,26 @@ impl RoadState {
     }
 }
 
+/// The type of curve to be constructed
+#[derive(Debug, Default, Clone, Copy)]
+pub enum CurveType {
+    Straight,
+    #[default]
+    Circular,
+}
+
 /// This defines a road type that is being constructed.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct SelectedRoad {
     pub node_type: NodeType,
-    pub segment_type: SegmentType,
+    pub curve_type: CurveType,
 }
 
 impl SelectedRoad {
-    pub fn _new(node_type: NodeType, segment_type: SegmentType) -> Self {
+    pub fn _new(node_type: NodeType, curve_type: CurveType) -> Self {
         Self {
             node_type,
-            segment_type,
+            curve_type,
         }
     }
 }
