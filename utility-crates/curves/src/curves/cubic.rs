@@ -1,9 +1,11 @@
+use serde::{Deserialize, Serialize};
+
 use crate::Spine;
 
 use super::RawCurveSpec;
 
 /// A cubic bezier curve
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Cubic;
 
 impl RawCurveSpec for Cubic {

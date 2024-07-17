@@ -12,6 +12,7 @@ use crate::Spine;
 
 use enum_dispatch::enum_dispatch;
 use glam::Vec3;
+use serde::{Deserialize, Serialize};
 
 #[enum_dispatch]
 pub trait CurveSpec {
@@ -31,8 +32,8 @@ pub trait RawCurveSpec {
 }
 
 #[enum_dispatch(CurveSpec)]
-#[derive(Debug, Clone)]
-pub enum CurveType {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum CurveSum {
     Straight(Curve<Straight>),
     Circular(Curve<Circular>),
     Quadratic(Curve<Quadratic>),
@@ -40,7 +41,7 @@ pub enum CurveType {
 }
 
 #[enum_dispatch(RawCurveSpec)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RawCurveType {
     Straight(Straight),
     Circular(Circular),
@@ -48,7 +49,7 @@ pub enum RawCurveType {
     Cubic(Cubic),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Curve<C: RawCurveSpec> {
     instance: C,
     length: f32,
@@ -67,10 +68,13 @@ impl<C: RawCurveSpec> From<C> for Curve<C> {
     }
 }
 
-impl<C: RawCurveSpec> From<C> for CurveType {
+impl<C: RawCurveSpec> From<C> for CurveSum
+where
+    Curve<C>: Into<CurveSum>,
+{
     fn from(value: C) -> Self {
-        // let curve: Curve<C> = value.into();
-        let res: CurveType = value.into();
+        let curve: Curve<C> = value.into();
+        let res: CurveSum = curve.into();
         res
     }
 }

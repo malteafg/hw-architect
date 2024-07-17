@@ -1,6 +1,6 @@
 use world_api::{LSegmentBuilder, LSegmentBuilderType};
 
-use curves::{CurveSpec, CurveType, GuidePoints, Spine};
+use curves::{CurveSpec, CurveSum, GuidePoints, Spine};
 use utils::id::NodeId;
 
 use glam::Vec3;
@@ -17,13 +17,13 @@ pub struct LSegment {
     /// TODO: use smarter format than f32, such that width changes according to transition segments
     /// once those are implemented.
     width: f32,
-    curve: CurveType,
+    curve: CurveSum,
     from_node: NodeId,
     to_node: NodeId,
 }
 
 impl LSegment {
-    fn new(width: f32, curve: CurveType, from_node: NodeId, to_node: NodeId) -> Self {
+    fn new(width: f32, curve: CurveSum, from_node: NodeId, to_node: NodeId) -> Self {
         LSegment {
             width,
             curve,

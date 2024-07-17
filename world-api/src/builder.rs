@@ -1,6 +1,6 @@
 use super::NodeType;
 
-use curves::CurveType;
+use curves::{CurveSpec, CurveSum, Spine};
 use utils::id::SegmentId;
 
 use glam::*;
@@ -73,21 +73,25 @@ pub enum LSegmentBuilderType {
 #[derive(Debug, Clone)]
 pub struct LSegmentBuilder {
     node_config: LSegmentBuilderType,
-    curve: CurveType,
+    curve: CurveSum,
 }
 
 impl LSegmentBuilder {
-    pub fn new(node_type: NodeType, curve: CurveType) -> Self {
+    pub fn new(node_type: NodeType, curve: CurveSum) -> Self {
         let node_config = LSegmentBuilderType::Same(node_type);
 
         Self { node_config, curve }
     }
 
-    pub fn consume(self) -> (LSegmentBuilderType, CurveType) {
+    pub fn consume(self) -> (LSegmentBuilderType, CurveSum) {
         (self.node_config, self.curve)
     }
 
-    pub fn get_curve(&self) -> &CurveType {
+    pub fn get_curve(&self) -> &CurveSum {
         &self.curve
+    }
+
+    pub fn get_spine(&self) -> &Spine {
+        &self.curve.get_spine()
     }
 }

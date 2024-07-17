@@ -1,5 +1,7 @@
 use utils::{consts, input::ScrollState};
-use world_api::{CurveType, LaneWidth};
+use world_api::LaneWidth;
+
+use crate::tool_state::CurveType;
 
 pub trait CycleSelection {
     fn prev(&self) -> Self;
@@ -34,15 +36,15 @@ impl CycleSelection for LaneWidth {
 impl CycleSelection for CurveType {
     fn prev(&self) -> Self {
         match self {
-            Self::Straight => Self::Curved,
-            Self::Curved => Self::Straight,
+            Self::Straight => Self::Circular,
+            Self::Circular => Self::Straight,
         }
     }
 
     fn next(&self) -> Self {
         match self {
-            Self::Straight => Self::Curved,
-            Self::Curved => Self::Straight,
+            Self::Straight => Self::Circular,
+            Self::Circular => Self::Straight,
         }
     }
 }

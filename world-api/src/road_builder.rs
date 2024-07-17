@@ -1,6 +1,6 @@
 use super::{LNodeBuilder, LSegmentBuilder, NodeType, SnapConfig};
 
-use curves::GuidePoints;
+use curves::{Curve, GuidePoints, Straight};
 use utils::consts::ROAD_MIN_LENGTH;
 use utils::VecUtils;
 
@@ -216,13 +216,8 @@ impl LRoadBuilder {
 
         let mut segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, _)| {
-            segments.push(LSegmentBuilder::new(
-                SegmentType {
-                    curve_type: super::CurveType::Curved,
-                },
-                last_type,
-                g_points,
-            ));
+            let curve = curves::Circular::from_guide_points(g_points);
+            segments.push(LSegmentBuilder::new(last_type, curve.into()));
         });
 
         let nodes: Vec<LNodeBuilderType> = nodes.into_iter().map(|n| n).collect();
@@ -274,13 +269,8 @@ impl LRoadBuilder {
 
         let mut segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, _)| {
-            segments.push(LSegmentBuilder::new(
-                SegmentType {
-                    curve_type: super::CurveType::Curved,
-                },
-                first_type,
-                g_points,
-            ));
+            let curve = curves::Circular::from_guide_points(g_points);
+            segments.push(LSegmentBuilder::new(first_type, curve.into()));
         });
 
         let nodes: Vec<LNodeBuilderType> = nodes.into_iter().map(|n| n).collect();
@@ -339,13 +329,8 @@ impl LRoadBuilder {
 
         let mut segments = vec![];
         g_points_vec.into_iter().for_each(|(g_points, _)| {
-            segments.push(LSegmentBuilder::new(
-                SegmentType {
-                    curve_type: super::CurveType::Curved,
-                },
-                node_type,
-                g_points,
-            ));
+            let curve = curves::Circular::from_guide_points(g_points);
+            segments.push(LSegmentBuilder::new(node_type, curve.into()));
         });
 
         Result::Ok(Self::new(nodes, segments, reverse))

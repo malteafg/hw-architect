@@ -1,11 +1,12 @@
 use glam::Vec3;
+use serde::{Deserialize, Serialize};
 
 use crate::{GuidePoints, Spine};
 
 use super::RawCurveSpec;
 
 /// Represent a completely straight line. Should not use guide_points
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Straight {
     guide_points: GuidePoints,
 }
@@ -19,6 +20,6 @@ impl Straight {
 
 impl RawCurveSpec for Straight {
     fn compute_spine(&self) -> Spine {
-        Spine::empty()
+        Spine::from_guide_points(&self.guide_points)
     }
 }
