@@ -9,4 +9,6 @@ pub use guide_points::GuidePoints;
 pub use spine::Spine;
 pub use spine_points::SpinePoints;
 
-pub use curves::{Circular, Cubic, Curve, CurveSpec, CurveSum, Quadratic, Straight};
+pub use curves::{
+    Circular, Cubic, Curve, CurveBuilder, CurveResult, CurveShared, CurveSum, Quadratic, Straight,
+};

@@ -1,6 +1,6 @@
 use super::NodeType;
 
-use curves::{CurveSpec, CurveSum, Spine};
+use curves::{CurveShared, CurveSum, Spine};
 use utils::id::SegmentId;
 
 use glam::*;

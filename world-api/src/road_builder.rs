@@ -1,8 +1,8 @@
 use super::{LNodeBuilder, LSegmentBuilder, NodeType, SnapConfig};
 
-use curves::GuidePoints;
+use curves::{Curve, CurveBuilder, GuidePoints, Straight};
 use utils::consts::ROAD_MIN_LENGTH;
-use utils::VecUtils;
+use utils::{Loc, VecUtils};
 
 use glam::Vec3;
 
@@ -107,24 +107,25 @@ impl LRoadBuilder {
         last_type: NodeType,
         reverse: bool,
     ) -> Self {
-        let dir = (last_pos - first_pos).normalize_else();
-        let end_pos = proj_straight_too_short(first_pos, last_pos, dir);
+        match Curve::<Straight>::from_free(first_pos, last_pos) {
+            Ok((curve, (first, last))) => {
+                let mut nodes = vec![
+                    New(LNodeBuilder::new(first.pos, first.dir.into(), first_type)),
+                    New(LNodeBuilder::new(last.pos, last.dir.into(), last_type)),
+                ];
 
-        let mut nodes = vec![
-            New(LNodeBuilder::new(first_pos, dir, first_type)),
-            New(LNodeBuilder::new(end_pos, dir, last_type)),
-        ];
+                if reverse {
+                    nodes.reverse();
+                    flip_dir_on_new(&mut nodes);
+                }
 
-        if reverse {
-            nodes.reverse();
-            flip_dir_on_new(&mut nodes);
+                let segments = vec![LSegmentBuilder::new(first_type, curve.into())];
+
+                // TODO fix such that it does not set false, or maybe remove reverse from LRoadBuilder
+                Self::new(nodes, segments, reverse)
+            }
+            Err(_) => unimplemented!(),
         }
-
-        let raw_curve = curves::Straight::new(first_pos, end_pos);
-        let segments = vec![LSegmentBuilder::new(first_type, raw_curve.into())];
-
-        // TODO fix such that it does not set false, or maybe remove reverse from LRoadBuilder
-        Self::new(nodes, segments, reverse)
     }
 
     /// Generates a straight locked direction road. Then end_pos is projected unto the line defined
@@ -135,31 +136,27 @@ impl LRoadBuilder {
         last_type: NodeType,
         reverse: bool,
     ) -> Self {
-        let first_pos = first_node.pos();
-        let first_dir = first_node.dir().flip(reverse);
-        let first_to_last = last_pos - first_pos;
-        let proj_pos = if first_to_last.dot(first_dir) / first_dir.length() > ROAD_MIN_LENGTH {
-            // The projection will yield a long enough segment
-            first_to_last.proj(first_dir) + first_pos
-        } else {
-            // The projection will be to short and therefore we set proj_pos to min road length
-            first_pos + first_dir * ROAD_MIN_LENGTH
-        };
+        let first = Loc::new(first_node.pos(), first_node.dir().into());
 
-        let mut nodes = vec![
-            Old(first_node),
-            New(LNodeBuilder::new(proj_pos, first_dir, last_type)),
-        ];
+        match Curve::<Straight>::from_start_locked(first, last_pos) {
+            Ok((curve, last)) => {
+                let mut nodes = vec![
+                    Old(first_node),
+                    New(LNodeBuilder::new(last.pos, last.dir.into(), last_type)),
+                ];
 
-        if reverse {
-            nodes.reverse();
-            flip_dir_on_new(&mut nodes);
+                if reverse {
+                    nodes.reverse();
+                    flip_dir_on_new(&mut nodes);
+                }
+
+                let segments = vec![LSegmentBuilder::new(last_type, curve.into())];
+
+                // TODO fix such that it does not set false, or maybe remove reverse from LRoadBuilder
+                Self::new(nodes, segments, reverse)
+            }
+            Err(_) => unimplemented!(),
         }
-
-        let raw_curve = curves::Straight::new(nodes[0].get_pos(), nodes[1].get_pos());
-        let segments = vec![LSegmentBuilder::new(last_type, raw_curve.into())];
-
-        Self::new(nodes, segments, reverse)
     }
 
     /// Generates a circle curved road. The circle curve starts from start_pos and start_dir, and

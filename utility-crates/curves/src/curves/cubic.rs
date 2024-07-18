@@ -2,13 +2,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::Spine;
 
-use super::RawCurveSpec;
+use super::CurveUnique;
 
 /// A cubic bezier curve
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Cubic;
 
-impl RawCurveSpec for Cubic {
+impl CurveUnique for Cubic {
     fn compute_spine(&self) -> Spine {
         Spine::empty()
     }

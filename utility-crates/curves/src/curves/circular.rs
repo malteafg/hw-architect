@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{GuidePoints, Spine};
 
-use super::RawCurveSpec;
+use super::CurveUnique;
 
 /// A circular curve approximated using cubic bezier curves
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -16,7 +16,7 @@ impl Circular {
     }
 }
 
-impl RawCurveSpec for Circular {
+impl CurveUnique for Circular {
     fn compute_spine(&self) -> Spine {
         Spine::from_guide_points(&self.guide_points)
     }

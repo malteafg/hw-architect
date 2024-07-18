@@ -63,7 +63,7 @@ impl VecUtils for Vec3 {
     }
 
     fn normalize_else(self) -> Self {
-        self.try_normalize().unwrap_or(DEFAULT_DIR)
+        self.normalize_or(DEFAULT_DIR)
     }
 
     fn flip(self, flip: bool) -> Self {
@@ -138,6 +138,7 @@ impl Round for f32 {
     }
 }
 
+/// Represents a 3 dimensional ray.
 #[derive(Copy, Clone, Default, Debug)]
 pub struct Ray {
     pub pos: Vec3,
@@ -147,5 +148,45 @@ pub struct Ray {
 impl Ray {
     pub fn new(pos: Vec3, dir: Vec3) -> Self {
         Ray { pos, dir }
+    }
+}
+
+/// Represents a direction in the xz plane that is always guaranteed to be normalized.
+#[derive(Copy, Clone, Default, Debug)]
+pub struct Dir2 {
+    vec: Vec3,
+}
+
+impl Dir2 {
+    pub fn new() -> Self {
+        Self { vec: DEFAULT_DIR }
+    }
+}
+
+impl From<Vec3> for Dir2 {
+    fn from(mut value: Vec3) -> Self {
+        value.y = 0.0;
+        let vec = value.normalize_or(DEFAULT_DIR);
+        Self { vec }
+    }
+}
+
+impl From<Dir2> for Vec3 {
+    fn from(value: Dir2) -> Self {
+        value.vec
+    }
+}
+
+/// Represents a position in xyz and a direction in xz. Maybe rename to Loc2 to reflect dir only
+/// being in xz
+#[derive(Copy, Clone, Default, Debug)]
+pub struct Loc {
+    pub pos: Vec3,
+    pub dir: Dir2,
+}
+
+impl Loc {
+    pub fn new(pos: Vec3, dir: Dir2) -> Self {
+        Self { pos, dir }
     }
 }

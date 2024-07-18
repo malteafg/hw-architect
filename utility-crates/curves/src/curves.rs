@@ -7,15 +7,21 @@ pub use circular::Circular;
 pub use cubic::Cubic;
 pub use quadratic::Quadratic;
 pub use straight::Straight;
+use utils::Loc;
 
 use crate::Spine;
+
+use thiserror::Error;
 
 use enum_dispatch::enum_dispatch;
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
 #[enum_dispatch]
-pub trait CurveSpec {
+pub trait CurveSpec: CurveShared + CurveBuilder {}
+
+#[enum_dispatch]
+pub trait CurveShared {
     /// Returns the spine of this curve segment
     fn get_spine(&self) -> &Spine;
 
@@ -27,11 +33,40 @@ pub trait CurveSpec {
 }
 
 #[enum_dispatch]
-pub trait RawCurveSpec {
+pub trait CurveUnique {
     fn compute_spine(&self) -> Spine;
 }
 
-#[enum_dispatch(CurveSpec)]
+#[derive(Error, Debug)]
+pub enum CurveError {
+    #[error("The curve has points for which the curvature is too extreme")]
+    TooTight,
+    #[error("The curve is impossible to construct with the given constraints")]
+    Impossible,
+}
+
+pub type CurveResult<C, T> = std::result::Result<(C, T), CurveError>;
+
+pub trait CurveBuilder
+where
+    Self: Sized + CurveShared,
+{
+    /// Generates the curve between two position with no direction constraints.
+    fn from_free(first_pos: Vec3, last_pos: Vec3) -> CurveResult<Self, (Loc, Loc)>;
+
+    /// Generates the curve between two positions where the first position is locked by a
+    /// direction.
+    fn from_start_locked(first: Loc, last_pos: Vec3) -> CurveResult<Self, Loc>;
+
+    /// Generates the curve between two positions where the last position is locked by a
+    /// direction.
+    fn from_end_locked(first_pos: Vec3, last: Loc) -> CurveResult<Self, Loc>;
+
+    /// Generates the curve between two positions where both positions are locked by a direction.
+    fn from_both_locked(first: Loc, last: Loc) -> CurveResult<Self, ()>;
+}
+
+#[enum_dispatch(CurveShared)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CurveSum {
     Straight(Curve<Straight>),
@@ -40,23 +75,14 @@ pub enum CurveSum {
     Cubic(Curve<Cubic>),
 }
 
-#[enum_dispatch(RawCurveSpec)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum RawCurveType {
-    Straight(Straight),
-    Circular(Circular),
-    Quadratic(Quadratic),
-    Cubic(Cubic),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Curve<C: RawCurveSpec> {
+pub struct Curve<C> {
     instance: C,
     length: f32,
     spine: Spine,
 }
 
-impl<C: RawCurveSpec> From<C> for Curve<C> {
+impl<C: CurveUnique> From<C> for Curve<C> {
     fn from(value: C) -> Self {
         let spine = value.compute_spine();
 
@@ -68,7 +94,7 @@ impl<C: RawCurveSpec> From<C> for Curve<C> {
     }
 }
 
-impl<C: RawCurveSpec> From<C> for CurveSum
+impl<C: CurveUnique> From<C> for CurveSum
 where
     Curve<C>: Into<CurveSum>,
 {
@@ -79,7 +105,7 @@ where
     }
 }
 
-impl<C: RawCurveSpec> CurveSpec for Curve<C> {
+impl<C> CurveShared for Curve<C> {
     fn get_spine(&self) -> &Spine {
         &self.spine
     }
