@@ -1,6 +1,6 @@
 use super::{LNodeBuilder, LSegmentBuilder, NodeType, SnapConfig};
 
-use curves::{Curve, CurveBuilder, GuidePoints, Straight};
+use curves::{Curve, CurveBuilder, CurveShared, GuidePoints, Straight};
 use utils::consts::ROAD_MIN_LENGTH;
 use utils::{Loc, VecUtils};
 
@@ -108,10 +108,18 @@ impl LRoadBuilder {
         reverse: bool,
     ) -> Self {
         match Curve::<Straight>::from_free(first_pos, last_pos) {
-            Ok((curve, (first, last))) => {
+            Ok(curve) => {
                 let mut nodes = vec![
-                    New(LNodeBuilder::new(first.pos, first.dir.into(), first_type)),
-                    New(LNodeBuilder::new(last.pos, last.dir.into(), last_type)),
+                    New(LNodeBuilder::new(
+                        curve.first().pos,
+                        curve.first().dir.into(),
+                        first_type,
+                    )),
+                    New(LNodeBuilder::new(
+                        curve.last().pos,
+                        curve.last().dir.into(),
+                        last_type,
+                    )),
                 ];
 
                 if reverse {
@@ -139,10 +147,14 @@ impl LRoadBuilder {
         let first = Loc::new(first_node.pos(), first_node.dir().flip(reverse).into());
 
         match Curve::<Straight>::from_start_locked(first, last_pos) {
-            Ok((curve, last)) => {
+            Ok(curve) => {
                 let mut nodes = vec![
                     Old(first_node),
-                    New(LNodeBuilder::new(last.pos, last.dir.into(), last_type)),
+                    New(LNodeBuilder::new(
+                        curve.last().pos,
+                        curve.last().dir.into(),
+                        last_type,
+                    )),
                 ];
 
                 if reverse {

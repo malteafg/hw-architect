@@ -25,6 +25,14 @@ pub trait CurveShared {
     /// Returns the spine of this curve segment
     fn get_spine(&self) -> &Spine;
 
+    /// Returns the first element of the spine. The direction of this element must coincide with
+    /// the node the segment is built from.
+    fn first(&self) -> Loc;
+
+    /// Returns the last element of the spine. The direction of this element must coincide with
+    /// the node the segment is built to.
+    fn last(&self) -> Loc;
+
     /// Returns the length in meters of this curve segment
     fn get_length(&self) -> f32;
 
@@ -45,25 +53,25 @@ pub enum CurveError {
     Impossible,
 }
 
-pub type CurveResult<C, T> = std::result::Result<(C, T), CurveError>;
+pub type CurveResult<C> = std::result::Result<C, CurveError>;
 
 pub trait CurveBuilder
 where
     Self: Sized + CurveShared,
 {
     /// Generates the curve between two position with no direction constraints.
-    fn from_free(first_pos: Vec3, last_pos: Vec3) -> CurveResult<Self, (Loc, Loc)>;
+    fn from_free(first_pos: Vec3, last_pos: Vec3) -> CurveResult<Self>;
 
     /// Generates the curve between two positions where the first position is locked by a
     /// direction.
-    fn from_start_locked(first: Loc, last_pos: Vec3) -> CurveResult<Self, Loc>;
+    fn from_start_locked(first: Loc, last_pos: Vec3) -> CurveResult<Self>;
 
     /// Generates the curve between two positions where the last position is locked by a
     /// direction.
-    fn from_end_locked(first_pos: Vec3, last: Loc) -> CurveResult<Self, Loc>;
+    fn from_end_locked(first_pos: Vec3, last: Loc) -> CurveResult<Self>;
 
     /// Generates the curve between two positions where both positions are locked by a direction.
-    fn from_both_locked(first: Loc, last: Loc) -> CurveResult<Self, ()>;
+    fn from_both_locked(first: Loc, last: Loc) -> CurveResult<Self>;
 }
 
 #[enum_dispatch(CurveShared)]
@@ -108,6 +116,14 @@ where
 impl<C> CurveShared for Curve<C> {
     fn get_spine(&self) -> &Spine {
         &self.spine
+    }
+
+    fn first(&self) -> Loc {
+        self.spine[0]
+    }
+
+    fn last(&self) -> Loc {
+        self.spine[self.spine.len() - 1]
     }
 
     fn get_length(&self) -> f32 {

@@ -1,6 +1,6 @@
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
-use utils::{consts::ROAD_MIN_LENGTH, Dir2, Loc, VecUtils};
+use utils::{consts::ROAD_MIN_LENGTH, DirXZ, Loc, VecUtils};
 
 use crate::{Curve, GuidePoints, Spine};
 
@@ -26,14 +26,14 @@ impl CurveUnique for Straight {
 }
 
 impl CurveBuilder for Curve<Straight> {
-    fn from_free(first_pos: Vec3, last_pos: Vec3) -> CurveResult<Self, (Loc, Loc)> {
-        let dir = Dir2::from(last_pos - first_pos);
+    fn from_free(first_pos: Vec3, last_pos: Vec3) -> CurveResult<Self> {
+        let dir = DirXZ::from(last_pos - first_pos);
         let end = proj_straight_too_short(first_pos, last_pos, dir);
         let curve = Straight::new(first_pos, end);
-        CurveResult::Ok((curve.into(), (Loc::new(first_pos, dir), Loc::new(end, dir))))
+        CurveResult::Ok(curve.into())
     }
 
-    fn from_start_locked(first: Loc, last_pos: Vec3) -> CurveResult<Self, Loc> {
+    fn from_start_locked(first: Loc, last_pos: Vec3) -> CurveResult<Self> {
         let first_pos = first.pos;
         let first_dir = first.dir;
         let first_to_last = last_pos - first_pos;
@@ -45,19 +45,19 @@ impl CurveBuilder for Curve<Straight> {
             first_pos + Vec3::from(first_dir) * ROAD_MIN_LENGTH
         };
         let curve = Straight::new(first_pos, proj_pos);
-        CurveResult::Ok((curve.into(), Loc::new(proj_pos, first_dir)))
+        CurveResult::Ok(curve.into())
     }
 
-    fn from_end_locked(first_pos: Vec3, last: Loc) -> CurveResult<Self, Loc> {
+    fn from_end_locked(first_pos: Vec3, last: Loc) -> CurveResult<Self> {
         unimplemented!()
     }
 
-    fn from_both_locked(first: Loc, last: Loc) -> CurveResult<Self, ()> {
+    fn from_both_locked(first: Loc, last: Loc) -> CurveResult<Self> {
         unimplemented!()
     }
 }
 
-fn proj_straight_too_short(start_pos: Vec3, pref_pos: Vec3, proj_dir: Dir2) -> Vec3 {
+fn proj_straight_too_short(start_pos: Vec3, pref_pos: Vec3, proj_dir: DirXZ) -> Vec3 {
     if (pref_pos - start_pos).length() < ROAD_MIN_LENGTH {
         start_pos
             + (pref_pos - start_pos)

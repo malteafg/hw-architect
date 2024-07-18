@@ -2,6 +2,7 @@
 //! types.
 
 use glam::*;
+use serde::{Deserialize, Serialize};
 use std::f32::consts::PI;
 
 use crate::consts::DEFAULT_DIR;
@@ -54,10 +55,12 @@ impl VecUtils for Vec3 {
                 / (other_dir.x * self_dir.z - other_dir.z * self_dir.x))
     }
 
+    /// Should be removed and only be in dir2
     fn left_hand(self) -> Self {
         Self::new(self.z, self.y, -self.x)
     }
 
+    /// Should be removed and only be in dir2
     fn right_hand(self) -> Self {
         Self::new(-self.z, self.y, self.x)
     }
@@ -152,48 +155,54 @@ impl Ray {
 }
 
 /// Represents a direction in the xz plane that is always guaranteed to be normalized.
-#[derive(Copy, Clone, Default, Debug)]
-pub struct Dir2 {
-    vec: Vec3,
-}
+#[derive(Copy, Clone, Default, Debug, Serialize, Deserialize)]
+pub struct DirXZ(Vec3);
 
-impl Dir2 {
+impl DirXZ {
     pub fn new() -> Self {
-        Self { vec: DEFAULT_DIR }
+        Self(DEFAULT_DIR)
     }
 }
 
-impl From<Vec3> for Dir2 {
+impl From<Vec3> for DirXZ {
     fn from(mut value: Vec3) -> Self {
         value.y = 0.0;
         let vec = value.normalize_or(DEFAULT_DIR);
-        Self { vec }
+        Self(vec)
     }
 }
 
-impl Dir2 {
+impl From<DirXZ> for Vec3 {
+    fn from(value: DirXZ) -> Self {
+        value.0
+    }
+}
+
+impl DirXZ {
     pub fn flip(self, flip: bool) -> Self {
-        let vec = self.vec.flip(flip);
+        let vec = self.0.flip(flip);
         vec.into()
     }
-}
 
-impl From<Dir2> for Vec3 {
-    fn from(value: Dir2) -> Self {
-        value.vec
+    pub fn left_hand(self) -> Self {
+        Self(Vec3::new(self.0.z, self.0.y, -self.0.x))
+    }
+
+    pub fn right_hand(self) -> Self {
+        Self(Vec3::new(-self.0.z, self.0.y, self.0.x))
     }
 }
 
 /// Represents a position in xyz and a direction in xz. Maybe rename to Loc2 to reflect dir only
 /// being in xz
-#[derive(Copy, Clone, Default, Debug)]
+#[derive(Copy, Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Loc {
     pub pos: Vec3,
-    pub dir: Dir2,
+    pub dir: DirXZ,
 }
 
 impl Loc {
-    pub fn new(pos: Vec3, dir: Dir2) -> Self {
+    pub fn new(pos: Vec3, dir: DirXZ) -> Self {
         Self { pos, dir }
     }
 }
