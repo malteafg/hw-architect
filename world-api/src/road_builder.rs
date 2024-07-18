@@ -136,7 +136,7 @@ impl LRoadBuilder {
         last_type: NodeType,
         reverse: bool,
     ) -> Self {
-        let first = Loc::new(first_node.pos(), first_node.dir().into());
+        let first = Loc::new(first_node.pos(), first_node.dir().flip(reverse).into());
 
         match Curve::<Straight>::from_start_locked(first, last_pos) {
             Ok((curve, last)) => {

@@ -125,9 +125,7 @@ impl InputHandler {
     /// Release states are only sent if the key pressed is the most recent key to have been pressed
     /// of those keys that are pressed.
     fn process_keyboard_input(&mut self, key: Key, state: ElementState) -> InputEvent {
-        dbg!(key.clone());
         let actions = self.key_map.get(&(key, self.modifiers));
-        dbg!(actions.clone());
         let Some(actions) = actions else {
             return InputEvent::Absorb;
         };

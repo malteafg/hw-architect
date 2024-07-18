@@ -171,6 +171,13 @@ impl From<Vec3> for Dir2 {
     }
 }
 
+impl Dir2 {
+    pub fn flip(self, flip: bool) -> Self {
+        let vec = self.vec.flip(flip);
+        vec.into()
+    }
+}
+
 impl From<Dir2> for Vec3 {
     fn from(value: Dir2) -> Self {
         value.vec
