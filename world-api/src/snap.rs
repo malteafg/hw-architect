@@ -3,6 +3,7 @@ use super::Side;
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
 use utils::id::NodeId;
+use utils::Loc;
 
 /// Represents a continuous range of lane indexes. As an example, SnapRange might contain 2,3,4
 /// representing lanes 2,3 and 4. Lane indexes can also be negative for use in a {`SnapConfig`}
@@ -38,6 +39,18 @@ impl core::ops::Deref for SnapRange {
 impl core::ops::DerefMut for SnapRange {
     fn deref_mut(self: &'_ mut Self) -> &'_ mut Self::Target {
         &mut self.0
+    }
+}
+
+impl From<SnapConfig> for Loc {
+    fn from(value: SnapConfig) -> Self {
+        Loc::new(value.pos, value.dir.into())
+    }
+}
+
+impl From<&SnapConfig> for Loc {
+    fn from(value: &SnapConfig) -> Self {
+        Loc::new(value.pos, value.dir.into())
     }
 }
 

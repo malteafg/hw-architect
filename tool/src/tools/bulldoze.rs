@@ -1,4 +1,4 @@
-use super::{Tool, ToolSpec, ToolUnique};
+use super::{Tool, ToolUnique};
 
 use utils::input;
 
@@ -11,8 +11,6 @@ use world_api::WorldManipulator;
 
 #[derive(Default)]
 pub struct Bulldoze;
-
-impl<G: GfxWorldData, W: WorldManipulator> ToolSpec<G, W> for Tool<Bulldoze, W> {}
 
 impl<G: GfxWorldData, W: WorldManipulator> ToolUnique<G> for Tool<Bulldoze, W> {
     fn init(&mut self, gfx_handle: &mut G) {

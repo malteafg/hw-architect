@@ -4,7 +4,7 @@ use utils::{consts::ROAD_MIN_LENGTH, DirXZ, Loc, VecUtils};
 
 use crate::{Curve, GuidePoints, Spine};
 
-use super::{CurveBuilder, CurveResult, CurveUnique};
+use super::{CurveInfo, CurveResult, CurveUnique};
 
 /// Represents a completely straight line. Should not use guide_points
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,15 +25,15 @@ impl CurveUnique for Straight {
     }
 }
 
-impl CurveBuilder for Curve<Straight> {
-    fn from_free(first_pos: Vec3, last_pos: Vec3) -> CurveResult<Self> {
+impl Curve<Straight> {
+    pub fn from_free(first_pos: Vec3, last_pos: Vec3) -> (Self, CurveInfo) {
         let dir = DirXZ::from(last_pos - first_pos);
-        let end = proj_straight_too_short(first_pos, last_pos, dir);
-        let curve = Straight::new(first_pos, end);
-        CurveResult::Ok(curve.into())
+        let (last_pos, info) = proj_straight_too_short(first_pos, last_pos, dir);
+        let curve = Straight::new(first_pos, last_pos);
+        (curve.into(), info)
     }
 
-    fn from_start_locked(first: Loc, last_pos: Vec3) -> CurveResult<Self> {
+    pub fn from_first_locked(first: Loc, last_pos: Vec3) -> (Self, CurveInfo) {
         let first_pos = first.pos;
         let first_dir = first.dir;
         let first_to_last = last_pos - first_pos;
@@ -45,26 +45,21 @@ impl CurveBuilder for Curve<Straight> {
             first_pos + Vec3::from(first_dir) * ROAD_MIN_LENGTH
         };
         let curve = Straight::new(first_pos, proj_pos);
-        CurveResult::Ok(curve.into())
-    }
-
-    fn from_end_locked(first_pos: Vec3, last: Loc) -> CurveResult<Self> {
-        unimplemented!()
-    }
-
-    fn from_both_locked(first: Loc, last: Loc) -> CurveResult<Self> {
-        unimplemented!()
+        (curve.into(), CurveInfo::Projection(last_pos))
     }
 }
 
-fn proj_straight_too_short(start_pos: Vec3, pref_pos: Vec3, proj_dir: DirXZ) -> Vec3 {
+fn proj_straight_too_short(start_pos: Vec3, pref_pos: Vec3, proj_dir: DirXZ) -> (Vec3, CurveInfo) {
     if (pref_pos - start_pos).length() < ROAD_MIN_LENGTH {
-        start_pos
-            + (pref_pos - start_pos)
-                .try_normalize()
-                .unwrap_or(proj_dir.into())
-                * ROAD_MIN_LENGTH
+        (
+            start_pos
+                + (pref_pos - start_pos)
+                    .try_normalize()
+                    .unwrap_or(proj_dir.into())
+                    * ROAD_MIN_LENGTH,
+            CurveInfo::Projection(pref_pos),
+        )
     } else {
-        pref_pos
+        (pref_pos, CurveInfo::Satisfied)
     }
 }

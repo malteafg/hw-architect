@@ -10,5 +10,6 @@ pub use spine::Spine;
 pub use spine_points::SpinePoints;
 
 pub use curves::{
-    Circular, Cubic, Curve, CurveBuilder, CurveResult, CurveShared, CurveSum, Quadratic, Straight,
+    Circular, CompositeCurve, Cubic, Curve, CurveError, CurveInfo, CurveResult, CurveShared,
+    CurveSpec, CurveSum, Quadratic, Straight,
 };

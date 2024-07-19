@@ -18,7 +18,7 @@ use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
 #[enum_dispatch]
-pub trait CurveSpec: CurveShared + CurveBuilder {}
+pub trait CurveSpec: CurveShared {}
 
 #[enum_dispatch]
 pub trait CurveShared {
@@ -45,34 +45,34 @@ pub trait CurveUnique {
     fn compute_spine(&self) -> Spine;
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum CurveInfo {
+    /// The curve was built to exactly the specification.
+    Satisfied,
+
+    /// The last point of the curve was projected. The target position that was not satisfied is
+    /// returned.
+    Projection(Vec3),
+}
+
+#[derive(Debug, Clone)]
+pub enum CompositeCurve<C: CurveSpec> {
+    Single(C),
+    Double(C, C),
+}
+
 #[derive(Error, Debug)]
-pub enum CurveError {
+pub enum CurveError<C: CurveSpec> {
+    /// A curve can be constructed but the curve is too tight.
     #[error("The curve has points for which the curvature is too extreme")]
-    TooTight,
+    TooTight(CompositeCurve<C>),
+
+    /// The curve cannot be created given the current parameters.
     #[error("The curve is impossible to construct with the given constraints")]
     Impossible,
 }
 
-pub type CurveResult<C> = std::result::Result<C, CurveError>;
-
-pub trait CurveBuilder
-where
-    Self: Sized + CurveShared,
-{
-    /// Generates the curve between two position with no direction constraints.
-    fn from_free(first_pos: Vec3, last_pos: Vec3) -> CurveResult<Self>;
-
-    /// Generates the curve between two positions where the first position is locked by a
-    /// direction.
-    fn from_start_locked(first: Loc, last_pos: Vec3) -> CurveResult<Self>;
-
-    /// Generates the curve between two positions where the last position is locked by a
-    /// direction.
-    fn from_end_locked(first_pos: Vec3, last: Loc) -> CurveResult<Self>;
-
-    /// Generates the curve between two positions where both positions are locked by a direction.
-    fn from_both_locked(first: Loc, last: Loc) -> CurveResult<Self>;
-}
+pub type CurveResult<C> = std::result::Result<C, CurveError<C>>;
 
 #[enum_dispatch(CurveShared)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -89,6 +89,8 @@ pub struct Curve<C> {
     length: f32,
     spine: Spine,
 }
+
+impl<C: CurveUnique> CurveSpec for Curve<C> {}
 
 impl<C: CurveUnique> From<C> for Curve<C> {
     fn from(value: C) -> Self {
@@ -130,7 +132,7 @@ impl<C> CurveShared for Curve<C> {
         self.length
     }
 
-    fn contains_pos(&self, pos: Vec3) -> bool {
+    fn contains_pos(&self, _pos: Vec3) -> bool {
         true
     }
 }

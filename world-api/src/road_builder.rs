@@ -1,6 +1,6 @@
 use super::{LNodeBuilder, LSegmentBuilder, NodeType, SnapConfig};
 
-use curves::{Curve, CurveBuilder, CurveShared, GuidePoints, Straight};
+use curves::{Curve, CurveShared, GuidePoints, Straight};
 use utils::consts::ROAD_MIN_LENGTH;
 use utils::{Loc, VecUtils};
 
@@ -107,33 +107,35 @@ impl LRoadBuilder {
         last_type: NodeType,
         reverse: bool,
     ) -> Self {
-        match Curve::<Straight>::from_free(first_pos, last_pos) {
-            Ok(curve) => {
-                let mut nodes = vec![
-                    New(LNodeBuilder::new(
-                        curve.first().pos,
-                        curve.first().dir.into(),
-                        first_type,
-                    )),
-                    New(LNodeBuilder::new(
-                        curve.last().pos,
-                        curve.last().dir.into(),
-                        last_type,
-                    )),
-                ];
+        // match Curve::<Straight>::from_free(first_pos, last_pos) {
+        //     Ok(curve) => {
+        //         let mut nodes = vec![
+        //             New(LNodeBuilder::new(
+        //                 curve.first().pos,
+        //                 curve.first().dir.into(),
+        //                 first_type,
+        //             )),
+        //             New(LNodeBuilder::new(
+        //                 curve.last().pos,
+        //                 curve.last().dir.into(),
+        //                 last_type,
+        //             )),
+        //         ];
 
-                if reverse {
-                    nodes.reverse();
-                    flip_dir_on_new(&mut nodes);
-                }
+        //         if reverse {
+        //             nodes.reverse();
+        //             flip_dir_on_new(&mut nodes);
+        //         }
 
-                let segments = vec![LSegmentBuilder::new(first_type, curve.into())];
+        //         let segments = vec![LSegmentBuilder::new(first_type, curve.into())];
 
-                // TODO fix such that it does not set false, or maybe remove reverse from LRoadBuilder
-                Self::new(nodes, segments, reverse)
-            }
-            Err(_) => unimplemented!(),
-        }
+        //         // TODO fix such that it does not set false, or maybe remove reverse from LRoadBuilder
+        //         Self::new(nodes, segments, reverse)
+        //     }
+        //     Err(_) => unimplemented!(),
+        // }
+
+        unimplemented!()
     }
 
     /// Generates a straight locked direction road. Then end_pos is projected unto the line defined
@@ -144,31 +146,32 @@ impl LRoadBuilder {
         last_type: NodeType,
         reverse: bool,
     ) -> Self {
-        let first = Loc::new(first_node.pos(), first_node.dir().flip(reverse).into());
+        // let first = Loc::new(first_node.pos(), first_node.dir().flip(reverse).into());
 
-        match Curve::<Straight>::from_start_locked(first, last_pos) {
-            Ok(curve) => {
-                let mut nodes = vec![
-                    Old(first_node),
-                    New(LNodeBuilder::new(
-                        curve.last().pos,
-                        curve.last().dir.into(),
-                        last_type,
-                    )),
-                ];
+        // match Curve::<Straight>::from_start_locked(first, last_pos) {
+        //     Ok(curve) => {
+        //         let mut nodes = vec![
+        //             Old(first_node),
+        //             New(LNodeBuilder::new(
+        //                 curve.last().pos,
+        //                 curve.last().dir.into(),
+        //                 last_type,
+        //             )),
+        //         ];
 
-                if reverse {
-                    nodes.reverse();
-                    flip_dir_on_new(&mut nodes);
-                }
+        //         if reverse {
+        //             nodes.reverse();
+        //             flip_dir_on_new(&mut nodes);
+        //         }
 
-                let segments = vec![LSegmentBuilder::new(last_type, curve.into())];
+        //         let segments = vec![LSegmentBuilder::new(last_type, curve.into())];
 
-                // TODO fix such that it does not set false, or maybe remove reverse from LRoadBuilder
-                Self::new(nodes, segments, reverse)
-            }
-            Err(_) => unimplemented!(),
-        }
+        //         // TODO fix such that it does not set false, or maybe remove reverse from LRoadBuilder
+        //         Self::new(nodes, segments, reverse)
+        //     }
+        //     Err(_) => unimplemented!(),
+        // }
+        unimplemented!()
     }
 
     /// Generates a circle curved road. The circle curve starts from start_pos and start_dir, and

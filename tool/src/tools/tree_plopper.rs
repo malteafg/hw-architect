@@ -1,4 +1,4 @@
-use super::{Tool, ToolSpec, ToolUnique};
+use super::{Tool, ToolUnique};
 
 use gfx_api::{
     colors::{self, rgba_d},
@@ -9,8 +9,6 @@ use world_api::{Tree, WorldManipulator};
 pub struct TreePlopper {
     tree_builder: Option<Tree>,
 }
-
-impl<G: GfxWorldData, W: WorldManipulator> ToolSpec<G, W> for Tool<TreePlopper, W> {}
 
 impl Default for TreePlopper {
     fn default() -> Self {

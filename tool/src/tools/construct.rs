@@ -1,4 +1,4 @@
-use super::{Tool, ToolSpec, ToolUnique};
+use super::{Tool, ToolUnique};
 use crate::cycle_selection;
 use crate::gfx_gen::segment_gen;
 use crate::tool_state::{CurveType, SelectedRoad};
@@ -12,6 +12,197 @@ use world_api::{
 
 use gfx_api::{GfxWorldData, RoadMesh};
 use glam::*;
+
+mod curve_tools {
+    use std::marker::PhantomData;
+
+    use curves::{CompositeCurve, Curve, CurveError, CurveInfo, CurveSpec, Straight};
+    use glam::Vec3;
+    use utils::Loc;
+    use world_api::SnapConfig;
+
+    #[derive(Debug, Clone)]
+    pub enum EndPoint {
+        /// Position from which to build from. This must not be projected.
+        New(Vec3),
+        /// Location of the snapconfig to build from
+        Old(SnapConfig),
+    }
+
+    /// Describes the action that should be taken by the construct tool.
+    pub enum CurveAction<C: CurveSpec> {
+        /// Construct the given curve as part of the world.
+        Construct(CompositeCurve<C>),
+        /// Render the given curve while still constructing it.
+        Render(CompositeCurve<C>, CurveInfo),
+        /// A direction needs to be chosen.
+        Direction(Loc, f32),
+        /// A control point needs to be chosen.
+        ControlPoint(Vec3, Vec3),
+        /// A small road stub should be rendered to indicate that the user can snap to this node.
+        Stub,
+        /// The curve builder has nothing to render.
+        Nothing,
+    }
+
+    impl<C: CurveSpec> From<(C, CurveInfo)> for CurveAction<C> {
+        fn from((curve, curve_info): (C, CurveInfo)) -> Self {
+            CurveAction::Render(CompositeCurve::Single(curve), curve_info)
+        }
+    }
+
+    pub type CurveActionResult<C> = Result<CurveAction<C>, CurveError<C>>;
+
+    pub trait CurveToolSpec<C: CurveSpec> {
+        /// The tool shall process a left click.
+        fn left_click(&mut self, first: EndPoint, last: EndPoint) -> CurveActionResult<C>;
+
+        /// The tool shall process a right click.
+        fn right_click(&mut self, first: EndPoint, last: EndPoint) -> CurveActionResult<C>;
+
+        /// Called whenever there the ground_pos has been updated due to a change in camera or
+        /// cursor position.
+        fn compute_curve(&mut self, first: EndPoint, last: EndPoint) -> CurveActionResult<C>;
+    }
+
+    pub struct CurveTool<CT, C: CurveSpec>
+    where
+        CT: CurveToolSpec<C>,
+    {
+        instance: CT,
+        first_point: Option<EndPoint>,
+        snapped_node: Option<SnapConfig>,
+        _marker: PhantomData<C>,
+    }
+
+    impl<CT, C: CurveSpec> CurveTool<CT, C>
+    where
+        CT: CurveToolSpec<C>,
+    {
+        /// Selects the first point if it has not already been selected, otherwise delegates the
+        /// call to instance.
+        pub fn left_click(&mut self, ground_pos: Vec3) -> CurveActionResult<C> {
+            if let Some(first_point) = &self.first_point {
+                let last_point = if let Some(snap_config) = self.snapped_node.clone() {
+                    EndPoint::Old(snap_config)
+                } else {
+                    EndPoint::New(ground_pos)
+                };
+                return self.instance.left_click(first_point.clone(), last_point);
+            }
+
+            if let Some(snap_config) = self.snapped_node.clone() {
+                self.first_point = Some(EndPoint::Old(snap_config));
+                return Ok(CurveAction::Stub);
+            }
+
+            let first_point = EndPoint::New(ground_pos);
+            self.first_point = Some(first_point.clone());
+            self.instance
+                .compute_curve(first_point, EndPoint::New(ground_pos))
+        }
+
+        pub fn right_click(&mut self, ground_pos: Vec3) -> CurveActionResult<C> {
+            if let Some(first_point) = &self.first_point {
+                let last_point = if let Some(snap_config) = self.snapped_node.clone() {
+                    EndPoint::Old(snap_config)
+                } else {
+                    EndPoint::New(ground_pos)
+                };
+
+                match self.instance.right_click(first_point.clone(), last_point) {
+                    Ok(CurveAction::Nothing) => {
+                        self.first_point = None;
+                        return Ok(CurveAction::Nothing);
+                    }
+                    curve_result => return curve_result,
+                }
+            }
+
+            Ok(CurveAction::Nothing)
+        }
+
+        pub fn update_view(&mut self, ground_pos: Vec3) -> CurveActionResult<C> {
+            if let Some(first_point) = &self.first_point {
+                let last_point = if let Some(snap_config) = self.snapped_node.clone() {
+                    EndPoint::Old(snap_config)
+                } else {
+                    EndPoint::New(ground_pos)
+                };
+                return self.instance.compute_curve(first_point.clone(), last_point);
+            }
+
+            Ok(CurveAction::Nothing)
+        }
+
+        /// A node has been snapped to.
+        pub fn snap(&mut self, snap_config: SnapConfig) -> CurveActionResult<C> {
+            self.snapped_node = Some(snap_config.clone());
+
+            if let Some(first_point) = &self.first_point {
+                return self
+                    .instance
+                    .compute_curve(first_point.clone(), EndPoint::Old(snap_config));
+            }
+
+            Ok(CurveAction::Stub)
+        }
+
+        /// A node is no longer snapped.
+        pub fn unsnap(&mut self, ground_pos: Vec3) -> CurveActionResult<C> {
+            self.snapped_node = None;
+
+            if let Some(first_point) = &self.first_point {
+                return self
+                    .instance
+                    .compute_curve(first_point.clone(), EndPoint::New(ground_pos));
+            };
+
+            Ok(CurveAction::Nothing)
+        }
+    }
+
+    pub struct StraightBuilder;
+
+    impl CurveToolSpec<Curve<Straight>> for StraightBuilder {
+        fn left_click(
+            &mut self,
+            first: EndPoint,
+            last: EndPoint,
+        ) -> CurveActionResult<Curve<Straight>> {
+            match self.compute_curve(first, last) {
+                Ok(CurveAction::Render(curve, _curve_info)) => Ok(CurveAction::Construct(curve)),
+                curve_result => curve_result,
+            }
+        }
+
+        fn right_click(
+            &mut self,
+            _first: EndPoint,
+            _last: EndPoint,
+        ) -> CurveActionResult<Curve<Straight>> {
+            Ok(CurveAction::Nothing)
+        }
+
+        fn compute_curve(
+            &mut self,
+            first: EndPoint,
+            last: EndPoint,
+        ) -> CurveActionResult<Curve<Straight>> {
+            use EndPoint::*;
+            match (first, last) {
+                (New(first_pos), New(last_pos)) => {
+                    Ok(Curve::<Straight>::from_free(first_pos, last_pos).into())
+                }
+                (Old(first), New(last_pos)) => {
+                    Ok(Curve::<Straight>::from_first_locked(first.into(), last_pos).into())
+                }
+                (New(_first_pos), Old(_last)) => Err(CurveError::Impossible),
+                (Old(_first), Old(_last)) => Err(CurveError::Impossible),
+            }
+        }
+    }
+}
 
 #[derive(Default)]
 /// Defines the mode of the construct tool. At any time can the user snap to a node, which will
@@ -46,8 +237,6 @@ pub struct Construct {
     snapped_node: Option<SnapConfig>,
     mode: Mode,
 }
-
-impl<G: GfxWorldData, W: WorldManipulator> ToolSpec<G, W> for Tool<Construct, W> {}
 
 impl Default for Construct {
     fn default() -> Self {

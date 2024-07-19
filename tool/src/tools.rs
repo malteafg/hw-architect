@@ -59,6 +59,11 @@ pub struct Tool<T: Default, W: WorldManipulator> {
     ground_pos: Vec3,
 }
 
+impl<G: GfxWorldData, W: WorldManipulator, T: Default> ToolSpec<G, W> for Tool<T, W> where
+    Tool<T, W>: ToolUnique<G>
+{
+}
+
 impl<T: Default, W: WorldManipulator> Tool<T, W> {
     pub fn new(state_handle: ToolState, world: W, ground_pos: Vec3) -> Self {
         Self {
@@ -95,7 +100,6 @@ impl<T: Default, G: GfxWorldData, W: WorldManipulator> ToolShared<G, W> for Tool
 /// Used as the default tool, when no tool is used.
 #[derive(Default)]
 pub struct NoTool;
-impl<G: GfxWorldData, W: WorldManipulator> ToolSpec<G, W> for Tool<NoTool, W> {}
 impl<G: GfxWorldData, W: WorldManipulator> ToolUnique<G> for Tool<NoTool, W> {
     fn init(&mut self, _gfx_handle: &mut G) {}
     fn process_keyboard(&mut self, _gfx_handle: &mut G, _key: input::KeyAction) {}
