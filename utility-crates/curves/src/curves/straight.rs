@@ -4,7 +4,7 @@ use utils::{consts::ROAD_MIN_LENGTH, DirXZ, Loc, VecUtils};
 
 use crate::{Curve, GuidePoints, Spine};
 
-use super::{CurveInfo, CurveResult, CurveUnique};
+use super::{CurveInfo, CurveUnique};
 
 /// Represents a completely straight line. Should not use guide_points
 #[derive(Debug, Clone, Serialize, Deserialize)]

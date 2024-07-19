@@ -55,23 +55,23 @@ pub enum CurveInfo {
 }
 
 #[derive(Debug, Clone)]
-pub enum CompositeCurve<C: CurveSpec> {
-    Single(C),
-    Double(C, C),
+pub enum CompositeCurve {
+    Single(CurveSum),
+    Double(CurveSum, CurveSum),
 }
 
 #[derive(Error, Debug)]
-pub enum CurveError<C: CurveSpec> {
+pub enum CurveError {
     /// A curve can be constructed but the curve is too tight.
     #[error("The curve has points for which the curvature is too extreme")]
-    TooTight(CompositeCurve<C>),
+    TooTight(CompositeCurve),
 
     /// The curve cannot be created given the current parameters.
     #[error("The curve is impossible to construct with the given constraints")]
     Impossible,
 }
 
-pub type CurveResult<C> = std::result::Result<C, CurveError<C>>;
+pub type CurveResult<C> = std::result::Result<C, CurveError>;
 
 #[enum_dispatch(CurveShared)]
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -7,14 +7,7 @@ extern crate strum;
 extern crate strum_macros;
 
 mod math_utils;
-pub use math_utils::Angle;
-pub use math_utils::DirXZ;
-pub use math_utils::Loc;
-pub use math_utils::Mat3Utils;
-pub use math_utils::Mat4Utils;
-pub use math_utils::Ray;
-pub use math_utils::Round;
-pub use math_utils::VecUtils;
+pub use math_utils::{Angle, DirXZ, Loc, Mat3Utils, Mat4Utils, PosOrLoc, Ray, Round, VecUtils};
 
 pub mod consts;
 pub mod id;

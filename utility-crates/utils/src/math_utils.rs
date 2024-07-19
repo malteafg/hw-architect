@@ -206,3 +206,21 @@ impl Loc {
         Self { pos, dir }
     }
 }
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub enum PosOrLoc {
+    Pos(Vec3),
+    Loc(Loc),
+}
+
+impl From<Vec3> for PosOrLoc {
+    fn from(value: Vec3) -> Self {
+        PosOrLoc::Pos(value)
+    }
+}
+
+impl From<Loc> for PosOrLoc {
+    fn from(value: Loc) -> Self {
+        PosOrLoc::Loc(value)
+    }
+}
