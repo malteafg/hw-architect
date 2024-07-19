@@ -17,5 +17,6 @@ gfx-api = { workspace = true }
 
 bytemuck = { workspace = true }
 thiserror = { workspace = true }
+enum_dispatch = { workspace = true }
 
 glam = { workspace = true }

@@ -40,7 +40,6 @@ pub trait CurveShared {
     fn contains_pos(&self, pos: Vec3) -> bool;
 }
 
-#[enum_dispatch]
 pub trait CurveUnique {
     fn compute_spine(&self) -> Spine;
 }

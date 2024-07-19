@@ -35,17 +35,19 @@ impl CycleSelection for LaneWidth {
 
 impl CycleSelection for CurveType {
     fn prev(&self) -> Self {
-        match self {
-            Self::Straight => Self::Circular,
-            Self::Circular => Self::Straight,
-        }
+        Self::Straight
+        // match self {
+        //     Self::Straight => Self::Circular,
+        //     Self::Circular => Self::Straight,
+        // }
     }
 
     fn next(&self) -> Self {
-        match self {
-            Self::Straight => Self::Circular,
-            Self::Circular => Self::Straight,
-        }
+        Self::Straight
+        // match self {
+        //     Self::Straight => Self::Circular,
+        //     Self::Circular => Self::Straight,
+        // }
     }
 }
 
