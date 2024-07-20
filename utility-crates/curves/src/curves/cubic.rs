@@ -12,4 +12,6 @@ impl CurveUnique for Cubic {
     fn compute_spine(&self) -> Spine {
         Spine::empty()
     }
+
+    fn reverse(&mut self) {}
 }

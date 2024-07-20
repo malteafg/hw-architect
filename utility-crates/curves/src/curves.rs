@@ -38,10 +38,14 @@ pub trait CurveShared {
 
     /// Checks if the given position is contained within the curve given a width
     fn contains_pos(&self, pos: Vec3) -> bool;
+
+    /// Reverses this curve
+    fn reverse(&mut self);
 }
 
-pub trait CurveUnique {
+trait CurveUnique {
     fn compute_spine(&self) -> Spine;
+    fn reverse(&mut self);
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -58,6 +62,12 @@ pub enum CurveInfo {
 pub enum CompositeCurve {
     Single(CurveSum),
     Double(CurveSum, CurveSum),
+}
+
+impl<C: Into<CurveSum>> From<C> for CompositeCurve {
+    fn from(value: C) -> Self {
+        CompositeCurve::Single(value.into())
+    }
 }
 
 #[derive(Error, Debug)]
@@ -114,7 +124,7 @@ where
     }
 }
 
-impl<C> CurveShared for Curve<C> {
+impl<C: CurveUnique> CurveShared for Curve<C> {
     fn get_spine(&self) -> &Spine {
         &self.spine
     }
@@ -133,5 +143,10 @@ impl<C> CurveShared for Curve<C> {
 
     fn contains_pos(&self, _pos: Vec3) -> bool {
         true
+    }
+
+    fn reverse(&mut self) {
+        self.instance.reverse();
+        self.spine = self.instance.compute_spine();
     }
 }

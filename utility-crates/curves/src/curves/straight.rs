@@ -23,6 +23,10 @@ impl CurveUnique for Straight {
     fn compute_spine(&self) -> Spine {
         Spine::from_guide_points(&self.guide_points)
     }
+
+    fn reverse(&mut self) {
+        self.guide_points.reverse()
+    }
 }
 
 impl Curve<Straight> {

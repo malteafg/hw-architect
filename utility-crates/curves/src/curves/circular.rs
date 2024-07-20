@@ -20,4 +20,6 @@ impl CurveUnique for Circular {
     fn compute_spine(&self) -> Spine {
         Spine::from_guide_points(&self.guide_points)
     }
+
+    fn reverse(&mut self) {}
 }

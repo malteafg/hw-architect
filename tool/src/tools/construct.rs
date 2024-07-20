@@ -3,9 +3,11 @@ use crate::gfx_gen::segment_gen;
 use crate::tool_state::{CurveType, SelectedRoad};
 
 use curve_tools::{CurveAction, CurveActionResult, CurveTool, CurveToolSum, StraightBuilder};
-use curves::{Curve, CurveError, Straight};
-use utils::input;
-use world_api::{LRoadBuilder, LaneWidth, NodeType, SnapConfig, WorldManipulator};
+use curves::{CompositeCurve, Curve, CurveError, CurveShared, Straight};
+use utils::{input, Loc};
+use world_api::{
+    LNodeBuilderType, LRoadBuilder, LaneWidth, NodeType, SnapConfig, WorldManipulator,
+};
 
 use gfx_api::{GfxWorldData, RoadMesh};
 use glam::*;
@@ -98,6 +100,8 @@ mod curve_tools {
         fn update_no_snap(&mut self, ground_pos: Vec3) -> CurveActionResult;
 
         fn get_selected_node(&self) -> Option<SnapConfig>;
+
+        fn get_snapped_node(&self) -> Option<SnapConfig>;
     }
 
     #[enum_dispatch(CurveToolSpec)]
@@ -215,6 +219,10 @@ mod curve_tools {
                 EndPoint::New(_) => None,
                 EndPoint::Old(snap_config) => Some(snap_config),
             })
+        }
+
+        fn get_snapped_node(&self) -> Option<SnapConfig> {
+            self.snapped_node.clone()
         }
     }
 
@@ -369,16 +377,59 @@ impl<W: WorldManipulator> Tool<Construct, W> {
     fn handle_curve_action<G: GfxWorldData>(&mut self, gfx_handle: &mut G, action: CurveAction) {
         use CurveAction::*;
         match action {
-            Construct(curve) => unimplemented!(),
-            Render(curve, curve_info) => unimplemented!(),
+            Construct(curve) => self.construct_road(gfx_handle, curve),
+            Render(curve, curve_info) => {
+                self.set_road_tool_mesh(gfx_handle, curve, self.get_sel_node_type());
+                dbg!(curve_info);
+            }
             Direction(loc, len) => unimplemented!(),
             ControlPoint(first, last) => unimplemented!(),
-            Stub(loc) => unimplemented!(),
+            Stub(loc) => {
+                let (curve, _) =
+                    Curve::<Straight>::from_free(loc.pos, loc.pos + Vec3::from(loc.dir));
+                self.set_road_tool_mesh(gfx_handle, curve.into(), self.get_sel_node_type());
+            }
             Nothing => {}
         }
     }
 
-    fn handle_curve_error<G: GfxWorldData>(&mut self, gfx_handle: &mut G, error: CurveError) {}
+    fn handle_curve_error<G: GfxWorldData>(&mut self, _gfx_handle: &mut G, _error: CurveError) {}
+
+    fn construct_road<G: GfxWorldData>(&mut self, gfx_handle: &mut G, curve: CompositeCurve) {
+        match curve {
+            CompositeCurve::Single(mut curve) => {
+                let (start, end, reverse) = self.construct_compute_end_nodes();
+                if reverse {
+                    curve.reverse();
+                }
+            }
+            CompositeCurve::Double(curve1, curve2) => unimplemented!(),
+        }
+
+        // update selected node based on result from road_graph
+    }
+
+    fn construct_compute_end_nodes(&self) -> (Option<SnapConfig>, Option<SnapConfig>, bool) {
+        let reverse = if let Some(selected_node) = self.instance.curve_builder.get_selected_node() {
+            selected_node.is_reverse()
+        } else {
+            self.is_reverse()
+        };
+
+        let result = (
+            self.instance.curve_builder.get_selected_node(),
+            self.instance.curve_builder.get_snapped_node(),
+        );
+        if reverse {
+            (result.1, result.0, reverse)
+        } else {
+            (result.0, result.1, reverse)
+        }
+    }
+
+    fn map_end_point(&self, snap: Option<SnapConfig>, loc: Loc) -> LNodeBuilderType {
+        unimplemented!()
+    }
 
     // #############################################################################################
     // Snapping
@@ -427,10 +478,29 @@ impl<W: WorldManipulator> Tool<Construct, W> {
             .world
             .get_possible_snap_nodes(side, self.get_sel_road_type().node_type)
             .iter()
-            .map(|(_id, pos, dir)| (<[f32; 3]>::from(*pos), <[f32; 3]>::from(*dir)))
+            .map(|(_id, loc)| (<[f32; 3]>::from(loc.pos), <[f32; 3]>::from(Vec3::from(loc.dir))))
             .collect();
 
         gfx_handle.set_node_markers(possible_snaps);
+    }
+
+    fn set_road_tool_mesh<G: GfxWorldData>(
+        &self,
+        gfx_handle: &mut G,
+        curve: CompositeCurve,
+        node_type: NodeType,
+    ) {
+        let mesh = match curve {
+            CompositeCurve::Single(curve) => {
+                segment_gen::gen_road_mesh_with_lanes(curve.get_spine(), node_type)
+            }
+            CompositeCurve::Double(curve1, curve2) => {
+                let mesh1 = segment_gen::gen_road_mesh_with_lanes(curve1.get_spine(), node_type);
+                let mesh2 = segment_gen::gen_road_mesh_with_lanes(curve2.get_spine(), node_type);
+                segment_gen::combine_road_meshes_bad(vec![mesh1, mesh2])
+            }
+        };
+        gfx_handle.set_road_tool_mesh(Some(mesh));
     }
 
     fn gen_road_mesh_from_builder(

@@ -3,7 +3,7 @@ use super::segment::LSegment;
 
 use world_api::{LNodeBuilderType, LRoadBuilder, LaneMapConfig, NodeType, Side, SnapConfig};
 
-use utils::id::{IdManager, IdMap, IdSet, NodeId, SegmentId, UnsafeMap};
+use utils::{id::{IdManager, IdMap, IdSet, NodeId, SegmentId, UnsafeMap}, Loc};
 
 use glam::*;
 use serde::{Deserialize, Serialize};
@@ -298,7 +298,7 @@ impl crate::RoadManipulator for RoadGraph {
         &self,
         side: Option<Side>,
         node_type: NodeType,
-    ) -> Vec<(NodeId, Vec3, Vec3)> {
+    ) -> Vec<(NodeId, Loc)> {
         self.node_map
             .iter()
             .filter(|(id, n)| {
@@ -306,14 +306,14 @@ impl crate::RoadManipulator for RoadGraph {
                     return false;
                 };
                 let Some(snap_config) = n.construct_snap_configs(node_type, *id).pop() else {
-                    return false
+                    return false;
                 };
                 if let Some(side) = side {
                     return side != snap_config.side();
                 };
                 true
             })
-            .map(|(id, n)| (id, n.pos(), n.dir()))
+            .map(|(id, n)| (id, n.loc()))
             .collect()
     }
 
