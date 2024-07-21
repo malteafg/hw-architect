@@ -27,6 +27,10 @@ impl CurveUnique for Straight {
     fn reverse(&mut self) {
         self.guide_points.reverse()
     }
+
+    fn contains_pos(&self, pos: Vec3, width: f32) -> bool {
+        self.guide_points.is_inside(pos, width)
+    }
 }
 
 impl Curve<Straight> {

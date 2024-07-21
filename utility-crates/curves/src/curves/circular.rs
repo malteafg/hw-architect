@@ -1,3 +1,4 @@
+use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
 use crate::{GuidePoints, Spine};
@@ -22,4 +23,8 @@ impl CurveUnique for Circular {
     }
 
     fn reverse(&mut self) {}
+
+    fn contains_pos(&self, pos: Vec3, width: f32) -> bool {
+        self.guide_points.is_inside(pos, width)
+    }
 }

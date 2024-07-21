@@ -37,7 +37,7 @@ pub trait CurveShared {
     fn get_length(&self) -> f32;
 
     /// Checks if the given position is contained within the curve given a width
-    fn contains_pos(&self, pos: Vec3) -> bool;
+    fn contains_pos(&self, pos: Vec3, width: f32) -> bool;
 
     /// Reverses this curve
     fn reverse(&mut self);
@@ -46,6 +46,7 @@ pub trait CurveShared {
 trait CurveUnique {
     fn compute_spine(&self) -> Spine;
     fn reverse(&mut self);
+    fn contains_pos(&self, pos: Vec3, width: f32) -> bool;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -141,8 +142,8 @@ impl<C: CurveUnique> CurveShared for Curve<C> {
         self.length
     }
 
-    fn contains_pos(&self, _pos: Vec3) -> bool {
-        true
+    fn contains_pos(&self, pos: Vec3, width: f32) -> bool {
+        self.instance.contains_pos(pos, width)
     }
 
     fn reverse(&mut self) {

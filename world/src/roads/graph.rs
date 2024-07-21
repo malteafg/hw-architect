@@ -3,7 +3,10 @@ use super::segment::LSegment;
 
 use world_api::{LNodeBuilderType, LRoadBuilder, LaneMapConfig, NodeType, Side, SnapConfig};
 
-use utils::{id::{IdManager, IdMap, IdSet, NodeId, SegmentId, UnsafeMap}, Loc};
+use utils::{
+    id::{IdManager, IdMap, IdSet, NodeId, SegmentId, UnsafeMap},
+    Loc,
+};
 
 use glam::*;
 use serde::{Deserialize, Serialize};
@@ -71,11 +74,11 @@ impl RoadGraph {
         self.segment_map.get_mut(segment)
     }
 
-    pub fn get_forwards_ref(&self, node: NodeId) -> &Vec<LeadingPair> {
+    pub fn _get_forwards_ref(&self, node: NodeId) -> &Vec<LeadingPair> {
         self.forward_refs.get(node)
     }
 
-    pub fn get_backwards_ref(&self, node: NodeId) -> &Vec<LeadingPair> {
+    pub fn _get_backwards_ref(&self, node: NodeId) -> &Vec<LeadingPair> {
         self.backward_refs.get(node)
     }
 
@@ -104,10 +107,10 @@ impl RoadGraph {
     }
 
     /// Returns ending segments, and the node they backward_refs to as a LeadingPair.
-    pub fn get_ending_segments(&self) -> Vec<LeadingPair> {
+    pub fn _get_ending_segments(&self) -> Vec<LeadingPair> {
         let mut ending_segments = Vec::with_capacity(self.ending_nodes.len());
         for node_id in self.ending_nodes.iter() {
-            match self.get_backwards_ref(node_id).as_slice() {
+            match self._get_backwards_ref(node_id).as_slice() {
                 [] => {}
                 leading_pairs => leading_pairs.iter().for_each(|p| ending_segments.push(*p)),
             }
