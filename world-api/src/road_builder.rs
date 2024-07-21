@@ -1,5 +1,6 @@
 use super::{LNodeBuilder, LSegmentBuilder, NodeType, SnapConfig};
 
+use curves::CurveShared;
 use utils::{DirXZ, Loc};
 
 use glam::Vec3;
@@ -65,6 +66,28 @@ impl LRoadBuilder {
         segments: Vec<LSegmentBuilder>,
         reverse: bool,
     ) -> Self {
+        #[cfg(debug_assertions)]
+        {
+            for j in 0..(nodes.len() - 1) {
+                match &nodes[j] {
+                    LNodeBuilderType::New(node) => {
+                        assert_eq!(node.dir(), segments[0].get_curve().first().dir)
+                    }
+                    LNodeBuilderType::Old(snap) => {
+                        assert_eq!(snap.dir(), segments[0].get_curve().first().dir)
+                    }
+                }
+            }
+            match &nodes[nodes.len() - 1] {
+                LNodeBuilderType::New(node) => {
+                    assert_eq!(node.dir(), segments[0].get_curve().last().dir)
+                }
+                LNodeBuilderType::Old(snap) => {
+                    assert_eq!(snap.dir(), segments[0].get_curve().last().dir)
+                }
+            }
+        }
+
         Self {
             nodes,
             segments,

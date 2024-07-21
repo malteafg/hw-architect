@@ -164,6 +164,14 @@ impl DirXZ {
     }
 }
 
+impl PartialEq for DirXZ {
+    fn eq(&self, other: &Self) -> bool {
+        let this = format!("{:.4}", self.0);
+        let other = format!("{:.4}", other.0);
+        this == other
+    }
+}
+
 impl From<Vec3> for DirXZ {
     fn from(mut value: Vec3) -> Self {
         value.y = 0.0;
@@ -195,7 +203,7 @@ impl DirXZ {
 
 /// Represents a position in xyz and a direction in xz. Maybe rename to Loc2 to reflect dir only
 /// being in xz
-#[derive(Copy, Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Loc {
     pub pos: Vec3,
     pub dir: DirXZ,
@@ -205,12 +213,25 @@ impl Loc {
     pub fn new(pos: Vec3, dir: DirXZ) -> Self {
         Self { pos, dir }
     }
+
+    pub fn flip(self, flip: bool) -> Self {
+        Loc::new(self.pos, self.dir.flip(flip))
+    }
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum PosOrLoc {
     Pos(Vec3),
     Loc(Loc),
+}
+
+impl PosOrLoc {
+    pub fn flip(self, flip: bool) -> Self {
+        match self {
+            PosOrLoc::Pos(_) => self,
+            PosOrLoc::Loc(loc) => PosOrLoc::Loc(loc.flip(flip)),
+        }
+    }
 }
 
 impl From<Vec3> for PosOrLoc {

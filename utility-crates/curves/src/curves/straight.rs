@@ -2,7 +2,7 @@ use glam::Vec3;
 use serde::{Deserialize, Serialize};
 use utils::{consts::ROAD_MIN_LENGTH, DirXZ, Loc, VecUtils};
 
-use crate::{Curve, GuidePoints, Spine};
+use crate::{Curve, CurveError, CurveResult, GuidePoints, Spine};
 
 use super::{CurveInfo, CurveUnique};
 
@@ -54,6 +54,29 @@ impl Curve<Straight> {
         };
         let curve = Straight::new(first_pos, proj_pos);
         (curve.into(), CurveInfo::Projection(last_pos))
+    }
+
+    pub fn from_last_locked(first_pos: Vec3, last: Loc) -> CurveResult<Self> {
+        let dir: DirXZ = (last.pos - first_pos).into();
+        if dir != last.dir {
+            return Err(CurveError::Impossible);
+        }
+
+        let curve = Straight::new(first_pos, last.pos);
+        let curve: Curve<Straight> = curve.into();
+        if (last.pos - first_pos).length() < ROAD_MIN_LENGTH {
+            Err(CurveError::TooShort(curve.into()))
+        } else {
+            Ok(curve.into())
+        }
+    }
+
+    pub fn from_both_locked(first: Loc, last: Loc) -> CurveResult<Self> {
+        if first.dir == last.dir {
+            Curve::<Straight>::from_last_locked(first.pos, last)
+        } else {
+            Err(CurveError::Impossible)
+        }
     }
 }
 

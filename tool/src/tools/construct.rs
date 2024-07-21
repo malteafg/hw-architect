@@ -7,8 +7,8 @@ use curves::{CompositeCurve, Curve, CurveError, CurveShared, Straight};
 use utils::id::{IdMap, SegmentId};
 use utils::{input, Loc};
 use world_api::{
-    LNodeBuilder, LNodeBuilderType, LRoadBuilder, LSegmentBuilder, LSegmentBuilderType, LaneWidth,
-    NodeType, SnapConfig, WorldManipulator,
+    LNodeBuilder, LNodeBuilderType, LRoadBuilder, LSegmentBuilder, LaneWidth, NodeType, SnapConfig,
+    WorldManipulator,
 };
 
 use gfx_api::{GfxWorldData, RoadMesh};
@@ -22,7 +22,7 @@ mod curve_tools {
     use curves::{CompositeCurve, Curve, CurveError, CurveInfo, CurveSpec, CurveSum, Straight};
     use enum_dispatch::enum_dispatch;
     use glam::Vec3;
-    use utils::{Loc, PosOrLoc, VecUtils};
+    use utils::{Loc, PosOrLoc};
     use world_api::SnapConfig;
 
     #[derive(Debug, Clone)]
@@ -37,16 +37,10 @@ mod curve_tools {
         fn from(value: EndPoint) -> Self {
             match value {
                 EndPoint::New(pos) => PosOrLoc::Pos(pos),
-                EndPoint::Old(snap_config) => {
-                    if snap_config.is_reverse() {
-                        PosOrLoc::Loc(Loc::new(
-                            snap_config.pos(),
-                            snap_config.dir().flip(true).into(),
-                        ))
-                    } else {
-                        PosOrLoc::Loc(Loc::new(snap_config.pos(), snap_config.dir().into()))
-                    }
-                }
+                EndPoint::Old(snap_config) => PosOrLoc::Loc(Loc::new(
+                    snap_config.pos(),
+                    snap_config.dir().flip(snap_config.is_reverse()).into(),
+                )),
             }
         }
     }
@@ -152,9 +146,11 @@ mod curve_tools {
                 } else {
                     EndPoint::New(ground_pos)
                 };
+                let last_point: PosOrLoc = last_point.into();
+                let last_point = last_point.flip(true);
                 return self
                     .instance
-                    .left_click(first_point.clone().into(), last_point.into());
+                    .left_click(first_point.clone().into(), last_point);
             }
 
             if let Some(snap_config) = self.snapped_node.clone() {
@@ -172,36 +168,37 @@ mod curve_tools {
         }
 
         fn right_click(&mut self, ground_pos: Vec3) -> CurveActionResult {
-            if let Some(first_point) = &self.first_point {
-                let last_point = if let Some(snap_config) = self.snapped_node.clone() {
-                    EndPoint::Old(snap_config)
-                } else {
-                    EndPoint::New(ground_pos)
-                };
+            let Some(first_point) = &self.first_point else {
+                return Ok(CurveAction::Nothing);
+            };
 
-                match self
-                    .instance
-                    .right_click(first_point.clone().into(), last_point.into())
-                {
-                    Ok(CurveAction::Nothing) => {
-                        self.first_point = None;
-                        return Ok(CurveAction::Nothing);
-                    }
-                    curve_result => return curve_result,
+            let last_point = if let Some(snap_config) = self.snapped_node.clone() {
+                EndPoint::Old(snap_config)
+            } else {
+                EndPoint::New(ground_pos)
+            };
+
+            match self
+                .instance
+                .right_click(first_point.clone().into(), last_point.into())
+            {
+                Ok(CurveAction::Nothing) => {
+                    self.first_point = None;
+                    return Ok(CurveAction::Nothing);
                 }
+                curve_result => return curve_result,
             }
-
-            Ok(CurveAction::Nothing)
         }
 
         fn update_snap(&mut self, snap_config: SnapConfig) -> CurveActionResult {
             self.snapped_node = Some(snap_config.clone());
 
             if let Some(first_point) = &self.first_point {
-                return self.instance.compute_curve(
-                    first_point.clone().into(),
-                    EndPoint::Old(snap_config).into(),
-                );
+                let last_point: PosOrLoc = EndPoint::Old(snap_config).into();
+                let last_point = last_point.flip(true);
+                return self
+                    .instance
+                    .compute_curve(first_point.clone().into(), last_point);
             }
 
             Ok(CurveAction::Stub(Loc::new(
@@ -279,8 +276,10 @@ mod curve_tools {
                 (Loc(first), Pos(last_pos)) => {
                     Ok(Curve::<Straight>::from_first_locked(first.into(), last_pos).into())
                 }
-                (Pos(_first_pos), Loc(_last)) => Err(CurveError::Impossible),
-                (Loc(_first), Loc(_last)) => Err(CurveError::Impossible),
+                (Pos(first_pos), Loc(last)) => Curve::<Straight>::from_last_locked(first_pos, last)
+                    .map(|c| CurveAction::Render(c.into(), CurveInfo::Satisfied)),
+                (Loc(first), Loc(last)) => Curve::<Straight>::from_both_locked(first, last)
+                    .map(|c| CurveAction::Render(c.into(), CurveInfo::Satisfied)),
             }
         }
     }
@@ -306,7 +305,7 @@ impl<G: GfxWorldData, W: WorldManipulator> ToolUnique<G> for Tool<Construct, W> 
         self.show_snappable_nodes(gfx_handle);
     }
 
-    fn process_keyboard(&mut self, gfx_handle: &mut G, key: input::KeyAction) {
+    fn process_keyboard(&mut self, _gfx_handle: &mut G, key: input::KeyAction) {
         use input::Action::*;
         use input::KeyState::*;
         match key {
@@ -322,13 +321,13 @@ impl<G: GfxWorldData, W: WorldManipulator> ToolUnique<G> for Tool<Construct, W> 
                 // self.state_handle.road_state.set_curve_type(new_curve_type);
                 // self.set_curve_type(gfx_handle, new_curve_type);
             }
-            (CycleLaneWidth, Scroll(scroll_state)) => {
+            (CycleLaneWidth, Scroll(_scroll_state)) => {
                 // let new_lane_width =
                 //     cycle_selection::scroll(self.get_sel_lane_width(), scroll_state);
                 // self.state_handle.road_state.set_lane_width(new_lane_width);
                 // self.set_lane_width(gfx_handle, new_lane_width);
             }
-            (CycleNoLanes, Scroll(scroll_state)) => {
+            (CycleNoLanes, Scroll(_scroll_state)) => {
                 // let new_no_lanes = cycle_selection::scroll(self.get_sel_no_lanes(), scroll_state);
                 // self.state_handle.road_state.set_no_lanes(new_no_lanes);
                 // self.set_no_lanes(gfx_handle, new_no_lanes);
@@ -368,7 +367,7 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         self.state_handle.road_state.selected_road
     }
 
-    fn get_sel_curve_type(&self) -> CurveType {
+    fn _get_sel_curve_type(&self) -> CurveType {
         self.state_handle.road_state.selected_road.curve_type
     }
 
@@ -376,11 +375,11 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         self.state_handle.road_state.selected_road.node_type
     }
 
-    fn get_sel_lane_width(&self) -> LaneWidth {
+    fn _get_sel_lane_width(&self) -> LaneWidth {
         self.get_sel_node_type().lane_width()
     }
 
-    fn get_sel_no_lanes(&self) -> u8 {
+    fn _get_sel_no_lanes(&self) -> u8 {
         self.get_sel_node_type().no_lanes()
     }
 
@@ -411,8 +410,8 @@ impl<W: WorldManipulator> Tool<Construct, W> {
                 self.set_road_tool_mesh(gfx_handle, curve, self.get_sel_node_type());
                 dbg!(curve_info);
             }
-            Direction(loc, len) => unimplemented!(),
-            ControlPoint(first, last) => unimplemented!(),
+            Direction(_loc, _len) => unimplemented!(),
+            ControlPoint(_first, _last) => unimplemented!(),
             Stub(loc) => {
                 let reverse = self
                     .instance
@@ -428,7 +427,9 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         }
     }
 
-    fn handle_curve_error<G: GfxWorldData>(&mut self, _gfx_handle: &mut G, _error: CurveError) {}
+    fn handle_curve_error<G: GfxWorldData>(&mut self, _gfx_handle: &mut G, error: CurveError) {
+        dbg!(error);
+    }
 
     fn construct_road<G: GfxWorldData>(&mut self, gfx_handle: &mut G, curve: CompositeCurve) {
         match curve {
@@ -463,7 +464,7 @@ impl<W: WorldManipulator> Tool<Construct, W> {
                 self.show_snappable_nodes(gfx_handle);
                 self.update_view(gfx_handle);
             }
-            CompositeCurve::Double(curve1, curve2) => unimplemented!(),
+            CompositeCurve::Double(_curve1, _curve2) => unimplemented!(),
         }
 
         // update selected node based on result from road_graph
@@ -582,16 +583,5 @@ impl<W: WorldManipulator> Tool<Construct, W> {
             .iter()
             .map(|s| segment_gen::gen_road_mesh_with_lanes(s.get_spine(), node_type))
             .collect::<Vec<RoadMesh>>()
-    }
-
-    fn update_road_tool_mesh<G: GfxWorldData>(
-        &self,
-        gfx_handle: &mut G,
-        road_builder: &LRoadBuilder,
-    ) {
-        let meshes =
-            self.gen_road_mesh_from_builder(road_builder, self.get_sel_road_type().node_type);
-        let mesh = segment_gen::combine_road_meshes_bad(meshes);
-        gfx_handle.set_road_tool_mesh(Some(mesh));
     }
 }

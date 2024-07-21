@@ -89,7 +89,7 @@ impl LNode {
         self.loc.pos
     }
 
-    pub fn dir(&self) -> DirXZ {
+    pub fn _dir(&self) -> DirXZ {
         self.loc.dir
     }
 
@@ -133,7 +133,7 @@ impl LNode {
 
     /// Requires that `incoming_segment` is in fact an incoming_segment of this node, and that this
     /// node has an outgoing segment.
-    pub fn get_next_segment_lane(
+    pub fn _get_next_segment_lane(
         &self,
         incoming_segment: SegmentId,
         lane: u8,
@@ -157,14 +157,14 @@ impl LNode {
                 Side::In => {
                     #[cfg(debug_assertions)]
                     assert_eq!(*main_segment, incoming_segment);
-                    attached_segments.get_segment_at_index(lane)
+                    attached_segments._get_segment_at_index(lane)
                 }
                 Side::Out => {
                     #[cfg(debug_assertions)]
                     assert!(attached_segments.contains_segment(incoming_segment));
                     Some((
                         *main_segment,
-                        attached_segments.get_lane_from_segment_and_index(incoming_segment, lane),
+                        attached_segments._get_lane_from_segment_and_index(incoming_segment, lane),
                     ))
                 }
             },
@@ -597,15 +597,15 @@ mod lanes {
             &self.snap_range
         }
 
-        pub fn smallest(&self) -> u8 {
+        pub fn _smallest(&self) -> u8 {
             self.snap_range().smallest() as u8
         }
 
-        pub fn largest(&self) -> u8 {
+        pub fn _largest(&self) -> u8 {
             self.snap_range().largest() as u8
         }
 
-        pub fn contains(&self, index: u8) -> bool {
+        pub fn _contains(&self, index: u8) -> bool {
             #[cfg(debug_assertions)]
             assert!(self.snap_range().smallest() >= 0);
             self.snap_range().contains(index as i8)
@@ -665,19 +665,19 @@ mod lanes {
 
         /// Returns the lane number of this node for which the lane given by `id` and
         /// `index` is located at.
-        pub fn get_lane_from_segment_and_index(&self, id: SegmentId, index: u8) -> u8 {
+        pub fn _get_lane_from_segment_and_index(&self, id: SegmentId, index: u8) -> u8 {
             for s in self.iter() {
                 if id == s.segment_id {
-                    return s.smallest() + index;
+                    return s._smallest() + index;
                 }
             }
             panic!("Requested segment_id does not exist in node");
         }
 
-        pub fn get_segment_at_index(&self, index: u8) -> Option<(SegmentId, u8)> {
+        pub fn _get_segment_at_index(&self, index: u8) -> Option<(SegmentId, u8)> {
             for s in self.iter() {
-                if s.contains(index) {
-                    let new_index = index - s.smallest();
+                if s._contains(index) {
+                    let new_index = index - s._smallest();
                     return Some((s.segment_id(), new_index));
                 }
             }

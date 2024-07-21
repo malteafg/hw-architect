@@ -77,6 +77,10 @@ pub enum CurveError {
     #[error("The curve has points for which the curvature is too extreme")]
     TooTight(CompositeCurve),
 
+    /// A curve can be constructed but the curve is too short.
+    #[error("The curve is too short")]
+    TooShort(CompositeCurve),
+
     /// The curve cannot be created given the current parameters.
     #[error("The curve is impossible to construct with the given constraints")]
     Impossible,
@@ -111,17 +115,6 @@ impl<C: CurveUnique> From<C> for Curve<C> {
             length: 0.0,
             spine,
         }
-    }
-}
-
-impl<C: CurveUnique> From<C> for CurveSum
-where
-    Curve<C>: Into<CurveSum>,
-{
-    fn from(value: C) -> Self {
-        let curve: Curve<C> = value.into();
-        let res: CurveSum = curve.into();
-        res
     }
 }
 
