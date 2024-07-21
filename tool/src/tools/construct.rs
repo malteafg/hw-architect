@@ -4,9 +4,11 @@ use crate::tool_state::{CurveType, SelectedRoad};
 
 use curve_tools::{CurveAction, CurveActionResult, CurveTool, CurveToolSum, StraightBuilder};
 use curves::{CompositeCurve, Curve, CurveError, CurveShared, Straight};
+use utils::id::{IdMap, SegmentId};
 use utils::{input, Loc};
 use world_api::{
-    LNodeBuilderType, LRoadBuilder, LaneWidth, NodeType, SnapConfig, WorldManipulator,
+    LNodeBuilder, LNodeBuilderType, LRoadBuilder, LSegmentBuilder, LSegmentBuilderType, LaneWidth,
+    NodeType, SnapConfig, WorldManipulator,
 };
 
 use gfx_api::{GfxWorldData, RoadMesh};
@@ -99,9 +101,15 @@ mod curve_tools {
         /// A node is no longer snapped.
         fn update_no_snap(&mut self, ground_pos: Vec3) -> CurveActionResult;
 
+        fn reset(&mut self, new_snap: Option<SnapConfig>);
+
         fn get_selected_node(&self) -> Option<SnapConfig>;
 
         fn get_snapped_node(&self) -> Option<SnapConfig>;
+
+        fn is_sel_reverse(&self, state_reverse: bool) -> bool;
+
+        fn is_snap_reverse(&self, state_reverse: bool) -> bool;
     }
 
     #[enum_dispatch(CurveToolSpec)]
@@ -214,6 +222,11 @@ mod curve_tools {
             Ok(CurveAction::Nothing)
         }
 
+        fn reset(&mut self, new_snap: Option<SnapConfig>) {
+            self.snapped_node = None;
+            self.first_point = new_snap.map(|s| EndPoint::Old(s));
+        }
+
         fn get_selected_node(&self) -> Option<SnapConfig> {
             self.first_point.clone().and_then(|x| match x {
                 EndPoint::New(_) => None,
@@ -223,6 +236,22 @@ mod curve_tools {
 
         fn get_snapped_node(&self) -> Option<SnapConfig> {
             self.snapped_node.clone()
+        }
+
+        fn is_sel_reverse(&self, state_reverse: bool) -> bool {
+            if let Some(EndPoint::Old(snap_config)) = &self.first_point {
+                snap_config.is_reverse()
+            } else {
+                state_reverse
+            }
+        }
+
+        fn is_snap_reverse(&self, state_reverse: bool) -> bool {
+            if let Some(snap_config) = &self.snapped_node {
+                snap_config.is_reverse()
+            } else {
+                state_reverse
+            }
         }
     }
 
@@ -385,8 +414,14 @@ impl<W: WorldManipulator> Tool<Construct, W> {
             Direction(loc, len) => unimplemented!(),
             ControlPoint(first, last) => unimplemented!(),
             Stub(loc) => {
-                let (curve, _) =
-                    Curve::<Straight>::from_free(loc.pos, loc.pos + Vec3::from(loc.dir));
+                let reverse = self
+                    .instance
+                    .curve_builder
+                    .is_snap_reverse(self.is_reverse());
+                let (curve, _) = Curve::<Straight>::from_free(
+                    loc.pos,
+                    loc.pos + Vec3::from(loc.dir.flip(reverse)),
+                );
                 self.set_road_tool_mesh(gfx_handle, curve.into(), self.get_sel_node_type());
             }
             Nothing => {}
@@ -398,10 +433,35 @@ impl<W: WorldManipulator> Tool<Construct, W> {
     fn construct_road<G: GfxWorldData>(&mut self, gfx_handle: &mut G, curve: CompositeCurve) {
         match curve {
             CompositeCurve::Single(mut curve) => {
-                let (start, end, reverse) = self.construct_compute_end_nodes();
+                let (first, last, reverse) = self.construct_compute_end_nodes();
                 if reverse {
                     curve.reverse();
                 }
+
+                let nodes = vec![
+                    self.map_end_point(first, curve.first()),
+                    self.map_end_point(last, curve.last()),
+                ];
+                let segments = vec![LSegmentBuilder::new(
+                    self.get_sel_road_type().node_type,
+                    curve,
+                )];
+                let road_builder = LRoadBuilder::new(nodes, segments, reverse);
+
+                let road_meshes =
+                    self.gen_road_mesh_from_builder(&road_builder, self.get_sel_node_type());
+                let (new_snap, segment_ids) =
+                    self.world.add_road(road_builder, self.get_sel_node_type());
+
+                let mut mesh_map: IdMap<SegmentId, RoadMesh> = IdMap::new();
+                for i in 0..segment_ids.len() {
+                    mesh_map.insert(segment_ids[i], road_meshes[i].clone());
+                }
+                gfx_handle.add_road_meshes(mesh_map);
+
+                self.instance.curve_builder.reset(new_snap);
+                self.show_snappable_nodes(gfx_handle);
+                self.update_view(gfx_handle);
             }
             CompositeCurve::Double(curve1, curve2) => unimplemented!(),
         }
@@ -410,11 +470,10 @@ impl<W: WorldManipulator> Tool<Construct, W> {
     }
 
     fn construct_compute_end_nodes(&self) -> (Option<SnapConfig>, Option<SnapConfig>, bool) {
-        let reverse = if let Some(selected_node) = self.instance.curve_builder.get_selected_node() {
-            selected_node.is_reverse()
-        } else {
-            self.is_reverse()
-        };
+        let reverse = self
+            .instance
+            .curve_builder
+            .is_sel_reverse(self.is_reverse());
 
         let result = (
             self.instance.curve_builder.get_selected_node(),
@@ -428,7 +487,12 @@ impl<W: WorldManipulator> Tool<Construct, W> {
     }
 
     fn map_end_point(&self, snap: Option<SnapConfig>, loc: Loc) -> LNodeBuilderType {
-        unimplemented!()
+        match snap {
+            Some(snap) => LNodeBuilderType::Old(snap),
+            None => {
+                LNodeBuilderType::New(LNodeBuilder::new(loc, self.get_sel_road_type().node_type))
+            }
+        }
     }
 
     // #############################################################################################
@@ -455,10 +519,10 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         }
 
         if snap_configs.is_empty() {
-            return Some(snap_configs[0].clone());
+            return None;
         }
 
-        return None;
+        Some(snap_configs[0].clone())
     }
 
     // #############################################################################################
@@ -478,7 +542,12 @@ impl<W: WorldManipulator> Tool<Construct, W> {
             .world
             .get_possible_snap_nodes(side, self.get_sel_road_type().node_type)
             .iter()
-            .map(|(_id, loc)| (<[f32; 3]>::from(loc.pos), <[f32; 3]>::from(Vec3::from(loc.dir))))
+            .map(|(_id, loc)| {
+                (
+                    <[f32; 3]>::from(loc.pos),
+                    <[f32; 3]>::from(Vec3::from(loc.dir)),
+                )
+            })
             .collect();
 
         gfx_handle.set_node_markers(possible_snaps);

@@ -60,7 +60,11 @@ pub struct LRoadBuilder {
 use LNodeBuilderType::*;
 
 impl LRoadBuilder {
-    fn new(nodes: Vec<LNodeBuilderType>, segments: Vec<LSegmentBuilder>, reverse: bool) -> Self {
+    pub fn new(
+        nodes: Vec<LNodeBuilderType>,
+        segments: Vec<LSegmentBuilder>,
+        reverse: bool,
+    ) -> Self {
         Self {
             nodes,
             segments,
