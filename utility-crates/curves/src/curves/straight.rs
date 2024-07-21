@@ -50,7 +50,7 @@ impl Curve<Straight> {
             first_to_last.proj(first_dir.into()) + first_pos
         } else {
             // The projection will be to short and therefore we set proj_pos to min road length
-            first_pos + Vec3::from(first_dir) * ROAD_MIN_LENGTH
+            first_pos + first_dir * ROAD_MIN_LENGTH
         };
         let curve = Straight::new(first_pos, proj_pos);
         (curve.into(), CurveInfo::Projection(last_pos))
@@ -82,12 +82,11 @@ impl Curve<Straight> {
 
 fn proj_straight_too_short(start_pos: Vec3, pref_pos: Vec3, proj_dir: DirXZ) -> (Vec3, CurveInfo) {
     if (pref_pos - start_pos).length() < ROAD_MIN_LENGTH {
+        let dir = (pref_pos - start_pos)
+            .try_normalize()
+            .unwrap_or(proj_dir.into());
         (
-            start_pos
-                + (pref_pos - start_pos)
-                    .try_normalize()
-                    .unwrap_or(proj_dir.into())
-                    * ROAD_MIN_LENGTH,
+            start_pos + dir * ROAD_MIN_LENGTH,
             CurveInfo::Projection(pref_pos),
         )
     } else {

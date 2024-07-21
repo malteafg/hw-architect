@@ -3,7 +3,10 @@
 
 use glam::*;
 use serde::{Deserialize, Serialize};
-use std::f32::consts::PI;
+use std::{
+    f32::consts::PI,
+    ops::{Add, AddAssign, Mul, MulAssign},
+};
 
 use crate::consts::DEFAULT_DIR;
 
@@ -198,6 +201,46 @@ impl DirXZ {
 
     pub fn right_hand(self) -> Self {
         Self(Vec3::new(-self.0.z, self.0.y, self.0.x))
+    }
+}
+
+impl Add<DirXZ> for DirXZ {
+    type Output = Self;
+    fn add(self, rhs: DirXZ) -> Self::Output {
+        (self.0 + rhs.0).into()
+    }
+}
+
+impl Add<DirXZ> for Vec3 {
+    type Output = Self;
+    fn add(self, rhs: DirXZ) -> Self::Output {
+        self + rhs.0
+    }
+}
+
+impl AddAssign<DirXZ> for Vec3 {
+    fn add_assign(&mut self, rhs: DirXZ) {
+        *self += rhs.0;
+    }
+}
+
+impl Mul<DirXZ> for Vec3 {
+    type Output = Self;
+    fn mul(self, rhs: DirXZ) -> Self::Output {
+        self * rhs.0
+    }
+}
+
+impl MulAssign<DirXZ> for Vec3 {
+    fn mul_assign(&mut self, rhs: DirXZ) {
+        *self *= rhs.0;
+    }
+}
+
+impl Mul<f32> for DirXZ {
+    type Output = Vec3;
+    fn mul(self, rhs: f32) -> Self::Output {
+        self.0 * rhs
     }
 }
 

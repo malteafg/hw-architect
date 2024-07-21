@@ -417,10 +417,8 @@ impl<W: WorldManipulator> Tool<Construct, W> {
                     .instance
                     .curve_builder
                     .is_snap_reverse(self.is_reverse());
-                let (curve, _) = Curve::<Straight>::from_free(
-                    loc.pos,
-                    loc.pos + Vec3::from(loc.dir.flip(reverse)),
-                );
+                let (curve, _) =
+                    Curve::<Straight>::from_free(loc.pos, loc.pos + loc.dir.flip(reverse));
                 self.set_road_tool_mesh(gfx_handle, curve.into(), self.get_sel_node_type());
             }
             Nothing => {}
@@ -432,7 +430,7 @@ impl<W: WorldManipulator> Tool<Construct, W> {
     }
 
     fn construct_road<G: GfxWorldData>(&mut self, gfx_handle: &mut G, curve: CompositeCurve) {
-        match curve {
+        let road_builder = match curve {
             CompositeCurve::Single(mut curve) => {
                 let (first, last, reverse) = self.construct_compute_end_nodes();
                 if reverse {
@@ -447,27 +445,23 @@ impl<W: WorldManipulator> Tool<Construct, W> {
                     self.get_sel_road_type().node_type,
                     curve,
                 )];
-                let road_builder = LRoadBuilder::new(nodes, segments, reverse);
-
-                let road_meshes =
-                    self.gen_road_mesh_from_builder(&road_builder, self.get_sel_node_type());
-                let (new_snap, segment_ids) =
-                    self.world.add_road(road_builder, self.get_sel_node_type());
-
-                let mut mesh_map: IdMap<SegmentId, RoadMesh> = IdMap::new();
-                for i in 0..segment_ids.len() {
-                    mesh_map.insert(segment_ids[i], road_meshes[i].clone());
-                }
-                gfx_handle.add_road_meshes(mesh_map);
-
-                self.instance.curve_builder.reset(new_snap);
-                self.show_snappable_nodes(gfx_handle);
-                self.update_view(gfx_handle);
+                LRoadBuilder::new(nodes, segments, reverse)
             }
             CompositeCurve::Double(_curve1, _curve2) => unimplemented!(),
-        }
+        };
 
-        // update selected node based on result from road_graph
+        let road_meshes = self.gen_road_mesh_from_builder(&road_builder, self.get_sel_node_type());
+        let (new_snap, segment_ids) = self.world.add_road(road_builder, self.get_sel_node_type());
+
+        let mut mesh_map: IdMap<SegmentId, RoadMesh> = IdMap::new();
+        for i in 0..segment_ids.len() {
+            mesh_map.insert(segment_ids[i], road_meshes[i].clone());
+        }
+        gfx_handle.add_road_meshes(mesh_map);
+
+        self.instance.curve_builder.reset(new_snap);
+        self.show_snappable_nodes(gfx_handle);
+        self.update_view(gfx_handle);
     }
 
     fn construct_compute_end_nodes(&self) -> (Option<SnapConfig>, Option<SnapConfig>, bool) {
