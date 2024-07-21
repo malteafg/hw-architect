@@ -326,15 +326,19 @@ impl<G: GfxWorldData, W: WorldManipulator> ToolUnique<G> for Tool<Construct, W> 
                     cycle_selection::scroll(self.get_sel_lane_width(), scroll_state);
                 dbg!(new_lane_width);
                 self.state_handle.road_state.set_lane_width(new_lane_width);
-                self.instance.curve_builder.reset(None);
 
+                self.instance.curve_builder.reset(None);
                 self.update_view(gfx_handle);
                 self.show_snappable_nodes(gfx_handle);
             }
-            (CycleNoLanes, Scroll(_scroll_state)) => {
-                // let new_no_lanes = cycle_selection::scroll(self.get_sel_no_lanes(), scroll_state);
-                // self.state_handle.road_state.set_no_lanes(new_no_lanes);
-                // self.set_no_lanes(gfx_handle, new_no_lanes);
+            (CycleNoLanes, Scroll(scroll_state)) => {
+                let new_no_lanes = cycle_selection::scroll(self.get_sel_no_lanes(), scroll_state);
+                dbg!(new_no_lanes);
+                self.state_handle.road_state.set_no_lanes(new_no_lanes);
+
+                self.instance.curve_builder.reset(None);
+                self.update_view(gfx_handle);
+                self.show_snappable_nodes(gfx_handle);
             }
             _ => {}
         }
@@ -383,7 +387,7 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         self.get_sel_node_type().lane_width()
     }
 
-    fn _get_sel_no_lanes(&self) -> u8 {
+    fn get_sel_no_lanes(&self) -> u8 {
         self.get_sel_node_type().no_lanes()
     }
 
