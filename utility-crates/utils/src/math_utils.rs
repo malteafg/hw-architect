@@ -22,7 +22,6 @@ pub trait VecUtils {
     fn side(self, other: Self) -> f32;
     fn right_hand(self) -> Self;
     fn left_hand(self) -> Self;
-    fn normalize_else(self) -> Self;
     fn flip(self, flip: bool) -> Self;
 }
 
@@ -66,10 +65,6 @@ impl VecUtils for Vec3 {
     /// Should be removed and only be in dir2
     fn right_hand(self) -> Self {
         Self::new(-self.z, self.y, self.x)
-    }
-
-    fn normalize_else(self) -> Self {
-        self.normalize_or(DEFAULT_DIR)
     }
 
     fn flip(self, flip: bool) -> Self {

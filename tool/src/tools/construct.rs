@@ -305,13 +305,11 @@ impl<G: GfxWorldData, W: WorldManipulator> ToolUnique<G> for Tool<Construct, W> 
         self.show_snappable_nodes(gfx_handle);
     }
 
-    fn process_keyboard(&mut self, _gfx_handle: &mut G, key: input::KeyAction) {
+    fn process_keyboard(&mut self, gfx_handle: &mut G, key: input::KeyAction) {
         use input::Action::*;
         use input::KeyState::*;
         match key {
-            (ToggleSnapping, Press) => {
-                // self.toggle_snapping(gfx_handle)
-            }
+            (ToggleSnapping, Press) => self.toggle_snapping(gfx_handle),
             (ToggleReverse, Press) => {
                 // self.toggle_reverse()
             }
@@ -395,11 +393,12 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         gfx_handle: &mut G,
         action_result: CurveActionResult,
     ) {
-        self.clean_gfx(gfx_handle);
+        gfx_handle.set_road_tool_mesh(None);
         match action_result {
             Ok(action) => self.handle_curve_action(gfx_handle, action),
             Err(err) => self.handle_curve_error(gfx_handle, err),
         }
+        self.show_snappable_nodes(gfx_handle);
     }
 
     fn handle_curve_action<G: GfxWorldData>(&mut self, gfx_handle: &mut G, action: CurveAction) {
@@ -460,7 +459,6 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         gfx_handle.add_road_meshes(mesh_map);
 
         self.instance.curve_builder.reset(new_snap);
-        self.show_snappable_nodes(gfx_handle);
         self.update_view(gfx_handle);
     }
 
@@ -518,6 +516,18 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         }
 
         Some(snap_configs[0].clone())
+    }
+
+    /// Toggles snapping.
+    fn toggle_snapping<G: GfxWorldData>(&mut self, gfx_handle: &mut G) {
+        let curr = self.state_handle.road_state.snapping;
+        self.state_handle.road_state.snapping = !curr;
+
+        dbg!(self.state_handle.road_state.snapping);
+
+        gfx_handle.set_node_markers(vec![]);
+        self.update_view(gfx_handle);
+        self.show_snappable_nodes(gfx_handle);
     }
 
     // #############################################################################################
