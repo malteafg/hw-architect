@@ -1,9 +1,15 @@
+mod curve_tool_spec;
+mod straight_tool;
+
+use curve_tool_spec::{CurveAction, CurveActionResult, CurveTool, CurveToolSpec, CurveToolSum};
+use straight_tool::StraightTool;
+
 use super::{Tool, ToolUnique};
+
 use crate::cycle_selection;
 use crate::gfx_gen::segment_gen;
 use crate::tool_state::{CurveType, SelectedRoad};
 
-use curve_tools::{CurveAction, CurveActionResult, CurveTool, CurveToolSum, StraightBuilder};
 use curves::{CompositeCurve, Curve, CurveError, CurveShared, Straight};
 use utils::id::{IdMap, SegmentId};
 use utils::{input, Loc};
@@ -15,286 +21,15 @@ use world_api::{
 use gfx_api::{GfxWorldData, RoadMesh};
 use glam::*;
 
-use curve_tools::CurveToolSpec;
-
-mod curve_tools {
-    use std::marker::PhantomData;
-
-    use curves::{CompositeCurve, Curve, CurveError, CurveInfo, CurveSpec, CurveSum, Straight};
-    use enum_dispatch::enum_dispatch;
-    use glam::Vec3;
-    use utils::{Loc, PosOrLoc};
-    use world_api::SnapConfig;
-
-    #[derive(Debug, Clone)]
-    pub enum EndPoint {
-        /// Position from which to build from. This must not be projected.
-        New(Vec3),
-        /// Location of the snapconfig to build from
-        Old(SnapConfig),
-    }
-
-    impl From<EndPoint> for PosOrLoc {
-        fn from(value: EndPoint) -> Self {
-            match value {
-                EndPoint::New(pos) => PosOrLoc::Pos(pos),
-                EndPoint::Old(snap_config) => PosOrLoc::Loc(Loc::new(
-                    snap_config.pos(),
-                    snap_config.dir().flip(snap_config.is_reverse()).into(),
-                )),
-            }
-        }
-    }
-
-    /// Describes the action that should be taken by the construct tool.
-    pub enum CurveAction {
-        /// Construct the given curve as part of the world.
-        Construct(CompositeCurve),
-        /// Render the given curve while still constructing it.
-        Render(CompositeCurve, CurveInfo),
-        /// A direction needs to be chosen.
-        Direction(Loc, f32),
-        /// A control point needs to be chosen.
-        ControlPoint(Vec3, Vec3),
-        /// A small road stub should be rendered to indicate that the user can snap to this node.
-        Stub(Loc),
-        /// The curve builder has nothing to render.
-        Nothing,
-    }
-
-    pub type CurveActionResult = Result<CurveAction, CurveError>;
-
-    impl<C: Into<CurveSum>> From<(C, CurveInfo)> for CurveAction {
-        fn from((curve, curve_info): (C, CurveInfo)) -> Self {
-            CurveAction::Render(CompositeCurve::Single(curve.into()), curve_info)
-        }
-    }
-
-    pub trait CurveToolSpecInternal {
-        /// The tool shall process a left click.
-        fn left_click(&mut self, first: PosOrLoc, last: PosOrLoc) -> CurveActionResult;
-
-        /// The tool shall process a right click.
-        fn right_click(&mut self, first: PosOrLoc, last: PosOrLoc) -> CurveActionResult;
-
-        /// Called whenever there the ground_pos has been updated due to a change in camera or
-        /// cursor position.
-        fn compute_curve(&mut self, first: PosOrLoc, last: PosOrLoc) -> CurveActionResult;
-    }
-
-    #[enum_dispatch]
-    pub trait CurveToolSpec {
-        /// Selects the first point if it has not already been selected, otherwise delegates the
-        /// call to instance.
-        fn left_click(&mut self, ground_pos: Vec3) -> CurveActionResult;
-
-        fn right_click(&mut self, ground_pos: Vec3) -> CurveActionResult;
-
-        /// A node has been snapped to.
-        fn update_snap(&mut self, snap_config: SnapConfig) -> CurveActionResult;
-
-        /// A node is no longer snapped.
-        fn update_no_snap(&mut self, ground_pos: Vec3) -> CurveActionResult;
-
-        fn reset(&mut self, new_snap: Option<SnapConfig>);
-
-        fn get_selected_node(&self) -> Option<SnapConfig>;
-
-        fn get_snapped_node(&self) -> Option<SnapConfig>;
-
-        fn is_sel_reverse(&self, state_reverse: bool) -> bool;
-
-        fn is_snap_reverse(&self, state_reverse: bool) -> bool;
-    }
-
-    #[enum_dispatch(CurveToolSpec)]
-    pub enum CurveToolSum {
-        Straight(CurveTool<StraightBuilder, Curve<Straight>>),
-    }
-
-    pub struct CurveTool<CT, C: CurveSpec>
-    where
-        CT: CurveToolSpecInternal,
-    {
-        instance: CT,
-        first_point: Option<EndPoint>,
-        snapped_node: Option<SnapConfig>,
-        _marker: PhantomData<C>,
-    }
-
-    impl<CT: Default, C: CurveSpec> Default for CurveTool<CT, C>
-    where
-        CT: CurveToolSpecInternal,
-    {
-        fn default() -> Self {
-            Self {
-                instance: CT::default(),
-                first_point: None,
-                snapped_node: None,
-                _marker: PhantomData,
-            }
-        }
-    }
-
-    impl<CT, C: CurveSpec> CurveToolSpec for CurveTool<CT, C>
-    where
-        CT: CurveToolSpecInternal,
-    {
-        fn left_click(&mut self, ground_pos: Vec3) -> CurveActionResult {
-            if let Some(first_point) = &self.first_point {
-                let last_point = if let Some(snap_config) = self.snapped_node.clone() {
-                    EndPoint::Old(snap_config)
-                } else {
-                    EndPoint::New(ground_pos)
-                };
-                let last_point: PosOrLoc = last_point.into();
-                let last_point = last_point.flip(true);
-                return self
-                    .instance
-                    .left_click(first_point.clone().into(), last_point);
-            }
-
-            if let Some(snap_config) = self.snapped_node.clone() {
-                self.first_point = Some(EndPoint::Old(snap_config.clone()));
-                return Ok(CurveAction::Stub(Loc::new(
-                    snap_config.pos(),
-                    snap_config.dir().into(),
-                )));
-            }
-
-            let first_point = EndPoint::New(ground_pos);
-            self.first_point = Some(first_point.clone());
-            self.instance
-                .compute_curve(first_point.into(), ground_pos.into())
-        }
-
-        fn right_click(&mut self, ground_pos: Vec3) -> CurveActionResult {
-            let Some(first_point) = &self.first_point else {
-                return Ok(CurveAction::Nothing);
-            };
-
-            let last_point = if let Some(snap_config) = self.snapped_node.clone() {
-                EndPoint::Old(snap_config)
-            } else {
-                EndPoint::New(ground_pos)
-            };
-
-            match self
-                .instance
-                .right_click(first_point.clone().into(), last_point.into())
-            {
-                Ok(CurveAction::Nothing) => {
-                    self.first_point = None;
-                    return Ok(CurveAction::Nothing);
-                }
-                curve_result => return curve_result,
-            }
-        }
-
-        fn update_snap(&mut self, snap_config: SnapConfig) -> CurveActionResult {
-            self.snapped_node = Some(snap_config.clone());
-
-            if let Some(first_point) = &self.first_point {
-                let last_point: PosOrLoc = EndPoint::Old(snap_config).into();
-                let last_point = last_point.flip(true);
-                return self
-                    .instance
-                    .compute_curve(first_point.clone().into(), last_point);
-            }
-
-            Ok(CurveAction::Stub(Loc::new(
-                snap_config.pos(),
-                snap_config.dir().into(),
-            )))
-        }
-
-        fn update_no_snap(&mut self, ground_pos: Vec3) -> CurveActionResult {
-            self.snapped_node = None;
-
-            if let Some(first_point) = &self.first_point {
-                return self
-                    .instance
-                    .compute_curve(first_point.clone().into(), ground_pos.into());
-            };
-
-            Ok(CurveAction::Nothing)
-        }
-
-        fn reset(&mut self, new_snap: Option<SnapConfig>) {
-            self.snapped_node = None;
-            self.first_point = new_snap.map(|s| EndPoint::Old(s));
-        }
-
-        fn get_selected_node(&self) -> Option<SnapConfig> {
-            self.first_point.clone().and_then(|x| match x {
-                EndPoint::New(_) => None,
-                EndPoint::Old(snap_config) => Some(snap_config),
-            })
-        }
-
-        fn get_snapped_node(&self) -> Option<SnapConfig> {
-            self.snapped_node.clone()
-        }
-
-        fn is_sel_reverse(&self, state_reverse: bool) -> bool {
-            if let Some(EndPoint::Old(snap_config)) = &self.first_point {
-                snap_config.is_reverse()
-            } else {
-                state_reverse
-            }
-        }
-
-        fn is_snap_reverse(&self, state_reverse: bool) -> bool {
-            if let Some(snap_config) = &self.snapped_node {
-                snap_config.is_reverse()
-            } else {
-                state_reverse
-            }
-        }
-    }
-
-    #[derive(Default)]
-    pub struct StraightBuilder;
-
-    impl CurveToolSpecInternal for StraightBuilder {
-        fn left_click(&mut self, first: PosOrLoc, last: PosOrLoc) -> CurveActionResult {
-            match self.compute_curve(first, last) {
-                Ok(CurveAction::Render(curve, _curve_info)) => Ok(CurveAction::Construct(curve)),
-                curve_result => curve_result,
-            }
-        }
-
-        fn right_click(&mut self, _first: PosOrLoc, _last: PosOrLoc) -> CurveActionResult {
-            Ok(CurveAction::Nothing)
-        }
-
-        fn compute_curve(&mut self, first: PosOrLoc, last: PosOrLoc) -> CurveActionResult {
-            use PosOrLoc::*;
-            match (first, last) {
-                (Pos(first_pos), Pos(last_pos)) => {
-                    Ok(Curve::<Straight>::from_free(first_pos, last_pos).into())
-                }
-                (Loc(first), Pos(last_pos)) => {
-                    Ok(Curve::<Straight>::from_first_locked(first.into(), last_pos).into())
-                }
-                (Pos(first_pos), Loc(last)) => Curve::<Straight>::from_last_locked(first_pos, last)
-                    .map(|c| CurveAction::Render(c.into(), CurveInfo::Satisfied)),
-                (Loc(first), Loc(last)) => Curve::<Straight>::from_both_locked(first, last)
-                    .map(|c| CurveAction::Render(c.into(), CurveInfo::Satisfied)),
-            }
-        }
-    }
-}
-
 pub struct Construct {
-    curve_builder: CurveToolSum,
+    curve_tool: CurveToolSum,
 }
 
 impl Default for Construct {
     fn default() -> Self {
         Self {
-            curve_builder: CurveToolSum::Straight(
-                CurveTool::<StraightBuilder, Curve<Straight>>::default(),
+            curve_tool: CurveToolSum::Straight(
+                CurveTool::<StraightTool, Curve<Straight>>::default(),
             ),
         }
     }
@@ -310,7 +45,13 @@ impl<G: GfxWorldData, W: WorldManipulator> ToolUnique<G> for Tool<Construct, W> 
         use input::Action::*;
         use input::KeyState::*;
         match key {
-            (ToggleSnapping, Press) => self.toggle_snapping(gfx_handle),
+            (ToggleSnapping, Press) => {
+                self.state_handle.road_state.snapping = !self.state_handle.road_state.snapping;
+                dbg!(self.state_handle.road_state.snapping);
+
+                self.update_view(gfx_handle);
+                self.show_snappable_nodes(gfx_handle);
+            }
             (ToggleReverse, Press) => {
                 self.state_handle.road_state.reverse = !self.state_handle.road_state.reverse;
                 dbg!(self.state_handle.road_state.reverse);
@@ -327,7 +68,7 @@ impl<G: GfxWorldData, W: WorldManipulator> ToolUnique<G> for Tool<Construct, W> 
                 dbg!(new_lane_width);
                 self.state_handle.road_state.set_lane_width(new_lane_width);
 
-                self.instance.curve_builder.reset(None);
+                self.instance.curve_tool.reset(None);
                 self.update_view(gfx_handle);
                 self.show_snappable_nodes(gfx_handle);
             }
@@ -336,7 +77,7 @@ impl<G: GfxWorldData, W: WorldManipulator> ToolUnique<G> for Tool<Construct, W> 
                 dbg!(new_no_lanes);
                 self.state_handle.road_state.set_no_lanes(new_no_lanes);
 
-                self.instance.curve_builder.reset(None);
+                self.instance.curve_tool.reset(None);
                 self.update_view(gfx_handle);
                 self.show_snappable_nodes(gfx_handle);
             }
@@ -345,20 +86,20 @@ impl<G: GfxWorldData, W: WorldManipulator> ToolUnique<G> for Tool<Construct, W> 
     }
 
     fn left_click(&mut self, gfx_handle: &mut G) {
-        let action = self.instance.curve_builder.left_click(self.ground_pos);
+        let action = self.instance.curve_tool.left_click(self.ground_pos);
         self.handle_curve_action_result(gfx_handle, action);
     }
 
     fn right_click(&mut self, gfx_handle: &mut G) {
-        let action = self.instance.curve_builder.right_click(self.ground_pos);
+        let action = self.instance.curve_tool.right_click(self.ground_pos);
         self.handle_curve_action_result(gfx_handle, action);
     }
 
     fn update_view(&mut self, gfx_handle: &mut G) {
         let snap = self.check_snapping();
         let action = match snap {
-            Some(snap) => self.instance.curve_builder.update_snap(snap),
-            None => self.instance.curve_builder.update_no_snap(self.ground_pos),
+            Some(snap) => self.instance.curve_tool.update_snap(snap),
+            None => self.instance.curve_tool.update_no_snap(self.ground_pos),
         };
         self.handle_curve_action_result(gfx_handle, action);
     }
@@ -422,10 +163,7 @@ impl<W: WorldManipulator> Tool<Construct, W> {
             Direction(_loc, _len) => unimplemented!(),
             ControlPoint(_first, _last) => unimplemented!(),
             Stub(loc) => {
-                let reverse = self
-                    .instance
-                    .curve_builder
-                    .is_snap_reverse(self.is_reverse());
+                let reverse = self.instance.curve_tool.is_snap_reverse(self.is_reverse());
                 let (curve, _) =
                     Curve::<Straight>::from_free(loc.pos, loc.pos + loc.dir.flip(reverse));
                 self.set_road_tool_mesh(gfx_handle, curve.into(), self.get_sel_node_type());
@@ -468,19 +206,16 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         }
         gfx_handle.add_road_meshes(mesh_map);
 
-        self.instance.curve_builder.reset(new_snap);
+        self.instance.curve_tool.reset(new_snap);
         self.update_view(gfx_handle);
     }
 
     fn construct_compute_end_nodes(&self) -> (Option<SnapConfig>, Option<SnapConfig>, bool) {
-        let reverse = self
-            .instance
-            .curve_builder
-            .is_sel_reverse(self.is_reverse());
+        let reverse = self.instance.curve_tool.is_sel_reverse(self.is_reverse());
 
         let result = (
-            self.instance.curve_builder.get_selected_node(),
-            self.instance.curve_builder.get_snapped_node(),
+            self.instance.curve_tool.get_selected_node(),
+            self.instance.curve_tool.get_snapped_node(),
         );
         if reverse {
             (result.1, result.0, reverse)
@@ -498,10 +233,6 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         }
     }
 
-    // #############################################################################################
-    // Snapping
-    // #############################################################################################
-    /// Checks if there is a node that we should snap to, and in that case it snaps to that node.
     fn check_snapping(&mut self) -> Option<SnapConfig> {
         // TODO add functionality to report why a node cannot be snapped to.
         if !self.state_handle.road_state.snapping {
@@ -517,7 +248,7 @@ impl<W: WorldManipulator> Tool<Construct, W> {
             return None;
         };
 
-        if let Some(snap_config) = &self.instance.curve_builder.get_selected_node() {
+        if let Some(snap_config) = &self.instance.curve_tool.get_selected_node() {
             snap_configs.retain(|s| s.side() != snap_config.side());
         }
 
@@ -528,18 +259,6 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         Some(snap_configs[0].clone())
     }
 
-    /// Toggles snapping.
-    fn toggle_snapping<G: GfxWorldData>(&mut self, gfx_handle: &mut G) {
-        let curr = self.state_handle.road_state.snapping;
-        self.state_handle.road_state.snapping = !curr;
-
-        dbg!(self.state_handle.road_state.snapping);
-
-        gfx_handle.set_node_markers(vec![]);
-        self.update_view(gfx_handle);
-        self.show_snappable_nodes(gfx_handle);
-    }
-
     // #############################################################################################
     // Gfx handling
     // #############################################################################################
@@ -548,7 +267,7 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         if !self.state_handle.road_state.snapping {
             return;
         }
-        let side = if let Some(snap_config) = &self.instance.curve_builder.get_selected_node() {
+        let side = if let Some(snap_config) = &self.instance.curve_tool.get_selected_node() {
             Some(snap_config.side())
         } else {
             None
