@@ -1,4 +1,5 @@
 use super::{Tool, ToolUnique};
+use crate::cycle_selection;
 use crate::gfx_gen::segment_gen;
 use crate::tool_state::{CurveType, SelectedRoad};
 
@@ -310,18 +311,25 @@ impl<G: GfxWorldData, W: WorldManipulator> ToolUnique<G> for Tool<Construct, W> 
         use input::KeyState::*;
         match key {
             (ToggleSnapping, Press) => self.toggle_snapping(gfx_handle),
-            (ToggleReverse, Press) => self.toggle_reverse(),
+            (ToggleReverse, Press) => {
+                self.state_handle.road_state.reverse = !self.state_handle.road_state.reverse;
+                dbg!(self.state_handle.road_state.reverse);
+            }
             (CycleCurveType, Scroll(_scroll_state)) => {
                 // let new_curve_type =
                 //     cycle_selection::scroll(self.get_sel_curve_type(), scroll_state);
                 // self.state_handle.road_state.set_curve_type(new_curve_type);
                 // self.set_curve_type(gfx_handle, new_curve_type);
             }
-            (CycleLaneWidth, Scroll(_scroll_state)) => {
-                // let new_lane_width =
-                //     cycle_selection::scroll(self.get_sel_lane_width(), scroll_state);
-                // self.state_handle.road_state.set_lane_width(new_lane_width);
-                // self.set_lane_width(gfx_handle, new_lane_width);
+            (CycleLaneWidth, Scroll(scroll_state)) => {
+                let new_lane_width =
+                    cycle_selection::scroll(self.get_sel_lane_width(), scroll_state);
+                dbg!(new_lane_width);
+                self.state_handle.road_state.set_lane_width(new_lane_width);
+                self.instance.curve_builder.reset(None);
+
+                self.update_view(gfx_handle);
+                self.show_snappable_nodes(gfx_handle);
             }
             (CycleNoLanes, Scroll(_scroll_state)) => {
                 // let new_no_lanes = cycle_selection::scroll(self.get_sel_no_lanes(), scroll_state);
@@ -371,7 +379,7 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         self.state_handle.road_state.selected_road.node_type
     }
 
-    fn _get_sel_lane_width(&self) -> LaneWidth {
+    fn get_sel_lane_width(&self) -> LaneWidth {
         self.get_sel_node_type().lane_width()
     }
 
@@ -381,11 +389,6 @@ impl<W: WorldManipulator> Tool<Construct, W> {
 
     fn is_reverse(&self) -> bool {
         self.state_handle.road_state.reverse
-    }
-
-    fn toggle_reverse(&mut self) {
-        self.state_handle.road_state.reverse = !self.state_handle.road_state.reverse;
-        dbg!(self.state_handle.road_state.reverse);
     }
 
     // #############################################################################################

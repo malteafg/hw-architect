@@ -33,7 +33,7 @@ construct:
   - cycle_curve_type:
     - r
   - cycle_lane_width:
-    - g
+    - t
   - cycle_no_lanes:
     - f
 
