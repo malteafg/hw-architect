@@ -310,9 +310,7 @@ impl<G: GfxWorldData, W: WorldManipulator> ToolUnique<G> for Tool<Construct, W> 
         use input::KeyState::*;
         match key {
             (ToggleSnapping, Press) => self.toggle_snapping(gfx_handle),
-            (ToggleReverse, Press) => {
-                // self.toggle_reverse()
-            }
+            (ToggleReverse, Press) => self.toggle_reverse(),
             (CycleCurveType, Scroll(_scroll_state)) => {
                 // let new_curve_type =
                 //     cycle_selection::scroll(self.get_sel_curve_type(), scroll_state);
@@ -385,6 +383,11 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         self.state_handle.road_state.reverse
     }
 
+    fn toggle_reverse(&mut self) {
+        self.state_handle.road_state.reverse = !self.state_handle.road_state.reverse;
+        dbg!(self.state_handle.road_state.reverse);
+    }
+
     // #############################################################################################
     // Handle curve actions
     // #############################################################################################
@@ -393,7 +396,7 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         gfx_handle: &mut G,
         action_result: CurveActionResult,
     ) {
-        gfx_handle.set_road_tool_mesh(None);
+        self.clean_gfx(gfx_handle);
         match action_result {
             Ok(action) => self.handle_curve_action(gfx_handle, action),
             Err(err) => self.handle_curve_error(gfx_handle, err),
