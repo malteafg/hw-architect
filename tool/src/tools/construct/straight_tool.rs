@@ -25,7 +25,7 @@ impl CurveToolSpecInternal for StraightTool {
                 Ok(Curve::<Straight>::from_free(first_pos, last_pos).into())
             }
             (Loc(first), Pos(last_pos)) => {
-                Ok(Curve::<Straight>::from_first_locked(first.into(), last_pos).into())
+                Ok(Curve::<Straight>::from_first_locked(first, last_pos).into())
             }
             (Pos(first_pos), Loc(last)) => Curve::<Straight>::from_last_locked(first_pos, last)
                 .map(|c| CurveAction::Render(c.into(), CurveInfo::Satisfied)),

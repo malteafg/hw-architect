@@ -314,6 +314,27 @@ impl PosOrLoc {
             PosOrLoc::Loc(loc) => PosOrLoc::Loc(loc.flip(flip)),
         }
     }
+
+    pub fn pos(self) -> Vec3 {
+        match self {
+            PosOrLoc::Pos(pos) => pos,
+            PosOrLoc::Loc(loc) => loc.pos,
+        }
+    }
+
+    pub fn is_pos(self) -> bool {
+        match self {
+            PosOrLoc::Pos(_) => true,
+            PosOrLoc::Loc(_) => false,
+        }
+    }
+
+    pub fn is_loc(self) -> bool {
+        match self {
+            PosOrLoc::Pos(_) => false,
+            PosOrLoc::Loc(_) => true,
+        }
+    }
 }
 
 impl From<Vec3> for PosOrLoc {

@@ -1,6 +1,8 @@
+mod circular_tool;
 mod curve_tool_spec;
 mod straight_tool;
 
+use circular_tool::CircularTool;
 use curve_tool_spec::{CurveAction, CurveActionResult, CurveTool, CurveToolSpec, CurveToolSum};
 use straight_tool::StraightTool;
 
@@ -10,7 +12,7 @@ use crate::cycle_selection;
 use crate::gfx_gen::segment_gen;
 use crate::tool_state::{CurveType, SelectedRoad};
 
-use curves::{CompositeCurveSum, Curve, CurveError, CurveShared, Straight};
+use curves::{Circular, CompositeCurveSum, Curve, CurveError, CurveShared, Straight};
 use utils::id::{IdMap, SegmentId};
 use utils::{input, Loc};
 use world_api::{
@@ -28,9 +30,7 @@ pub struct Construct {
 impl Default for Construct {
     fn default() -> Self {
         Self {
-            curve_tool: CurveToolSum::Straight(
-                CurveTool::<StraightTool, Curve<Straight>>::default(),
-            ),
+            curve_tool: CurveTool::<CircularTool, Curve<Circular>>::default().into(),
         }
     }
 }
@@ -56,11 +56,26 @@ impl<G: GfxWorldData, W: WorldManipulator> ToolUnique<G> for Tool<Construct, W> 
                 self.state_handle.road_state.reverse = !self.state_handle.road_state.reverse;
                 dbg!(self.state_handle.road_state.reverse);
             }
-            (CycleCurveType, Scroll(_scroll_state)) => {
-                // let new_curve_type =
-                //     cycle_selection::scroll(self.get_sel_curve_type(), scroll_state);
-                // self.state_handle.road_state.set_curve_type(new_curve_type);
-                // self.set_curve_type(gfx_handle, new_curve_type);
+            (CycleCurveType, Scroll(scroll_state)) => {
+                let new_curve_type =
+                    cycle_selection::scroll(self.get_sel_curve_type(), scroll_state);
+                dbg!(self.get_sel_curve_type());
+                self.state_handle.road_state.set_curve_type(new_curve_type);
+
+                match new_curve_type {
+                    CurveType::Straight => {
+                        self.instance.curve_tool =
+                            CurveTool::<StraightTool, Curve<Straight>>::default().into()
+                    }
+                    CurveType::Circular => {
+                        self.instance.curve_tool =
+                            CurveTool::<CircularTool, Curve<Circular>>::default().into()
+                    }
+                }
+
+                self.instance.curve_tool.reset(None);
+                self.update_view(gfx_handle);
+                self.show_snappable_nodes(gfx_handle);
             }
             (CycleLaneWidth, Scroll(scroll_state)) => {
                 let new_lane_width =
@@ -116,7 +131,7 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         self.state_handle.road_state.selected_road
     }
 
-    fn _get_sel_curve_type(&self) -> CurveType {
+    fn get_sel_curve_type(&self) -> CurveType {
         self.state_handle.road_state.selected_road.curve_type
     }
 
@@ -160,7 +175,10 @@ impl<W: WorldManipulator> Tool<Construct, W> {
                 self.set_road_tool_mesh(gfx_handle, curve, self.get_sel_node_type());
                 dbg!(curve_info);
             }
-            Direction(_loc, _len) => unimplemented!(),
+            Direction(loc, pos) => {
+                dbg!(loc);
+                dbg!(pos);
+            }
             ControlPoint(_first, _last) => unimplemented!(),
             Stub(loc) => {
                 let reverse = self.instance.curve_tool.is_snap_reverse(self.is_reverse());

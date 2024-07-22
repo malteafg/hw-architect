@@ -55,10 +55,9 @@ impl RoadState {
 /// The type of curve to be constructed
 #[derive(Debug, Default, Clone, Copy)]
 pub enum CurveType {
-    #[default]
     Straight,
-    // #[default]
-    // Circular,
+    #[default]
+    Circular,
 }
 
 /// This defines a road type that is being constructed.

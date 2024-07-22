@@ -1,6 +1,8 @@
-use super::straight_tool::StraightTool;
+use super::{circular_tool::CircularTool, straight_tool::StraightTool};
 
-use curves::{CompositeCurveSum, Curve, CurveError, CurveInfo, CurveSpec, CurveSum, Straight};
+use curves::{
+    Circular, CompositeCurveSum, Curve, CurveError, CurveInfo, CurveSpec, CurveSum, Straight,
+};
 use utils::{Loc, PosOrLoc};
 use world_api::SnapConfig;
 
@@ -36,7 +38,7 @@ pub enum CurveAction {
     /// Render the given curve while still constructing it.
     Render(CompositeCurveSum, CurveInfo),
     /// A direction needs to be chosen.
-    Direction(Loc, f32),
+    Direction(Loc, Vec3),
     /// A control point needs to be chosen.
     ControlPoint(Vec3, Vec3),
     /// A small road stub should be rendered to indicate that the user can snap to this node.
@@ -93,6 +95,7 @@ pub trait CurveToolSpec {
 #[enum_dispatch(CurveToolSpec)]
 pub enum CurveToolSum {
     Straight(CurveTool<StraightTool, Curve<Straight>>),
+    Circular(CurveTool<CircularTool, Curve<Circular>>),
 }
 
 pub struct CurveTool<CT, C: CurveSpec>
