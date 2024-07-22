@@ -181,9 +181,12 @@ impl<W: WorldManipulator> Tool<Construct, W> {
             }
             ControlPoint(_first, _last) => unimplemented!(),
             Stub(loc) => {
-                let reverse = self.instance.curve_tool.is_snap_reverse(self.is_reverse());
+                let reverse = self
+                    .instance
+                    .curve_tool
+                    .is_building_reverse(self.is_reverse());
                 let (curve, _) =
-                    Curve::<Straight>::from_free(loc.pos, loc.pos + loc.dir.flip(reverse));
+                    Curve::<Straight>::from_free(loc.pos, loc.pos + loc.dir.flip(!reverse));
                 self.set_road_tool_mesh(gfx_handle, curve.into(), self.get_sel_node_type());
             }
             Nothing => {}
@@ -212,7 +215,27 @@ impl<W: WorldManipulator> Tool<Construct, W> {
                 )];
                 LRoadBuilder::new(nodes, segments, reverse)
             }
-            CompositeCurveSum::Double(_curve1, _curve2) => unimplemented!(),
+            CompositeCurveSum::Double(mut curve1, mut curve2) => {
+                let (first, last, reverse) = self.construct_compute_end_nodes();
+                if reverse {
+                    curve1.reverse();
+                    curve2.reverse();
+                    let temp = curve1;
+                    curve1 = curve2;
+                    curve2 = temp;
+                }
+
+                let nodes = vec![
+                    self.map_end_point(first, curve1.first()),
+                    self.map_end_point(None, curve1.last()),
+                    self.map_end_point(last, curve2.last()),
+                ];
+                let segments = vec![
+                    LSegmentBuilder::new(self.get_sel_road_type().node_type, curve1),
+                    LSegmentBuilder::new(self.get_sel_road_type().node_type, curve2),
+                ];
+                LRoadBuilder::new(nodes, segments, reverse)
+            }
         };
 
         let road_meshes = self.gen_road_mesh_from_builder(&road_builder, self.get_sel_node_type());
@@ -229,7 +252,10 @@ impl<W: WorldManipulator> Tool<Construct, W> {
     }
 
     fn construct_compute_end_nodes(&self) -> (Option<SnapConfig>, Option<SnapConfig>, bool) {
-        let reverse = self.instance.curve_tool.is_sel_reverse(self.is_reverse());
+        let reverse = self
+            .instance
+            .curve_tool
+            .is_building_reverse(self.is_reverse());
 
         let result = (
             self.instance.curve_tool.get_selected_node(),

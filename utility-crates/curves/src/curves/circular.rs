@@ -1,6 +1,6 @@
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
-use utils::{DirXZ, Loc, VecUtils};
+use utils::{consts::ROAD_MIN_LENGTH, DirXZ, Loc, VecUtils};
 
 use crate::{Curve, CurveError, CurveInfo, CurveResult, GuidePoints, Spine};
 
@@ -46,9 +46,22 @@ impl CurveUnique for Circular {
 impl Curve<Circular> {
     /// Direction has been set either by tool or a snapped node
     pub fn from_first_locked(first: Loc, last_pos: Vec3) -> (CompositeCurve<Self>, CurveInfo) {
+        let (last_pos, curve_info) = if (last_pos - first.pos).length() < ROAD_MIN_LENGTH {
+            (
+                first.pos
+                    + (last_pos - first.pos)
+                        .try_normalize()
+                        .unwrap_or(first.dir.into())
+                        * ROAD_MIN_LENGTH,
+                CurveInfo::Projection(last_pos),
+            )
+        } else {
+            (last_pos, CurveInfo::Satisfied)
+        };
+
         let (last_pos, curve_info) = match three_quarter_projection(first, last_pos) {
             Some(proj_pos) => (proj_pos, CurveInfo::Projection(last_pos)),
-            None => (last_pos, CurveInfo::Satisfied),
+            None => (last_pos, curve_info),
         };
 
         let diff = last_pos - first.pos;

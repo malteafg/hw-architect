@@ -10,12 +10,15 @@ pub struct CircularTool {
 
 impl CurveToolSpecInternal for CircularTool {
     fn left_click(&mut self, first: PosOrLoc, last: PosOrLoc) -> CurveActionResult {
-        if self.sel_dir.is_none() && first.is_pos() {
+        if self.sel_dir.is_none() && first.is_pos() && !last.is_loc() {
             self.sel_dir = Some((last.pos() - first.pos()).into());
             self.compute_curve(first, last)
         } else {
             match self.compute_curve(first, last) {
-                Ok(CurveAction::Render(curve, _curve_info)) => Ok(CurveAction::Construct(curve)),
+                Ok(CurveAction::Render(curve, _curve_info)) => {
+                    self.sel_dir = None;
+                    Ok(CurveAction::Construct(curve))
+                }
                 curve_result => curve_result,
             }
         }
@@ -24,7 +27,7 @@ impl CurveToolSpecInternal for CircularTool {
     fn right_click(&mut self, first: PosOrLoc, last: PosOrLoc) -> CurveActionResult {
         if self.sel_dir.is_some() {
             self.sel_dir = None;
-            self.compute_curve(first, last)
+            self.compute_curve(first, last.flip(true))
         } else {
             Ok(CurveAction::Nothing)
         }

@@ -87,9 +87,7 @@ pub trait CurveToolSpec {
 
     fn get_snapped_node(&self) -> Option<SnapConfig>;
 
-    fn is_sel_reverse(&self, state_reverse: bool) -> bool;
-
-    fn is_snap_reverse(&self, state_reverse: bool) -> bool;
+    fn is_building_reverse(&self, state_reverse: bool) -> bool;
 }
 
 #[enum_dispatch(CurveToolSpec)]
@@ -222,19 +220,11 @@ where
         self.snapped_node.clone()
     }
 
-    fn is_sel_reverse(&self, state_reverse: bool) -> bool {
-        if let Some(EndPoint::Old(snap_config)) = &self.first_point {
-            snap_config.is_reverse()
-        } else {
-            state_reverse
-        }
-    }
-
-    fn is_snap_reverse(&self, state_reverse: bool) -> bool {
-        if let Some(snap_config) = &self.snapped_node {
-            snap_config.is_reverse()
-        } else {
-            state_reverse
+    fn is_building_reverse(&self, state_reverse: bool) -> bool {
+        match (&self.first_point, &self.snapped_node) {
+            (Some(EndPoint::Old(first_snap)), None) => first_snap.is_reverse(),
+            (_, Some(snap)) => !snap.is_reverse(),
+            (_, _) => state_reverse,
         }
     }
 }

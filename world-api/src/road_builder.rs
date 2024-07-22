@@ -71,19 +71,19 @@ impl LRoadBuilder {
             for j in 0..(nodes.len() - 1) {
                 match &nodes[j] {
                     LNodeBuilderType::New(node) => {
-                        assert_eq!(node.dir(), segments[0].get_curve().first().dir)
+                        assert_eq!(node.dir(), segments[j].get_curve().first().dir)
                     }
                     LNodeBuilderType::Old(snap) => {
-                        assert_eq!(snap.dir(), segments[0].get_curve().first().dir)
+                        assert_eq!(snap.dir(), segments[j].get_curve().first().dir)
                     }
                 }
             }
             match &nodes[nodes.len() - 1] {
                 LNodeBuilderType::New(node) => {
-                    assert_eq!(node.dir(), segments[0].get_curve().last().dir)
+                    assert_eq!(node.dir(), segments[nodes.len() - 2].get_curve().last().dir)
                 }
                 LNodeBuilderType::Old(snap) => {
-                    assert_eq!(snap.dir(), segments[0].get_curve().last().dir)
+                    assert_eq!(snap.dir(), segments[nodes.len() - 2].get_curve().last().dir)
                 }
             }
         }

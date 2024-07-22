@@ -335,6 +335,13 @@ impl PosOrLoc {
             PosOrLoc::Loc(_) => true,
         }
     }
+
+    pub fn to_pos(self) -> Self {
+        match self {
+            PosOrLoc::Pos(_) => self,
+            PosOrLoc::Loc(loc) => PosOrLoc::Pos(loc.pos),
+        }
+    }
 }
 
 impl From<Vec3> for PosOrLoc {
