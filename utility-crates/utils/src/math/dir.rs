@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub};
+use std::ops::{Add, AddAssign, Deref, Mul, MulAssign, Neg, Sub};
 
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
@@ -40,9 +40,20 @@ impl From<DirXZ> for [f32; 3] {
     }
 }
 
+impl Deref for DirXZ {
+    type Target = Vec3;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl DirXZ {
     pub fn new() -> Self {
         Self(DEFAULT_DIR)
+    }
+
+    pub fn dot(self, other: DirXZ) -> f32 {
+        (*self).dot(*other)
     }
 
     pub fn flip(self, flip: bool) -> Self {

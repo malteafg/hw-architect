@@ -50,9 +50,7 @@ impl Curve<Circular> {
         let (last_pos, curve_info) = if (last_pos - first.pos).length() < ROAD_MIN_LENGTH {
             (
                 first.pos
-                    + (last_pos - first.pos)
-                        .try_normalize()
-                        .unwrap_or(first.dir.into())
+                    + (last_pos - first.pos).try_normalize().unwrap_or(*first.dir)
                         * ROAD_MIN_LENGTH,
                 CurveInfo::Projection(last_pos),
             )
@@ -66,7 +64,7 @@ impl Curve<Circular> {
         };
 
         let diff = last_pos - first.pos;
-        if diff.dot(Vec3::from(first.dir)) >= 0.0 {
+        if diff.dot(*first.dir) >= 0.0 {
             let curve = Circular::new(first, last_pos);
             (CompositeCurve::Single(curve.into()), curve_info)
         } else {
@@ -90,7 +88,7 @@ impl Curve<Circular> {
             return Err(CurveError::Impossible);
         };
 
-        if diff.dot(Vec3::from(first.dir)) >= 0.0 {
+        if diff.dot(*first.dir) >= 0.0 {
             let curve = Circular::new(first, last.pos);
             Ok(CompositeCurve::Single(curve.into()))
         } else {
@@ -106,9 +104,9 @@ impl Curve<Circular> {
         let diff = last.pos - first.pos;
         let last = last.flip(true);
 
-        if Vec3::from(first.dir).mirror(diff).ndot(last.dir.into()) > PRETTY_CLOSE
-            && (-diff).dot(last.dir.into()) >= PRETTY_CLOSE - 1.0
-            && diff.dot(first.dir.into()) >= PRETTY_CLOSE - 1.0
+        if (*first.dir).mirror(diff).ndot(*last.dir) > PRETTY_CLOSE
+            && (-diff).dot(*last.dir) >= PRETTY_CLOSE - 1.0
+            && diff.dot(*first.dir) >= PRETTY_CLOSE - 1.0
         {
             let guide_points = circle_curve_fudged(first, last);
             let curve = Circular::from_guide_points(guide_points);
@@ -118,9 +116,14 @@ impl Curve<Circular> {
         let t = s_curve_segment_length(first, last);
         let center = (first.pos + last.pos + first.dir * t + last.dir * t) / 2.0;
 
+        if is_curve_too_small(*first.dir, center - first.pos, 6)
+            || is_curve_too_small(*last.dir, center - last.pos, 6)
+        {
+            return Err(CurveError::Impossible);
+        }
+
         // Segment angle. The center must be in front of the two end points.
-        if Vec3::from(first.dir).dot(center - first.pos) <= 0.0
-            || Vec3::from(last.dir).dot(center - last.pos) <= 0.0
+        if (*first.dir).dot(center - first.pos) <= 0.0 || (*last.dir).dot(center - last.pos) <= 0.0
         {
             return Err(CurveError::Impossible);
         }
@@ -151,12 +154,12 @@ impl Curve<Circular> {
 /// point that yields a 270 degree circle.
 fn three_quarter_projection(first: Loc, last_pos: Vec3) -> Option<Vec3> {
     let diff = last_pos - first.pos;
-    let proj_length = diff.dot(Vec3::from(first.dir));
+    let proj_length = diff.dot(*first.dir);
     if proj_length >= -COS_45 * diff.length() {
         None
     } else {
-        let proj = diff.proj(Vec3::from(first.dir));
-        let anti_proj = diff.anti_proj(Vec3::from(first.dir));
+        let proj = diff.proj(*first.dir);
+        let anti_proj = diff.anti_proj(*first.dir);
         Some(first.pos + proj + anti_proj.rescale(proj_length))
     }
 }
@@ -199,12 +202,12 @@ fn circle_curve_fudged(first: Loc, last: Loc) -> GuidePoints {
 
 /// Only used if the double snap is elliptical. Simply creates a 3 point bezier curve.
 fn simple_curve_points(first: Loc, last: Loc) -> CurveResult<GuidePoints> {
-    if Vec3::from(first.dir).intersects_in_xz(Vec3::from(last.dir)) {
+    if (*first.dir).intersects_in_xz(*last.dir) {
         Ok(GuidePoints::from_vec(vec![
             first.pos,
             first
                 .pos
-                .intersection_in_xz(Vec3::from(first.dir), last.pos, Vec3::from(last.dir)),
+                .intersection_in_xz(*first.dir, last.pos, *last.dir),
             last.pos,
         ]))
     } else {
@@ -221,7 +224,7 @@ fn double_curve(first: Loc, center: Vec3, last: Loc) -> (GuidePoints, GuidePoint
 
 /// Computes the side length of the trapezoid that defines the guide points of the circular curve.
 fn circle_scale(diff: Vec3, dir: DirXZ) -> f32 {
-    let dot = diff.normalize().dot(dir.into());
+    let dot = diff.normalize().dot(*dir);
     if dot == 1.0 {
         // Makes it so that straight curves have intermidiary guidepoints and 1/3 and 2/3
         diff.length() / 3.0
@@ -233,7 +236,7 @@ fn circle_scale(diff: Vec3, dir: DirXZ) -> f32 {
 /// Used for double snap only. No clue what happens here
 fn s_curve_segment_length(first: Loc, last: Loc) -> f32 {
     let diff_pos = last.pos - first.pos;
-    let diff_dir = Vec3::from(last.dir) - first.dir;
+    let diff_dir = *last.dir - first.dir;
     if diff_dir.length_squared() == 4.0 {
         return 0.0;
     }
@@ -244,26 +247,25 @@ fn s_curve_segment_length(first: Loc, last: Loc) -> f32 {
 /// Used for double snap only. No clue what happens here
 fn is_elliptical(first: Loc, last: Loc) -> bool {
     let diff = last.pos - first.pos;
-    if Vec3::from(first.dir).dot(last.dir.into()) > 0.0 {
+    if first.dir.dot(last.dir) > 0.0 {
         return false;
     }
-    if (-diff).ndot(last.dir.into()) < PRETTY_CLOSE - 1.0
-        || diff.ndot(first.dir.into()) < PRETTY_CLOSE - 1.0
-    {
+    if (-diff).ndot(*last.dir) < PRETTY_CLOSE - 1.0 || diff.ndot(*first.dir) < PRETTY_CLOSE - 1.0 {
         return false;
     }
-    if Vec3::from(first.dir)
+    if (*first.dir)
         .anti_proj(diff)
-        .dot(Vec3::from(last.dir).anti_proj(diff))
+        .dot((*last.dir).anti_proj(diff))
         < 0.0
     {
         return false;
     }
-    if !Vec3::from(first.dir).intersects_in_xz(last.dir.into()) {
+    if !(*first.dir).intersects_in_xz(*last.dir) {
         return false;
     }
-    let intersection =
-        Vec3::from(first.pos).intersection_in_xz(first.dir.into(), last.pos, last.dir.into());
+    let intersection = first
+        .pos
+        .intersection_in_xz(*first.dir, last.pos, *last.dir);
     let f1 = (intersection - first.pos).length();
     let f2 = (intersection - last.pos).length();
     let rel = f1.min(f2) / f1.max(f2);
@@ -271,4 +273,13 @@ fn is_elliptical(first: Loc, last: Loc) -> bool {
         return false;
     }
     rel <= CLOSE_ENOUGH
+}
+
+fn min_road_length(d1: Vec3, d2: Vec3, no_lanes: u8) -> f32 {
+    MIN_SEGMENT_LENGTH
+        .max(3.5 * no_lanes as f32 * 3.0 * d1.cross(d2).length() / d1.length() / d2.length())
+}
+
+fn is_curve_too_small(d1: Vec3, d2: Vec3, no_lanes: u8) -> bool {
+    d2.length() < min_road_length(d1, d2, no_lanes)
 }

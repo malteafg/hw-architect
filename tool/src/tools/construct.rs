@@ -324,12 +324,7 @@ impl<W: WorldManipulator> Tool<Construct, W> {
             .world
             .get_possible_snap_nodes(side, self.get_sel_road_type().node_type)
             .iter()
-            .map(|(_id, loc)| {
-                (
-                    <[f32; 3]>::from(loc.pos),
-                    <[f32; 3]>::from(Vec3::from(loc.dir)),
-                )
-            })
+            .map(|(_id, loc)| (<[f32; 3]>::from(loc.pos), <[f32; 3]>::from(*loc.dir)))
             .collect();
 
         if let Some(loc) = self.instance.dir_marker {
