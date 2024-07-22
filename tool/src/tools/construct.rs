@@ -25,12 +25,14 @@ use glam::*;
 
 pub struct Construct {
     curve_tool: CurveToolSum,
+    dir_marker: Option<Loc>,
 }
 
 impl Default for Construct {
     fn default() -> Self {
         Self {
             curve_tool: CurveTool::<CircularTool, Curve<Circular>>::default().into(),
+            dir_marker: None,
         }
     }
 }
@@ -169,15 +171,16 @@ impl<W: WorldManipulator> Tool<Construct, W> {
 
     fn handle_curve_action<G: GfxWorldData>(&mut self, gfx_handle: &mut G, action: CurveAction) {
         use CurveAction::*;
+        self.instance.dir_marker = None;
         match action {
             Construct(curve) => self.construct_road(gfx_handle, curve),
             Render(curve, curve_info) => {
                 self.set_road_tool_mesh(gfx_handle, curve, self.get_sel_node_type());
                 dbg!(curve_info);
             }
-            Direction(loc, pos) => {
-                dbg!(loc);
-                dbg!(pos);
+            Direction(loc, _pos) => {
+                self.instance.dir_marker = Some(loc);
+                gfx_handle.set_node_markers(vec![(loc.pos.into(), loc.dir.into())]);
             }
             ControlPoint(_first, _last) => unimplemented!(),
             Stub(loc) => {
@@ -316,7 +319,7 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         } else {
             None
         };
-        let possible_snaps = self
+        let mut possible_snaps: Vec<([f32; 3], [f32; 3])> = self
             .world
             .get_possible_snap_nodes(side, self.get_sel_road_type().node_type)
             .iter()
@@ -327,6 +330,10 @@ impl<W: WorldManipulator> Tool<Construct, W> {
                 )
             })
             .collect();
+
+        if let Some(loc) = self.instance.dir_marker {
+            possible_snaps.push((loc.pos.into(), loc.dir.into()));
+        }
 
         gfx_handle.set_node_markers(possible_snaps);
     }

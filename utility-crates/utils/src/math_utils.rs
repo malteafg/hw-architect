@@ -192,6 +192,13 @@ impl From<DirXZ> for Vec3 {
     }
 }
 
+impl From<DirXZ> for [f32; 3] {
+    fn from(value: DirXZ) -> Self {
+        let vec: Vec3 = value.into();
+        vec.into()
+    }
+}
+
 impl DirXZ {
     pub fn new() -> Self {
         Self(DEFAULT_DIR)
