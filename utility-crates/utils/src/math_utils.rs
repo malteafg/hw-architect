@@ -5,7 +5,7 @@ use glam::*;
 use serde::{Deserialize, Serialize};
 use std::{
     f32::consts::PI,
-    ops::{Add, AddAssign, Mul, MulAssign, Neg},
+    ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub},
 };
 
 use crate::consts::DEFAULT_DIR;
@@ -170,12 +170,6 @@ impl Ray {
 #[derive(Copy, Clone, Default, Debug, Serialize, Deserialize)]
 pub struct DirXZ(Vec3);
 
-impl DirXZ {
-    pub fn new() -> Self {
-        Self(DEFAULT_DIR)
-    }
-}
-
 impl PartialEq for DirXZ {
     fn eq(&self, other: &Self) -> bool {
         let this = format!("{:.4}", self.0);
@@ -199,6 +193,10 @@ impl From<DirXZ> for Vec3 {
 }
 
 impl DirXZ {
+    pub fn new() -> Self {
+        Self(DEFAULT_DIR)
+    }
+
     pub fn flip(self, flip: bool) -> Self {
         let vec = self.0.flip(flip);
         vec.into()
@@ -217,6 +215,10 @@ impl DirXZ {
     pub fn right_hand(self) -> Self {
         Self(Vec3::new(-self.0.z, self.0.y, self.0.x))
     }
+
+    pub fn length_squared(self) -> f32 {
+        self.0.length_squared()
+    }
 }
 
 impl Add<DirXZ> for DirXZ {
@@ -230,6 +232,20 @@ impl Add<DirXZ> for Vec3 {
     type Output = Self;
     fn add(self, rhs: DirXZ) -> Self::Output {
         self + rhs.0
+    }
+}
+
+impl Sub<DirXZ> for DirXZ {
+    type Output = Self;
+    fn sub(self, rhs: DirXZ) -> Self::Output {
+        (self.0 - rhs.0).into()
+    }
+}
+
+impl Sub<DirXZ> for Vec3 {
+    type Output = Self;
+    fn sub(self, rhs: DirXZ) -> Self::Output {
+        self - rhs.0
     }
 }
 

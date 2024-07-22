@@ -6,7 +6,10 @@ use crate::{Curve, CurveError, CurveInfo, CurveResult, GuidePoints, Spine};
 
 use super::{CompositeCurve, CurveUnique};
 
+const PRETTY_CLOSE: f32 = 0.97;
+const CLOSE_ENOUGH: f32 = 0.95;
 const COS_45: f32 = std::f32::consts::FRAC_1_SQRT_2;
+const MIN_SEGMENT_LENGTH: f32 = 10.0;
 
 /// A circular curve approximated using cubic bezier curves
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,6 +22,10 @@ impl Circular {
         Circular {
             guide_points: circle_curve(first, last_pos),
         }
+    }
+
+    fn from_guide_points(guide_points: GuidePoints) -> Self {
+        Circular { guide_points }
     }
 }
 
@@ -81,9 +88,48 @@ impl Curve<Circular> {
     }
 
     /// A double snap
-    pub fn from_both_locked(first: Loc, last: Loc) -> (CompositeCurve<Self>, CurveInfo) {
+    pub fn from_both_locked(first: Loc, last: Loc) -> CurveResult<CompositeCurve<Self>> {
+        let diff = last.pos - first.pos;
+        let last = last.flip(true);
 
-        unimplemented!()
+        if Vec3::from(first.dir).mirror(diff).ndot(last.dir.into()) > PRETTY_CLOSE
+            && (-diff).dot(last.dir.into()) >= PRETTY_CLOSE - 1.0
+            && diff.dot(first.dir.into()) >= PRETTY_CLOSE - 1.0
+        {
+            let guide_points = circle_curve_fudged(first, last);
+            let curve = Circular::from_guide_points(guide_points);
+            return Ok(CompositeCurve::Single(curve.into()));
+        }
+
+        let t = s_curve_segment_length(first, last);
+        let center = (first.pos + last.pos + first.dir * t + last.dir * t) / 2.0;
+
+        // Segment angle. The center must be in front of the two end points.
+        if Vec3::from(first.dir).dot(center - first.pos) <= 0.0
+            || Vec3::from(last.dir).dot(center - last.pos) <= 0.0
+        {
+            return Err(CurveError::Impossible);
+        }
+
+        // Curve angle. The direction towards center should be approximately the same as the
+        // direction towards the other end point, for both end points.
+        if (last.pos - first.pos).dot(center - first.pos) <= 0.0
+            || (first.pos - last.pos).dot(center - last.pos) <= 0.0
+        {
+            return Err(CurveError::Impossible);
+        }
+
+        if is_elliptical(first, last) {
+            simple_curve_points(first, last).map(|guide_points| {
+                let curve = Circular::from_guide_points(guide_points);
+                CompositeCurve::Single(curve.into())
+            })
+        } else {
+            let (g1, g2) = double_curve(first, center, last);
+            let curve1 = Circular::from_guide_points(g1);
+            let curve2 = Circular::from_guide_points(g2);
+            Ok(CompositeCurve::Double(curve1.into(), curve2.into()))
+        }
     }
 }
 
@@ -124,6 +170,41 @@ fn circle_curve(first: Loc, last_pos: Vec3) -> GuidePoints {
     ])
 }
 
+/// Best approximation of circular curve when constrained by directions at both points
+fn circle_curve_fudged(first: Loc, last: Loc) -> GuidePoints {
+    let diff = last.pos - first.pos;
+    let r = first.dir * circle_scale(diff, first.dir);
+
+    GuidePoints::from_vec(vec![
+        first.pos,
+        first.pos + r,
+        last.pos + last.dir * r.length(),
+        last.pos,
+    ])
+}
+
+/// Only used if the double snap is elliptical. Simply creates a 3 point bezier curve.
+fn simple_curve_points(first: Loc, last: Loc) -> CurveResult<GuidePoints> {
+    if Vec3::from(first.dir).intersects_in_xz(Vec3::from(last.dir)) {
+        Ok(GuidePoints::from_vec(vec![
+            first.pos,
+            first
+                .pos
+                .intersection_in_xz(Vec3::from(first.dir), last.pos, Vec3::from(last.dir)),
+            last.pos,
+        ]))
+    } else {
+        Err(CurveError::Impossible)
+    }
+}
+
+fn double_curve(first: Loc, center: Vec3, last: Loc) -> (GuidePoints, GuidePoints) {
+    let first_half = circle_curve(first, center);
+    let mut second_half = circle_curve(last, center);
+    second_half.reverse();
+    (first_half, second_half)
+}
+
 /// Computes the side length of the trapezoid that defines the guide points of the circular curve.
 fn circle_scale(diff: Vec3, dir: DirXZ) -> f32 {
     let dot = diff.normalize().dot(dir.into());
@@ -133,4 +214,47 @@ fn circle_scale(diff: Vec3, dir: DirXZ) -> f32 {
     } else {
         2.0 / 3.0 * diff.length() * (1.0 - dot) / (1.0 - dot * dot)
     }
+}
+
+/// Used for double snap only. No clue what happens here
+fn s_curve_segment_length(first: Loc, last: Loc) -> f32 {
+    let diff_pos = last.pos - first.pos;
+    let diff_dir = Vec3::from(last.dir) - first.dir;
+    if diff_dir.length_squared() == 4.0 {
+        return 0.0;
+    }
+    let k = diff_pos.dot(diff_dir) / (4.0 - diff_dir.length_squared());
+    k + (diff_pos.length_squared() / (4.0 - diff_dir.length_squared()) + k * k).sqrt()
+}
+
+/// Used for double snap only. No clue what happens here
+fn is_elliptical(first: Loc, last: Loc) -> bool {
+    let diff = last.pos - first.pos;
+    if Vec3::from(first.dir).dot(last.dir.into()) > 0.0 {
+        return false;
+    }
+    if (-diff).ndot(last.dir.into()) < PRETTY_CLOSE - 1.0
+        || diff.ndot(first.dir.into()) < PRETTY_CLOSE - 1.0
+    {
+        return false;
+    }
+    if Vec3::from(first.dir)
+        .anti_proj(diff)
+        .dot(Vec3::from(last.dir).anti_proj(diff))
+        < 0.0
+    {
+        return false;
+    }
+    if !Vec3::from(first.dir).intersects_in_xz(last.dir.into()) {
+        return false;
+    }
+    let intersection =
+        Vec3::from(first.pos).intersection_in_xz(first.dir.into(), last.pos, last.dir.into());
+    let f1 = (intersection - first.pos).length();
+    let f2 = (intersection - last.pos).length();
+    let rel = f1.min(f2) / f1.max(f2);
+    if f1 * rel < MIN_SEGMENT_LENGTH || f2 * rel < MIN_SEGMENT_LENGTH {
+        return false;
+    }
+    rel <= CLOSE_ENOUGH
 }
