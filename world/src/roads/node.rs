@@ -1,7 +1,7 @@
 use world_api::{LNodeBuilder, LaneMapConfig, NodeType, Side, SnapConfig, SnapRange};
 
 use utils::id::{NodeId, SegmentId};
-use utils::VecUtils;
+use utils::{DirXZ, Loc};
 
 use glam::*;
 use serde::{Deserialize, Serialize};
@@ -50,8 +50,7 @@ use Mode::*;
 /// node.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LNode {
-    pos: Vec3,
-    dir: Vec3,
+    loc: Loc,
     /// This type corresponds with the incoming and outgoing segment in a symmetric node, and the
     /// main segment of an asymmetric node.
     node_type: NodeType,
@@ -62,10 +61,9 @@ pub struct LNode {
 // Implementation of LNode
 // #################################################################################################
 impl LNode {
-    fn new(pos: Vec3, dir: Vec3, node_type: NodeType, mode: Mode) -> Self {
+    fn new(loc: Loc, node_type: NodeType, mode: Mode) -> Self {
         Self {
-            pos,
-            dir,
+            loc,
             node_type,
             mode,
         }
@@ -83,16 +81,20 @@ impl LNode {
                 main_side: Side::Out,
             },
         };
-        let (pos, dir, node_type) = builder.consume();
-        Self::new(pos, dir, node_type, mode)
+        let (loc, node_type) = builder.consume();
+        Self::new(loc, node_type, mode)
     }
 
     pub fn pos(&self) -> Vec3 {
-        self.pos
+        self.loc.pos
     }
 
-    pub fn dir(&self) -> Vec3 {
-        self.dir
+    pub fn _dir(&self) -> DirXZ {
+        self.loc.dir
+    }
+
+    pub fn loc(&self) -> Loc {
+        self.loc
     }
 
     /// Returns the number of lanes of this node's type. This is the number of lanes in the main
@@ -110,7 +112,7 @@ impl LNode {
     }
 
     pub fn contains_pos(&self, pos: Vec3) -> bool {
-        (self.pos - pos).length() < self.width()
+        (self.loc.pos - pos).length() < self.width()
     }
 
     pub fn is_starting(&self) -> bool {
@@ -131,7 +133,7 @@ impl LNode {
 
     /// Requires that `incoming_segment` is in fact an incoming_segment of this node, and that this
     /// node has an outgoing segment.
-    pub fn get_next_segment_lane(
+    pub fn _get_next_segment_lane(
         &self,
         incoming_segment: SegmentId,
         lane: u8,
@@ -155,14 +157,14 @@ impl LNode {
                 Side::In => {
                     #[cfg(debug_assertions)]
                     assert_eq!(*main_segment, incoming_segment);
-                    attached_segments.get_segment_at_index(lane)
+                    attached_segments._get_segment_at_index(lane)
                 }
                 Side::Out => {
                     #[cfg(debug_assertions)]
                     assert!(attached_segments.contains_segment(incoming_segment));
                     Some((
                         *main_segment,
-                        attached_segments.get_lane_from_segment_and_index(incoming_segment, lane),
+                        attached_segments._get_lane_from_segment_and_index(incoming_segment, lane),
                     ))
                 }
             },
@@ -270,7 +272,7 @@ impl LNode {
                     let mut attached_segments = LaneMap::empty(snap_no_lanes);
                     attached_segments.add_segment(*main_segment, self.node_type, new_snap_range);
 
-                    self.pos = snap_config.pos();
+                    self.loc.pos = snap_config.pos();
                     self.node_type = snap_config.node_type();
                     self.mode = Asym {
                         main_segment: segment_id,
@@ -315,7 +317,7 @@ impl LNode {
                 #[cfg(debug_assertions)]
                 assert!(self_no_lanes <= snap_no_lanes);
 
-                self.pos = snap_config.pos();
+                self.loc.pos = snap_config.pos();
                 self.node_type = snap_config.node_type();
                 attached_segments.shift(snap_config.get_snap_range().no_negatives() as i8);
                 attached_segments.update_no_lanes(snap_no_lanes);
@@ -337,7 +339,7 @@ impl LNode {
 
         let self_no_lanes = self.no_lanes();
 
-        let lane_width_dir = self.dir.right_hand() * self.lane_width();
+        let lane_width_dir = Vec3::from(self.loc.dir.right_hand()) * self.lane_width();
         match &mut self.mode {
             Basic { main_segment, .. } => {
                 #[cfg(debug_assertions)]
@@ -391,7 +393,7 @@ impl LNode {
                     // Compute new node pos.
                     let left_space = new_main.snap_range().smallest();
                     let right_space = self_no_lanes as i8 - (new_main.snap_range().largest() + 1);
-                    self.pos += ((left_space - right_space) as f32 / 2.0) * lane_width_dir;
+                    self.loc.pos += ((left_space - right_space) as f32 / 2.0) * lane_width_dir;
 
                     self.node_type = new_main.node_type();
                     self.mode = Basic {
@@ -404,7 +406,8 @@ impl LNode {
                 // We remove the main segment, so we must switch to be an open node.
                 let left_space = attached_segments.smallest();
                 let right_space = self_no_lanes - (attached_segments.largest() + 1);
-                self.pos += ((left_space as i8 - right_space as i8) as f32 / 2.0) * lane_width_dir;
+                self.loc.pos +=
+                    ((left_space as i8 - right_space as i8) as f32 / 2.0) * lane_width_dir;
 
                 let new_no_lanes = attached_segments.largest() + 1;
 
@@ -431,7 +434,7 @@ impl LNode {
                     // Compute new node pos.
                     let left_space = new_main.snap_range().smallest();
                     let right_space = self_no_lanes as i8 - (new_main.snap_range().largest() + 1);
-                    self.pos += ((left_space - right_space) as f32 / 2.0) * lane_width_dir;
+                    self.loc.pos += ((left_space - right_space) as f32 / 2.0) * lane_width_dir;
 
                     self.node_type = new_main.node_type();
                     self.mode = Basic {
@@ -453,7 +456,7 @@ impl LNode {
                 } else {
                     empty_space as i8
                 };
-                self.pos += (pos_shift_change as f32 / 2.0) * lane_width_dir;
+                self.loc.pos += (pos_shift_change as f32 / 2.0) * lane_width_dir;
 
                 self.node_type = NodeType::new(self.node_type.lane_width(), new_no_lanes);
                 // It is safe to return false, because if attached_segments is now empty, then it
@@ -497,7 +500,7 @@ impl LNode {
             return vec![];
         }
 
-        let lane_width_dir = self.dir.right_hand() * self.lane_width();
+        let lane_width_dir = Vec3::from(self.loc.dir.right_hand()) * self.lane_width();
         let snap_no_lanes = node_type.no_lanes();
 
         let (snap_ranges_with_pos, side): (Vec<(SnapRange, Vec3)>, Side) = match &self.mode {
@@ -505,7 +508,7 @@ impl LNode {
                 let snap_ranges_with_pos = Self::gen_snap_range_and_pos(
                     self.no_lanes(),
                     snap_no_lanes,
-                    self.pos,
+                    self.loc.pos,
                     lane_width_dir,
                 );
                 (snap_ranges_with_pos, main_side.switch())
@@ -519,7 +522,7 @@ impl LNode {
                 let mut snap_ranges_with_pos = Self::gen_snap_range_and_pos(
                     self.no_lanes(),
                     snap_no_lanes,
-                    self.pos,
+                    self.loc.pos,
                     lane_width_dir,
                 );
                 snap_ranges_with_pos
@@ -534,7 +537,7 @@ impl LNode {
                 let snap_ranges_with_pos = Self::gen_snap_range_and_pos(
                     self.no_lanes(),
                     snap_no_lanes,
-                    self.pos,
+                    self.loc.pos,
                     lane_width_dir,
                 );
                 (snap_ranges_with_pos, *open_side)
@@ -545,7 +548,11 @@ impl LNode {
             .into_iter()
             .for_each(|(snap_range, pos)| {
                 configs.push(SnapConfig::new(
-                    node_id, node_type, pos, self.dir, snap_range, side,
+                    node_id,
+                    node_type,
+                    Loc::new(pos, self.loc.dir),
+                    snap_range,
+                    side,
                 ))
             });
 
@@ -590,15 +597,15 @@ mod lanes {
             &self.snap_range
         }
 
-        pub fn smallest(&self) -> u8 {
+        pub fn _smallest(&self) -> u8 {
             self.snap_range().smallest() as u8
         }
 
-        pub fn largest(&self) -> u8 {
+        pub fn _largest(&self) -> u8 {
             self.snap_range().largest() as u8
         }
 
-        pub fn contains(&self, index: u8) -> bool {
+        pub fn _contains(&self, index: u8) -> bool {
             #[cfg(debug_assertions)]
             assert!(self.snap_range().smallest() >= 0);
             self.snap_range().contains(index as i8)
@@ -658,19 +665,19 @@ mod lanes {
 
         /// Returns the lane number of this node for which the lane given by `id` and
         /// `index` is located at.
-        pub fn get_lane_from_segment_and_index(&self, id: SegmentId, index: u8) -> u8 {
+        pub fn _get_lane_from_segment_and_index(&self, id: SegmentId, index: u8) -> u8 {
             for s in self.iter() {
                 if id == s.segment_id {
-                    return s.smallest() + index;
+                    return s._smallest() + index;
                 }
             }
             panic!("Requested segment_id does not exist in node");
         }
 
-        pub fn get_segment_at_index(&self, index: u8) -> Option<(SegmentId, u8)> {
+        pub fn _get_segment_at_index(&self, index: u8) -> Option<(SegmentId, u8)> {
             for s in self.iter() {
-                if s.contains(index) {
-                    let new_index = index - s.smallest();
+                if s._contains(index) {
+                    let new_index = index - s._smallest();
                     return Some((s.segment_id(), new_index));
                 }
             }

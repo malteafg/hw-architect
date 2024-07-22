@@ -9,6 +9,7 @@ mod simulation;
 
 use std::time::Duration;
 
+use utils::Loc;
 use world_api::{
     IdGetter, RoadManipulator, SimController, SimData, TreeManipulator, WorldManipulator,
 };
@@ -83,7 +84,7 @@ impl RoadManipulator for World {
         &self,
         side: Option<Side>,
         node_type: NodeType,
-    ) -> Vec<(NodeId, Vec3, Vec3)> {
+    ) -> Vec<(NodeId, Loc)> {
         self.road_graph.get_possible_snap_nodes(side, node_type)
     }
 

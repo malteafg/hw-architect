@@ -1,7 +1,7 @@
 use super::NodeType;
 
-use curves::{CurveSpec, CurveSum, Spine};
-use utils::id::SegmentId;
+use curves::{CurveShared, CurveSum, Spine};
+use utils::{id::SegmentId, DirXZ, Loc};
 
 use glam::*;
 
@@ -10,30 +10,25 @@ use glam::*;
 // #################################################################################################
 #[derive(Debug, Clone, Copy)]
 pub struct LNodeBuilder {
-    pos: Vec3,
-    dir: Vec3,
+    loc: Loc,
     node_type: NodeType,
 }
 
 impl LNodeBuilder {
-    pub fn new(pos: Vec3, dir: Vec3, node_type: NodeType) -> Self {
-        LNodeBuilder {
-            pos,
-            dir,
-            node_type,
-        }
+    pub fn new(loc: Loc, node_type: NodeType) -> Self {
+        LNodeBuilder { loc, node_type }
     }
 
-    pub fn consume(self) -> (Vec3, Vec3, NodeType) {
-        (self.pos, self.dir, self.node_type)
+    pub fn consume(self) -> (Loc, NodeType) {
+        (self.loc, self.node_type)
     }
 
     pub fn pos(&self) -> Vec3 {
-        self.pos
+        self.loc.pos
     }
 
-    pub fn dir(&self) -> Vec3 {
-        self.dir
+    pub fn dir(&self) -> DirXZ {
+        self.loc.dir
     }
 
     pub fn node_type(&self) -> NodeType {
@@ -41,7 +36,7 @@ impl LNodeBuilder {
     }
 
     pub fn flip_dir(&mut self) {
-        self.dir *= -1.
+        self.loc.dir.flip(true);
     }
 }
 

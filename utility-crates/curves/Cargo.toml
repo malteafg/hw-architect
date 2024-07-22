@@ -15,6 +15,7 @@ utils = { workspace = true }
 glam = { workspace = true }
 
 anyhow = { version = "1.0" }
+thiserror = { workspace = true }
 serde = { workspace = true }
 
 enum_dispatch = { workspace = true }

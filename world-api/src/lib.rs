@@ -13,7 +13,7 @@ pub use snap::*;
 pub use tree::*;
 
 use glam::Vec3;
-use utils::id::{NodeId, SegmentId, TreeId};
+use utils::{id::{NodeId, SegmentId, TreeId}, Loc};
 
 pub trait WorldManipulator:
     RoadManipulator + TreeManipulator + IdGetter + SimController + SimData
@@ -39,7 +39,7 @@ pub trait RoadManipulator {
         &self,
         side: Option<Side>,
         node_type: NodeType,
-    ) -> Vec<(NodeId, Vec3, Vec3)>;
+    ) -> Vec<(NodeId, Loc)>;
 
     /// If no node is within range of pos, then this function returns {`None`}. Otherwise it
     /// returns the closest node to pos, and all its possible {`SnapConfig`}'s.

@@ -1,4 +1,4 @@
-use super::{Tool, ToolSpec, ToolUnique};
+use super::{Tool, ToolUnique};
 
 use utils::input;
 
@@ -7,13 +7,12 @@ use gfx_api::{
     GfxWorldData,
 };
 use glam::*;
+use world_api::WorldManipulator;
 
 #[derive(Default)]
 pub struct Bulldoze;
 
-impl<G: GfxWorldData> ToolSpec<G> for Tool<Bulldoze> {}
-
-impl<G: GfxWorldData> ToolUnique<G> for Tool<Bulldoze> {
+impl<G: GfxWorldData, W: WorldManipulator> ToolUnique<G> for Tool<Bulldoze, W> {
     fn init(&mut self, gfx_handle: &mut G) {
         self.update_view(gfx_handle);
     }
@@ -72,7 +71,7 @@ impl<G: GfxWorldData> ToolUnique<G> for Tool<Bulldoze> {
     }
 }
 
-impl Tool<Bulldoze> {
+impl<W: WorldManipulator> Tool<Bulldoze, W> {
     fn bd_trees(&self) -> bool {
         self.state_handle.bulldoze_state.bulldoze_trees
     }

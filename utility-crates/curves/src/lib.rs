@@ -1,12 +1,13 @@
-mod curve_gen;
 mod curves;
 mod guide_points;
 mod spine;
 mod spine_points;
 
-pub use curve_gen::*;
 pub use guide_points::GuidePoints;
 pub use spine::Spine;
 pub use spine_points::SpinePoints;
 
-pub use curves::{Circular, Cubic, Curve, CurveSpec, CurveSum, Quadratic, Straight};
+pub use curves::{
+    Circular, CompositeCurveSum, Cubic, Curve, CurveError, CurveInfo, CurveResult, CurveShared,
+    CurveSpec, CurveSum, Quadratic, Straight,
+};

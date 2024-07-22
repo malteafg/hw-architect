@@ -1,6 +1,6 @@
 use curves::Spine;
 use utils::consts::{LANE_MARKINGS_WIDTH, ROAD_HEIGHT};
-use utils::VecUtils;
+use utils::DirXZ;
 
 use gfx_api::RoadMesh;
 use world_api::NodeType;
@@ -18,15 +18,15 @@ pub fn gen_road_mesh_with_lanes(spine: &Spine, node_type: NodeType) -> RoadMesh 
     let mut lane_indices = vec![];
     let m_verts = (no_lanes * 2) as u32;
 
-    let first_pos = spine[0].0;
-    let first_dir = spine[0].1;
+    let first_pos = spine[0].pos;
+    let first_dir = spine[0].dir;
     let first_cut = generate_clean_cut(first_pos, first_dir, node_type);
     vertices.append(&mut first_cut.clone());
     lane_vertices.append(&mut first_cut[1..5].to_vec());
 
     for i in 1..spine.len() {
-        let pos = spine[i].0;
-        let dir = spine[i].1;
+        let pos = spine[i].pos;
+        let dir = spine[i].dir;
         if i % 3 == 0 {
             let cut = generate_clean_cut(pos, dir, node_type);
 
@@ -190,35 +190,35 @@ pub fn gen_road_mesh_with_lanes(spine: &Spine, node_type: NodeType) -> RoadMesh 
 }
 
 /// Generates the cut where no lane markings are present.
-fn generate_clean_cut(pos: Vec3, dir: Vec3, node_type: NodeType) -> Vec<[f32; 3]> {
+fn generate_clean_cut(pos: Vec3, dir: DirXZ, node_type: NodeType) -> Vec<[f32; 3]> {
     let right_dir = dir.right_hand();
     let mut vertices = vec![];
     let height = Vec3::new(0.0, ROAD_HEIGHT, 0.0);
     let road_width = node_type.lane_width_f32() * node_type.no_lanes() as f32;
 
-    let mut pos = pos - right_dir * (LANE_MARKINGS_WIDTH * 1.5 + road_width / 2.0);
+    let mut pos = pos - Vec3::from(right_dir) * (LANE_MARKINGS_WIDTH * 1.5 + road_width / 2.0);
     vertices.push(pos.into());
 
-    pos += right_dir * LANE_MARKINGS_WIDTH + height;
+    pos += Vec3::from(right_dir) * LANE_MARKINGS_WIDTH + height;
     vertices.push(pos.into());
 
-    pos += right_dir * LANE_MARKINGS_WIDTH;
+    pos += Vec3::from(right_dir) * LANE_MARKINGS_WIDTH;
     vertices.push(pos.into());
 
-    pos += right_dir * (road_width - LANE_MARKINGS_WIDTH);
+    pos += Vec3::from(right_dir) * (road_width - LANE_MARKINGS_WIDTH);
     vertices.push(pos.into());
 
-    pos += right_dir * LANE_MARKINGS_WIDTH;
+    pos += Vec3::from(right_dir) * LANE_MARKINGS_WIDTH;
     vertices.push(pos.into());
 
-    pos += right_dir * LANE_MARKINGS_WIDTH - height;
+    pos += Vec3::from(right_dir) * LANE_MARKINGS_WIDTH - height;
     vertices.push(pos.into());
 
     vertices
 }
 
 /// Generates the cut where lane markings are present.
-fn generate_markings_cut(pos: Vec3, dir: Vec3, node_type: NodeType) -> Vec<[f32; 3]> {
+fn generate_markings_cut(pos: Vec3, dir: DirXZ, node_type: NodeType) -> Vec<[f32; 3]> {
     let right_dir = dir.right_hand();
     let mut vertices = vec![];
     let height = Vec3::new(0.0, ROAD_HEIGHT, 0.0);
@@ -226,31 +226,31 @@ fn generate_markings_cut(pos: Vec3, dir: Vec3, node_type: NodeType) -> Vec<[f32;
     let no_lanes = node_type.no_lanes();
     let road_width = lane_width * no_lanes as f32;
 
-    let mut pos = pos - right_dir * (LANE_MARKINGS_WIDTH * 1.5 + road_width / 2.0);
+    let mut pos = pos - Vec3::from(right_dir) * (LANE_MARKINGS_WIDTH * 1.5 + road_width / 2.0);
     vertices.push(pos.into());
 
-    pos += right_dir * LANE_MARKINGS_WIDTH + height;
+    pos += Vec3::from(right_dir) * LANE_MARKINGS_WIDTH + height;
     vertices.push(pos.into());
 
-    pos += right_dir * LANE_MARKINGS_WIDTH;
+    pos += Vec3::from(right_dir) * LANE_MARKINGS_WIDTH;
     vertices.push(pos.into());
 
     // Lanes in between outer lanes
     for _ in 0..no_lanes - 1 {
-        pos += right_dir * (lane_width - LANE_MARKINGS_WIDTH);
+        pos += Vec3::from(right_dir) * (lane_width - LANE_MARKINGS_WIDTH);
         vertices.push(pos.into());
 
-        pos += right_dir * LANE_MARKINGS_WIDTH;
+        pos += Vec3::from(right_dir) * LANE_MARKINGS_WIDTH;
         vertices.push(pos.into());
     }
 
-    pos += right_dir * (lane_width - LANE_MARKINGS_WIDTH);
+    pos += Vec3::from(right_dir) * (lane_width - LANE_MARKINGS_WIDTH);
     vertices.push(pos.into());
 
-    pos += right_dir * LANE_MARKINGS_WIDTH;
+    pos += Vec3::from(right_dir) * LANE_MARKINGS_WIDTH;
     vertices.push(pos.into());
 
-    pos += right_dir * LANE_MARKINGS_WIDTH - height;
+    pos += Vec3::from(right_dir) * LANE_MARKINGS_WIDTH - height;
     vertices.push(pos.into());
 
     vertices

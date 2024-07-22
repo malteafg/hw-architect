@@ -1,6 +1,6 @@
 use world_api::{LSegmentBuilder, LSegmentBuilderType};
 
-use curves::{CurveSpec, CurveSum, GuidePoints, Spine};
+use curves::{CurveShared, CurveSum};
 use utils::id::NodeId;
 
 use glam::Vec3;
@@ -55,6 +55,6 @@ impl LSegment {
     }
 
     pub fn contains_pos(&self, pos: Vec3) -> bool {
-        self.curve.contains_pos(pos)
+        self.curve.contains_pos(pos, self.width())
     }
 }

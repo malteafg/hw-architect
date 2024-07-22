@@ -13,7 +13,7 @@ pub struct State<G: GfxSuper> {
     window_width: u32,
     window_height: u32,
     camera_controller: CameraController,
-    tool: ToolHandler<G>,
+    tool: ToolHandler<G, world::World>,
     input_state: InputState,
     ground_pos: Vec3,
 }
@@ -28,7 +28,7 @@ impl<G: GfxSuper> State<G> {
         );
 
         let world = world::World::new();
-        let tool = ToolHandler::new(&mut gfx_handle, Box::new(world));
+        let tool = ToolHandler::new(&mut gfx_handle, world);
 
         Self {
             gfx_handle,

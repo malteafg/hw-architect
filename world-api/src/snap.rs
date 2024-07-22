@@ -3,6 +3,8 @@ use super::Side;
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
 use utils::id::NodeId;
+use utils::DirXZ;
+use utils::Loc;
 
 /// Represents a continuous range of lane indexes. As an example, SnapRange might contain 2,3,4
 /// representing lanes 2,3 and 4. Lane indexes can also be negative for use in a {`SnapConfig`}
@@ -18,8 +20,7 @@ pub struct SnapRange(Vec<i8>);
 pub struct SnapConfig {
     node_id: NodeId,
     node_type: NodeType,
-    pos: Vec3,
-    dir: Vec3,
+    loc: Loc,
     snap_range: SnapRange,
     side: Side,
 }
@@ -38,6 +39,18 @@ impl core::ops::Deref for SnapRange {
 impl core::ops::DerefMut for SnapRange {
     fn deref_mut(self: &'_ mut Self) -> &'_ mut Self::Target {
         &mut self.0
+    }
+}
+
+impl From<SnapConfig> for Loc {
+    fn from(value: SnapConfig) -> Self {
+        value.loc
+    }
+}
+
+impl From<&SnapConfig> for Loc {
+    fn from(value: &SnapConfig) -> Self {
+        value.loc
     }
 }
 
@@ -95,16 +108,14 @@ impl SnapConfig {
     pub fn new(
         node_id: NodeId,
         node_type: NodeType,
-        pos: Vec3,
-        dir: Vec3,
+        loc: Loc,
         snap_range: SnapRange,
         side: Side,
     ) -> Self {
         Self {
             node_id,
             node_type,
-            pos,
-            dir,
+            loc,
             snap_range,
             side,
         }
@@ -119,15 +130,15 @@ impl SnapConfig {
     }
 
     pub fn pos(&self) -> Vec3 {
-        self.pos
+        self.loc.pos
     }
 
-    pub fn dir(&self) -> Vec3 {
-        self.dir
+    pub fn dir(&self) -> DirXZ {
+        self.loc.dir
     }
 
-    pub fn pos_and_dir(&self) -> (Vec3, Vec3) {
-        (self.pos, self.dir)
+    pub fn pos_and_dir(&self) -> (Vec3, DirXZ) {
+        (self.loc.pos, self.loc.dir)
     }
 
     pub fn get_snap_range(&self) -> &SnapRange {

@@ -252,7 +252,8 @@ impl gfx_api::GfxRoadData for RoadState {
     /// Updates the road tool buffer with the given mesh.
     fn set_road_tool_mesh(&mut self, mesh: Option<RoadMesh>) {
         let Some(mesh) = mesh else {
-            self.tool_buffer.write(&self.queue, &self.device, empty_road_mesh());
+            self.tool_buffer
+                .write(&self.queue, &self.device, empty_road_mesh());
             return;
         };
         self.tool_buffer.write(&self.queue, &self.device, mesh);
@@ -341,17 +342,6 @@ where
         self.render(&road_state.road_buffer);
         self.render(&road_state.tool_buffer);
         self.render(&road_state.marked_buffer);
-
-        // use super::model::DrawModel;
-        // let mesh = &self.obj_model.meshes[0];
-        // let material = &self.obj_model.materials[mesh.material];
-        // render_pass.draw_mesh_instanced(
-        //     mesh,
-        //     material,
-        //     0..self.instances.len() as u32,
-        //     &self.camera_bind_group,
-        //     &self.light_bind_group,
-        // );
 
         self.render_simple_model(
             simple_renderer,

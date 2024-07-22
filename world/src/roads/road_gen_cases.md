@@ -89,3 +89,44 @@ Maybe GuidePoints should be generic over CurveType.
 reverse in road generator should mean that segments and nodes should be reversed when built
 
 sel_node <-> side_locked
+
+## Snap permutations
+* Position
+* Direction
+* Curvature (TODO)
+
+
+### Straight
+* Pos, Pos (Project to smallest segment length)
+* Pos Dir, Pos (Project to smallest segment length)
+* Pos Dir, Pos Dir
+* Pos, Pos Dir
+
+### Circular
+* N/A, Pos, Pos (Project to smallest circular curve)
+* Pos Dir, Pos (Project to smallest circular curve)
+* Pos Dir, Pos Dir (Double snap)
+* Pos, Pos Dir
+
+
+
+## Construct tasks
+### Straight
+1. Choose start
+2. Choose end (free)
+
+### Circular
+1. Choose start
+2. Choose dir
+3. Choose end
+
+### Quadratic
+1. Choose start
+2. Choose ctl
+3. Choose end
+
+### Cubic
+1. Choose start
+2. Choose ctl
+3. Choose ctl
+4. Choose end
