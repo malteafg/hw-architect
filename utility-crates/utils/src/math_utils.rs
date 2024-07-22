@@ -5,17 +5,27 @@ use glam::*;
 use serde::{Deserialize, Serialize};
 use std::{
     f32::consts::PI,
-    ops::{Add, AddAssign, Mul, MulAssign},
+    ops::{Add, AddAssign, Mul, MulAssign, Neg},
 };
 
 use crate::consts::DEFAULT_DIR;
 
 /// Defines utility functions intended for vector types
 pub trait VecUtils {
+    /// Projects self on to target
     fn proj(self, target: Self) -> Self;
+
+    /// Anti projects self on to target
     fn anti_proj(self, target: Self) -> Self;
-    fn mirror(self, mirror_normal: Vec3) -> Self;
+
+    /// Normalizes self and gives it the specified length
+    fn rescale(self, length: f32) -> Self;
+
+    /// Mirrors self on the given normal
+    fn mirror(self, normal: Vec3) -> Self;
+
     fn ndot(self, other: Self) -> f32;
+
     // perhaps move these to Vec3Utils
     fn intersects_in_xz(self, other: Self) -> bool;
     fn intersection_in_xz(self, self_dir: Self, other: Self, other_dir: Self) -> Self;
@@ -34,8 +44,12 @@ impl VecUtils for Vec3 {
         self - self.proj(target)
     }
 
-    fn mirror(self, mirror_normal: Self) -> Self {
-        self - self.proj(mirror_normal) * 2.0
+    fn rescale(self, length: f32) -> Self {
+        self.normalize() * length
+    }
+
+    fn mirror(self, normal: Self) -> Self {
+        self - self.proj(normal) * 2.0
     }
 
     fn ndot(self, other: Self) -> f32 {
@@ -190,6 +204,12 @@ impl DirXZ {
         vec.into()
     }
 
+    pub fn mirror(self, normal: Vec3) -> Self {
+        let vec: Vec3 = self.into();
+        let res = vec - vec.proj(normal) * 2.0;
+        res.into()
+    }
+
     pub fn left_hand(self) -> Self {
         Self(Vec3::new(self.0.z, self.0.y, -self.0.x))
     }
@@ -236,6 +256,14 @@ impl Mul<f32> for DirXZ {
     type Output = Vec3;
     fn mul(self, rhs: f32) -> Self::Output {
         self.0 * rhs
+    }
+}
+
+impl Neg for DirXZ {
+    type Output = DirXZ;
+
+    fn neg(self) -> DirXZ {
+        self.flip(true)
     }
 }
 

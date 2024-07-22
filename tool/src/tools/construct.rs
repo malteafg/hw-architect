@@ -10,7 +10,7 @@ use crate::cycle_selection;
 use crate::gfx_gen::segment_gen;
 use crate::tool_state::{CurveType, SelectedRoad};
 
-use curves::{CompositeCurve, Curve, CurveError, CurveShared, Straight};
+use curves::{CompositeCurveSum, Curve, CurveError, CurveShared, Straight};
 use utils::id::{IdMap, SegmentId};
 use utils::{input, Loc};
 use world_api::{
@@ -176,9 +176,9 @@ impl<W: WorldManipulator> Tool<Construct, W> {
         dbg!(error);
     }
 
-    fn construct_road<G: GfxWorldData>(&mut self, gfx_handle: &mut G, curve: CompositeCurve) {
+    fn construct_road<G: GfxWorldData>(&mut self, gfx_handle: &mut G, curve: CompositeCurveSum) {
         let road_builder = match curve {
-            CompositeCurve::Single(mut curve) => {
+            CompositeCurveSum::Single(mut curve) => {
                 let (first, last, reverse) = self.construct_compute_end_nodes();
                 if reverse {
                     curve.reverse();
@@ -194,7 +194,7 @@ impl<W: WorldManipulator> Tool<Construct, W> {
                 )];
                 LRoadBuilder::new(nodes, segments, reverse)
             }
-            CompositeCurve::Double(_curve1, _curve2) => unimplemented!(),
+            CompositeCurveSum::Double(_curve1, _curve2) => unimplemented!(),
         };
 
         let road_meshes = self.gen_road_mesh_from_builder(&road_builder, self.get_sel_node_type());
@@ -290,14 +290,14 @@ impl<W: WorldManipulator> Tool<Construct, W> {
     fn set_road_tool_mesh<G: GfxWorldData>(
         &self,
         gfx_handle: &mut G,
-        curve: CompositeCurve,
+        curve: CompositeCurveSum,
         node_type: NodeType,
     ) {
         let mesh = match curve {
-            CompositeCurve::Single(curve) => {
+            CompositeCurveSum::Single(curve) => {
                 segment_gen::gen_road_mesh_with_lanes(curve.get_spine(), node_type)
             }
-            CompositeCurve::Double(curve1, curve2) => {
+            CompositeCurveSum::Double(curve1, curve2) => {
                 let mesh1 = segment_gen::gen_road_mesh_with_lanes(curve1.get_spine(), node_type);
                 let mesh2 = segment_gen::gen_road_mesh_with_lanes(curve2.get_spine(), node_type);
                 segment_gen::combine_road_meshes_bad(vec![mesh1, mesh2])

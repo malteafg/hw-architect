@@ -13,8 +13,8 @@ pub struct Straight {
 }
 
 impl Straight {
-    fn new(start: Vec3, end: Vec3) -> Self {
-        let guide_points = GuidePoints::from_two_points(start, end);
+    fn new(first_pos: Vec3, last_pos: Vec3) -> Self {
+        let guide_points = GuidePoints::from_two_points(first_pos, last_pos);
         Self { guide_points }
     }
 }

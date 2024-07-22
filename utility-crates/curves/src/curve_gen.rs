@@ -1,5 +1,5 @@
 use crate::GuidePoints;
-use utils::VecUtils;
+use utils::{DirXZ, Loc, VecUtils};
 
 use glam::Vec3;
 
@@ -46,53 +46,8 @@ pub fn guide_points_and_direction(
     )
 }
 
-pub fn three_quarter_circle_curve(
-    pos1: Vec3,
-    dir1: Vec3,
-    pos2: Vec3,
-    snap_line_angle: f32,
-    snap: bool,
-    allow_projection: bool,
-) -> Option<Vec<GuidePoints>> {
-    //return Some(vec![spiral_curve(pos1, dir1, pos2, dir1.normalize().right_hand()*50.0)])
-    let (projected_pos2, projected) = if snap {
-        (
-            snap_circle_projection(pos1, dir1, pos2, snap_line_angle),
-            true,
-        )
-    } else {
-        three_quarter_projection(pos1, dir1, pos2)
-    };
-
-    if !allow_projection && projected {
-        return None;
-    }
-
-    if (projected_pos2 - pos1).dot(dir1) >= 0.0 {
-        Some(vec![circle_curve(pos1, dir1, projected_pos2)])
-    } else {
-        let mid_point = curve_mid_point(pos1, dir1, projected_pos2);
-        Some(vec![
-            circle_curve(pos1, dir1, mid_point),
-            circle_curve(mid_point, projected_pos2 - pos1, projected_pos2),
-        ])
-    }
-}
-
-fn three_quarter_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> (Vec3, bool) {
-    let diff = pos2 - pos1;
-    let proj_length = diff.dot(dir1) / dir1.length();
-    if proj_length >= -COS_45 * diff.length() {
-        (pos2, false)
-    } else {
-        (
-            pos1 + diff.proj(dir1) + diff.anti_proj(dir1).normalize() * proj_length.abs(),
-            true,
-        )
-    }
-}
-
-fn snap_circle_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3, line_angle: f32) -> Vec3 {
+fn snap_circle_projection(pos1: Vec3, dir1: DirXZ, pos2: Vec3, line_angle: f32) -> Vec3 {
+    let dir1: Vec3 = dir1.into();
     let diff = pos2 - pos1;
     let tau = std::f32::consts::PI * 2.0;
     let no_lines = tau / line_angle;
@@ -105,27 +60,10 @@ fn snap_circle_projection(pos1: Vec3, dir1: Vec3, pos2: Vec3, line_angle: f32) -
     pos1 + line.normalize() * diff.length()
 }
 
-fn curve_mid_point(pos1: Vec3, dir: Vec3, pos2: Vec3) -> Vec3 {
-    let diff = pos2 - pos1;
-    let dir2 = dir.normalize() + diff.normalize();
-    pos1 + (dir2 * (diff.length_squared() / 2.0 / dir2.dot(diff)))
-}
-
-/// The guidepoints for a curve as circular as possible with four guide points, up to half a circle
-pub fn circle_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3) -> GuidePoints {
-    let diff = pos2 - pos1;
-    let r = dir1 * circle_scale(diff, dir1);
-
-    GuidePoints::from_vec(vec![
-        pos1,
-        pos1 + r,
-        pos2 + r - diff * (2.0 * diff.dot(r) / diff.length_squared()),
-        pos2,
-    ])
-}
-
 /// Best approximation of circular curve when constrained by directions at both points
-pub fn circle_curve_fudged(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> GuidePoints {
+pub fn circle_curve_fudged(pos1: Vec3, dir1: DirXZ, pos2: Vec3, dir2: DirXZ) -> GuidePoints {
+    let dir1: Vec3 = dir1.into();
+    let dir2: Vec3 = dir2.into();
     let diff = pos2 - pos1;
     let r = dir1 * circle_scale(diff, dir1);
 
@@ -135,16 +73,6 @@ pub fn circle_curve_fudged(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> Gu
         pos2 + dir2.normalize() * r.length(),
         pos2,
     ])
-}
-
-fn circle_scale(diff: Vec3, dir: Vec3) -> f32 {
-    let dot = diff.normalize().dot(dir.normalize());
-    if dot == 1.0 {
-        // Makes it so that straight curves have intermidiary guidepoints and 1/3 and 2/3
-        diff.length() / (3.0 * dir.length())
-    } else {
-        2.0 / 3.0 * diff.length() * (1.0 - dot) / (dir.length() * (1.0 - dot * dot))
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -210,9 +138,9 @@ pub fn double_snap_curve_case(
 
 pub fn match_double_snap_curve_case(
     pos1: Vec3,
-    dir1: Vec3,
+    dir1: DirXZ,
     pos2: Vec3,
-    dir2: Vec3,
+    dir2: DirXZ,
     case: DoubleSnapCurveCase,
 ) -> Vec<GuidePoints> {
     let dir2 = -dir2;
@@ -225,12 +153,10 @@ pub fn match_double_snap_curve_case(
     }
 }
 
-fn double_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> Vec<GuidePoints> {
+fn double_curve(pos1: Vec3, dir1: DirXZ, pos2: Vec3, dir2: DirXZ) -> Vec<GuidePoints> {
     let mut points = Vec::new();
-    let ndir1 = dir1.normalize();
-    let ndir2 = dir2.normalize();
-    let t = s_curve_segment_length(pos1, ndir1, pos2, dir2);
-    let center = (pos1 + pos2 + ndir1 * t + ndir2 * t) / 2.0;
+    let t = s_curve_segment_length(pos1, dir1.into(), pos2, dir2.into());
+    let center = (pos1 + pos2 + dir1 * t + dir2 * t) / 2.0;
 
     points.push(circle_curve(pos1, dir1, center));
     let mut second_half = circle_curve(pos2, dir2, center);
@@ -242,14 +168,14 @@ fn double_curve(pos1: Vec3, dir1: Vec3, pos2: Vec3, dir2: Vec3) -> Vec<GuidePoin
 
 fn simple_curve_points(
     pos1: Vec3,
-    dir1: Vec3,
+    dir1: DirXZ,
     pos2: Vec3,
-    dir2: Vec3,
+    dir2: DirXZ,
 ) -> anyhow::Result<GuidePoints> {
-    if dir1.intersects_in_xz(dir2) {
+    if Vec3::from(dir1).intersects_in_xz(Vec3::from(dir2)) {
         Ok(GuidePoints::from_vec(vec![
             pos1,
-            pos1.intersection_in_xz(dir1, pos2, dir2),
+            pos1.intersection_in_xz(Vec3::from(dir1), pos2, Vec3::from(dir2)),
             pos2,
         ]))
     } else {

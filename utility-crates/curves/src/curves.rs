@@ -60,14 +60,29 @@ pub enum CurveInfo {
 }
 
 #[derive(Debug, Clone)]
-pub enum CompositeCurve {
+pub enum CompositeCurveSum {
     Single(CurveSum),
     Double(CurveSum, CurveSum),
 }
 
-impl<C: Into<CurveSum>> From<C> for CompositeCurve {
+impl<C: Into<CurveSum>> From<C> for CompositeCurveSum {
     fn from(value: C) -> Self {
-        CompositeCurve::Single(value.into())
+        CompositeCurveSum::Single(value.into())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum CompositeCurve<C: CurveShared> {
+    Single(C),
+    Double(C, C),
+}
+
+impl<C: Into<CurveSum> + CurveShared> From<CompositeCurve<C>> for CompositeCurveSum {
+    fn from(value: CompositeCurve<C>) -> Self {
+        match value {
+            CompositeCurve::Single(curve) => CompositeCurveSum::Single(curve.into()),
+            CompositeCurve::Double(c1, c2) => CompositeCurveSum::Double(c1.into(), c2.into()),
+        }
     }
 }
 
@@ -75,11 +90,11 @@ impl<C: Into<CurveSum>> From<C> for CompositeCurve {
 pub enum CurveError {
     /// A curve can be constructed but the curve is too tight.
     #[error("The curve has points for which the curvature is too extreme")]
-    TooTight(CompositeCurve),
+    TooTight(CompositeCurveSum),
 
     /// A curve can be constructed but the curve is too short.
     #[error("The curve is too short")]
-    TooShort(CompositeCurve),
+    TooShort(CompositeCurveSum),
 
     /// The curve cannot be created given the current parameters.
     #[error("The curve is impossible to construct with the given constraints")]

@@ -1,6 +1,6 @@
 use super::straight_tool::StraightTool;
 
-use curves::{CompositeCurve, Curve, CurveError, CurveInfo, CurveSpec, CurveSum, Straight};
+use curves::{CompositeCurveSum, Curve, CurveError, CurveInfo, CurveSpec, CurveSum, Straight};
 use utils::{Loc, PosOrLoc};
 use world_api::SnapConfig;
 
@@ -32,9 +32,9 @@ impl From<EndPoint> for PosOrLoc {
 /// Describes the action that should be taken by the construct tool.
 pub enum CurveAction {
     /// Construct the given curve as part of the world.
-    Construct(CompositeCurve),
+    Construct(CompositeCurveSum),
     /// Render the given curve while still constructing it.
-    Render(CompositeCurve, CurveInfo),
+    Render(CompositeCurveSum, CurveInfo),
     /// A direction needs to be chosen.
     Direction(Loc, f32),
     /// A control point needs to be chosen.
@@ -49,7 +49,7 @@ pub type CurveActionResult = Result<CurveAction, CurveError>;
 
 impl<C: Into<CurveSum>> From<(C, CurveInfo)> for CurveAction {
     fn from((curve, curve_info): (C, CurveInfo)) -> Self {
-        CurveAction::Render(CompositeCurve::Single(curve.into()), curve_info)
+        CurveAction::Render(CompositeCurveSum::Single(curve.into()), curve_info)
     }
 }
 
