@@ -1,7 +1,8 @@
 use super::NodeType;
 
 use curves::{CurveShared, CurveSum, Spine};
-use utils::{id::SegmentId, DirXZ, Loc};
+use utils::id::SegmentId;
+use utils::math::{DirXZ, Loc};
 
 use glam::*;
 

@@ -9,7 +9,7 @@ mod simulation;
 
 use std::time::Duration;
 
-use utils::Loc;
+use utils::math::Loc;
 use world_api::{
     IdGetter, RoadManipulator, SimController, SimData, TreeManipulator, WorldManipulator,
 };

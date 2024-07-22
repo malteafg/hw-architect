@@ -6,11 +6,9 @@ extern crate strum;
 #[macro_use]
 extern crate strum_macros;
 
-mod math_utils;
-pub use math_utils::{Angle, DirXZ, Loc, Mat3Utils, Mat4Utils, PosOrLoc, Ray, Round, VecUtils};
-
 pub mod consts;
 pub mod id;
 pub mod input;
 pub mod loader;
+pub mod math;
 pub mod time;

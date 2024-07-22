@@ -1,6 +1,6 @@
 use curves::Spine;
 use utils::consts::{LANE_MARKINGS_WIDTH, ROAD_HEIGHT};
-use utils::DirXZ;
+use utils::math::DirXZ;
 
 use gfx_api::RoadMesh;
 use world_api::NodeType;

@@ -3,7 +3,7 @@ use super::{circular_tool::CircularTool, straight_tool::StraightTool};
 use curves::{
     Circular, CompositeCurveSum, Curve, CurveError, CurveInfo, CurveSpec, CurveSum, Straight,
 };
-use utils::{Loc, PosOrLoc};
+use utils::math::{Loc, PosOrLoc};
 use world_api::SnapConfig;
 
 use std::marker::PhantomData;

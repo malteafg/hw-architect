@@ -1,7 +1,7 @@
 use super::curve_tool_spec::{CurveAction, CurveActionResult, CurveToolSpecInternal};
 
 use curves::{Circular, Curve, CurveInfo};
-use utils::{DirXZ, PosOrLoc};
+use utils::math::{DirXZ, PosOrLoc};
 
 #[derive(Default)]
 pub struct CircularTool {
@@ -36,14 +36,14 @@ impl CurveToolSpecInternal for CircularTool {
     fn compute_curve(&mut self, mut first: PosOrLoc, last: PosOrLoc) -> CurveActionResult {
         use PosOrLoc::*;
         if let Some(dir) = self.sel_dir {
-            first = Loc(utils::Loc::new(first.pos(), dir));
+            first = Loc(utils::math::Loc::new(first.pos(), dir));
         }
 
         match (first, last) {
             (Pos(first_pos), Pos(last_pos)) => {
                 let dir = last_pos - first_pos;
                 Ok(CurveAction::Direction(
-                    utils::Loc::new(first_pos, dir.into()),
+                    utils::math::Loc::new(first_pos, dir.into()),
                     last_pos,
                 ))
             }

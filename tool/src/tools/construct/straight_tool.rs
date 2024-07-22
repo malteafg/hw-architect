@@ -1,7 +1,7 @@
 use super::curve_tool_spec::{CurveAction, CurveActionResult, CurveToolSpecInternal};
 
 use curves::{Curve, CurveInfo, Straight};
-use utils::PosOrLoc;
+use utils::math::PosOrLoc;
 
 #[derive(Default)]
 pub struct StraightTool;

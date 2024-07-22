@@ -1,6 +1,6 @@
 use crate::{GuidePoints, SpinePoints};
 
-use utils::{Loc, VecUtils};
+use utils::math::{Loc, VecUtils};
 
 use glam::Vec3;
 use serde::{Deserialize, Serialize};

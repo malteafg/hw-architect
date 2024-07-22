@@ -7,7 +7,7 @@ pub use circular::Circular;
 pub use cubic::Cubic;
 pub use quadratic::Quadratic;
 pub use straight::Straight;
-use utils::Loc;
+use utils::math::Loc;
 
 use crate::Spine;
 

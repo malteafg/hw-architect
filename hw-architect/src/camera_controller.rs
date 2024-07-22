@@ -1,4 +1,5 @@
-use utils::{input, Angle};
+use utils::input;
+use utils::math::Angle;
 
 use glam::*;
 

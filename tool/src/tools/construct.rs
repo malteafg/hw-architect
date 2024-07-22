@@ -14,7 +14,8 @@ use crate::tool_state::{CurveType, SelectedRoad};
 
 use curves::{Circular, CompositeCurveSum, Curve, CurveError, CurveShared, Straight};
 use utils::id::{IdMap, SegmentId};
-use utils::{input, Loc};
+use utils::input;
+use utils::math::Loc;
 use world_api::{
     LNodeBuilder, LNodeBuilderType, LRoadBuilder, LSegmentBuilder, LaneWidth, NodeType, SnapConfig,
     WorldManipulator,

@@ -1,5 +1,5 @@
 use gfx_api::RawCameraData;
-use utils::Mat4Utils;
+use utils::math::Mat4Utils;
 
 use glam::*;
 use wgpu::util::DeviceExt;

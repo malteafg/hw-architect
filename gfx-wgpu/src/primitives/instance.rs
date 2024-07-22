@@ -1,4 +1,4 @@
-use utils::{Mat3Utils, Mat4Utils};
+use utils::math::{Mat3Utils, Mat4Utils};
 
 use glam::{Mat3, Mat4, Quat, Vec3};
 

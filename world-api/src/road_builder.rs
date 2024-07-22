@@ -1,7 +1,7 @@
 use super::{LNodeBuilder, LSegmentBuilder, NodeType, SnapConfig};
 
 use curves::CurveShared;
-use utils::{DirXZ, Loc};
+use utils::math::{DirXZ, Loc};
 
 use glam::Vec3;
 

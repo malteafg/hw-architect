@@ -13,7 +13,8 @@ pub use snap::*;
 pub use tree::*;
 
 use glam::Vec3;
-use utils::{id::{NodeId, SegmentId, TreeId}, Loc};
+use utils::id::{NodeId, SegmentId, TreeId};
+use utils::math::Loc;
 
 pub trait WorldManipulator:
     RoadManipulator + TreeManipulator + IdGetter + SimController + SimData

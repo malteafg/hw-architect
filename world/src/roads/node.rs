@@ -1,7 +1,7 @@
 use world_api::{LNodeBuilder, LaneMapConfig, NodeType, Side, SnapConfig, SnapRange};
 
 use utils::id::{NodeId, SegmentId};
-use utils::{DirXZ, Loc};
+use utils::math::{DirXZ, Loc};
 
 use glam::*;
 use serde::{Deserialize, Serialize};

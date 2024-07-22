@@ -3,10 +3,8 @@ use super::segment::LSegment;
 
 use world_api::{LNodeBuilderType, LRoadBuilder, LaneMapConfig, NodeType, Side, SnapConfig};
 
-use utils::{
-    id::{IdManager, IdMap, IdSet, NodeId, SegmentId, UnsafeMap},
-    Loc,
-};
+use utils::id::{IdManager, IdMap, IdSet, NodeId, SegmentId, UnsafeMap};
+use utils::math::Loc;
 
 use glam::*;
 use serde::{Deserialize, Serialize};

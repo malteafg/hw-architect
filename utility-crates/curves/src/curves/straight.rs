@@ -1,6 +1,7 @@
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
-use utils::{consts::ROAD_MIN_LENGTH, DirXZ, Loc, VecUtils};
+use utils::consts::ROAD_MIN_LENGTH;
+use utils::math::{DirXZ, Loc, VecUtils};
 
 use crate::{Curve, CurveError, CurveResult, GuidePoints, Spine};
 
