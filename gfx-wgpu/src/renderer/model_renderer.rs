@@ -9,17 +9,16 @@ use std::rc::Rc;
 
 pub struct ModelRenderer {
     render_pipeline: wgpu::RenderPipeline,
+    camera_bind_group: Rc<wgpu::BindGroup>,
 
     models: ModelMap,
 
-    camera_bind_group: Rc<wgpu::BindGroup>,
     light_bind_group: Rc<wgpu::BindGroup>,
 }
 
 impl ModelRenderer {
     pub fn new(
         device: Rc<wgpu::Device>,
-        // queue: Rc<wgpu::Queue>,
         color_format: wgpu::TextureFormat,
 
         models: ModelMap,
@@ -46,7 +45,6 @@ impl ModelRenderer {
             "model",
         );
         Self {
-            // queue,
             render_pipeline,
             models,
             camera_bind_group,
@@ -94,9 +92,9 @@ where
 
 pub struct SimpleModelRenderer {
     render_pipeline: wgpu::RenderPipeline,
+    camera_bind_group: Rc<wgpu::BindGroup>,
 
     models: SimpleModelMap,
-    camera_bind_group: Rc<wgpu::BindGroup>,
 
     color_bind_group: wgpu::BindGroup,
     color_buffer: wgpu::Buffer,

@@ -44,28 +44,28 @@ impl RoadState {
     ) -> Self {
         let (_, asphalt_color) = render_utils::create_color(
             &device,
-            &color_bind_group_layout,
+            color_bind_group_layout,
             colors::rgba(colors::ASPHALT_COLOR, 1.0),
             "asphalt",
         );
         let asphalt_color = Rc::new(asphalt_color);
         let (_, markings_color) = render_utils::create_color(
             &device,
-            &color_bind_group_layout,
+            color_bind_group_layout,
             colors::rgba(colors::LANE_MARKINGS_COLOR, 1.0),
             "markings",
         );
         let markings_color = Rc::new(markings_color);
         let (_, tool_color) = render_utils::create_color(
             &device,
-            &color_bind_group_layout,
+            color_bind_group_layout,
             colors::rgba(colors::LIGHT_BLUE, 0.5),
             "asphalt",
         );
         let tool_color = Rc::new(tool_color);
         let (_, marked_color) = render_utils::create_color(
             &device,
-            &color_bind_group_layout,
+            color_bind_group_layout,
             colors::rgba(colors::RED, 0.7),
             "marked",
         );
@@ -81,7 +81,7 @@ impl RoadState {
             &device,
             &[
                 camera_bind_group_layout,
-                &color_bind_group_layout,
+                color_bind_group_layout,
                 //&texture_bind_group_layout,
             ],
             color_format,

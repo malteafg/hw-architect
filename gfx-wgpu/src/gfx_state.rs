@@ -13,11 +13,11 @@ use std::time::Duration;
 
 pub struct GfxState<'a> {
     surface: wgpu::Surface<'a>,
+    depth_texture: primitives::Texture,
+    surface_config: wgpu::SurfaceConfiguration,
+
     device: Rc<wgpu::Device>,
     queue: Rc<wgpu::Queue>,
-    depth_texture: primitives::Texture,
-
-    config: wgpu::SurfaceConfiguration,
 
     camera: primitives::Camera,
     renderer: renderer::Renderer,
@@ -134,7 +134,7 @@ impl<'a> GfxState<'a> {
             device,
             queue,
             depth_texture,
-            config,
+            surface_config: config,
             renderer: main_renderer,
             camera,
         }
@@ -205,12 +205,12 @@ impl<'a> gfx_api::Gfx for GfxState<'a> {
         if !(width > 0 && height > 0) {
             return;
         }
-        self.config.width = width;
-        self.config.height = height;
-        self.surface.configure(&self.device, &self.config);
+        self.surface_config.width = width;
+        self.surface_config.height = height;
+        self.surface.configure(&self.device, &self.surface_config);
 
         self.depth_texture =
-            primitives::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
+            primitives::Texture::create_depth_texture(&self.device, &self.surface_config, "depth_texture");
 
         self.camera.resize(width, height);
     }
