@@ -1,5 +1,4 @@
-use crate::primitives::{InstanceRaw, ModelVertex, SimpleModelVertex};
-use crate::renderer::terrain_renderer::TerrainVertex;
+use crate::primitives::{InstanceRaw, ModelVertex, SimpleModelVertex, TerrainVertex};
 use std::mem;
 
 pub trait Vertex {

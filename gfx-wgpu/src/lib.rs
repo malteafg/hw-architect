@@ -1,8 +1,9 @@
 #![allow(warnings)]
 
+mod gfx_state;
 mod primitives;
 mod render_utils;
 mod renderer;
 mod resources;
 
-pub use renderer::GfxState;
+pub use gfx_state::GfxState;

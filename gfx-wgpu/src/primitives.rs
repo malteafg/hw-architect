@@ -14,3 +14,10 @@ pub use model::{DrawLight, DrawModel, Material, Mesh, Model, ModelVertex};
 pub use simple_model::{DrawSimpleModel, SimpleModel, SimpleModelVertex};
 pub use texture::Texture;
 pub use vertex::Vertex;
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct TerrainVertex {
+    pub position: [f32; 3],
+    pub color: [f32; 3],
+}

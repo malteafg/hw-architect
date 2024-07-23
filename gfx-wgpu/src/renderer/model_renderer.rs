@@ -32,7 +32,7 @@ impl ModelRenderer {
         camera_bind_group: Rc<wgpu::BindGroup>,
         light_bind_group: Rc<wgpu::BindGroup>,
     ) -> Self {
-        let render_pipeline = super::create_render_pipeline(
+        let render_pipeline = render_utils::create_render_pipeline(
             &device,
             &[
                 &texture_bind_group_layout,
@@ -115,7 +115,7 @@ impl SimpleModelRenderer {
         camera_bind_group_layout: &wgpu::BindGroupLayout,
         color_bind_group_layout: &wgpu::BindGroupLayout,
     ) -> Self {
-        let render_pipeline = super::create_render_pipeline(
+        let render_pipeline = render_utils::create_render_pipeline(
             &device,
             &[&camera_bind_group_layout, &color_bind_group_layout],
             color_format,

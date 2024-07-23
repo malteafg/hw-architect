@@ -1,6 +1,6 @@
 use crate::primitives;
 use crate::primitives::{DBuffer, Instance, VIBuffer};
-use crate::render_utils::create_color;
+use crate::render_utils;
 use crate::resources;
 
 use super::model_renderer::{RenderSimpleModel, SimpleModelRenderer};
@@ -123,28 +123,28 @@ impl RoadState {
         camera_bind_group_layout: &wgpu::BindGroupLayout,
         color_bind_group_layout: &wgpu::BindGroupLayout,
     ) -> Self {
-        let (_, asphalt_color) = create_color(
+        let (_, asphalt_color) = render_utils::create_color(
             &device,
             &color_bind_group_layout,
             colors::rgba(colors::ASPHALT_COLOR, 1.0),
             "asphalt",
         );
         let asphalt_color = Rc::new(asphalt_color);
-        let (_, markings_color) = create_color(
+        let (_, markings_color) = render_utils::create_color(
             &device,
             &color_bind_group_layout,
             colors::rgba(colors::LANE_MARKINGS_COLOR, 1.0),
             "markings",
         );
         let markings_color = Rc::new(markings_color);
-        let (_, tool_color) = create_color(
+        let (_, tool_color) = render_utils::create_color(
             &device,
             &color_bind_group_layout,
             colors::rgba(colors::LIGHT_BLUE, 0.5),
             "asphalt",
         );
         let tool_color = Rc::new(tool_color);
-        let (_, marked_color) = create_color(
+        let (_, marked_color) = render_utils::create_color(
             &device,
             &color_bind_group_layout,
             colors::rgba(colors::RED, 0.7),
@@ -158,7 +158,7 @@ impl RoadState {
         let marked_buffer = RoadBuffer::new(&device, "marked", marked_color, markings_color);
 
         use primitives::Vertex;
-        let road_render_pipeline = super::create_render_pipeline(
+        let road_render_pipeline = render_utils::create_render_pipeline(
             &device,
             &[
                 camera_bind_group_layout,
@@ -334,7 +334,11 @@ impl<'a, 'b> RenderRoad<'b> for wgpu::RenderPass<'a>
 where
     'b: 'a,
 {
-    fn render_roads(&mut self, road_state: &'b RoadState, simple_renderer: &'a SimpleModelRenderer) {
+    fn render_roads(
+        &mut self,
+        road_state: &'b RoadState,
+        simple_renderer: &'a SimpleModelRenderer,
+    ) {
         self.set_pipeline(&road_state.road_render_pipeline);
         self.set_bind_group(0, &road_state.camera_bind_group, &[]);
         self.render(&road_state.road_buffer);

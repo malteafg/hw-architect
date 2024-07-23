@@ -1,4 +1,4 @@
-use crate::primitives;
+use crate::{primitives, render_utils};
 
 use rand::prelude::*;
 use wgpu::util::DeviceExt;
@@ -22,12 +22,12 @@ impl TerrainState {
     ) -> Self {
         let terrain_mesh = TerrainMesh::new(&device);
         use primitives::Vertex;
-        let terrain_render_pipeline = super::create_render_pipeline(
+        let terrain_render_pipeline = render_utils::create_render_pipeline(
             &device,
             &[camera_bind_group_layout],
             color_format,
             Some(primitives::Texture::DEPTH_FORMAT),
-            &[TerrainVertex::desc()],
+            &[primitives::TerrainVertex::desc()],
             terrain_shader,
             "terrain",
         );
@@ -72,14 +72,6 @@ where
     }
 }
 
-/// TODO moves this code to somewhere on the cpu side / bridge side
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct TerrainVertex {
-    position: [f32; 3],
-    color: [f32; 3],
-}
-
 pub struct TerrainMesh {
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
@@ -99,7 +91,7 @@ impl TerrainMesh {
                 (0..VERTEX_LENGTH)
                     .map(|y| {
                         let r: f32 = rng.gen::<f32>() * 0.06 + 0.97;
-                        TerrainVertex {
+                        primitives::TerrainVertex {
                             position: [
                                 ((0 - (MAP_SIZE as i32) / 2) + (x as i32)) as f32,
                                 0.0,
