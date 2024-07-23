@@ -1,10 +1,12 @@
 //! This crate defines the api for the graphics engine that hw-architect uses. The only interaction
 //! that other crates are allowed to have to a graphics engine must go through this api, to keep
 //! things modular.
+mod cmd;
 pub mod colors;
 mod data;
 mod error;
 
+pub use cmd::*;
 pub use data::*;
 pub use error::*;
 

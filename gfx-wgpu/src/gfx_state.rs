@@ -19,7 +19,7 @@ pub struct GfxState<'a> {
     config: wgpu::SurfaceConfiguration,
 
     camera: primitives::Camera,
-    main_renderer: renderer::Renderer,
+    renderer: renderer::Renderer,
 }
 
 impl<'a> GfxState<'a> {
@@ -134,7 +134,7 @@ impl<'a> GfxState<'a> {
             queue,
             depth_texture,
             config,
-            main_renderer,
+            renderer: main_renderer,
             camera,
         }
     }
@@ -191,7 +191,7 @@ impl<'a> gfx_api::Gfx for GfxState<'a> {
             });
 
             use renderer::RenderMain;
-            render_pass.render(&self.main_renderer);
+            render_pass.render(&self.renderer);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -215,58 +215,50 @@ impl<'a> gfx_api::Gfx for GfxState<'a> {
     }
 
     fn update(&mut self, dt: Duration) {
-        self.main_renderer.update(dt, &self.queue);
+        self.renderer.update(dt, &self.queue);
     }
 }
 
 /// This implementation simply passes the information along to the road_renderer
 impl<'a> gfx_api::GfxRoadData for GfxState<'a> {
     fn add_road_meshes(&mut self, meshes: IdMap<SegmentId, RoadMesh>) {
-        self.main_renderer.road_renderer.add_road_meshes(meshes);
+        self.renderer.road_renderer.add_road_meshes(meshes);
     }
 
     fn remove_road_meshes(&mut self, ids: Vec<SegmentId>) {
-        self.main_renderer.road_renderer.remove_road_meshes(ids);
+        self.renderer.road_renderer.remove_road_meshes(ids);
     }
 
     fn mark_road_segments(&mut self, segments: Vec<SegmentId>) {
-        self.main_renderer
-            .road_renderer
-            .mark_road_segments(segments)
+        self.renderer.road_renderer.mark_road_segments(segments)
     }
 
     fn set_road_tool_mesh(&mut self, road_mesh: Option<RoadMesh>) {
-        self.main_renderer
-            .road_renderer
-            .set_road_tool_mesh(road_mesh);
+        self.renderer.road_renderer.set_road_tool_mesh(road_mesh);
     }
 
     fn set_node_markers(&mut self, markers: Vec<([f32; 3], [f32; 3])>) {
-        self.main_renderer.road_renderer.set_node_markers(markers);
+        self.renderer.road_renderer.set_node_markers(markers);
     }
 }
 
 impl<'a> gfx_api::GfxTreeData for GfxState<'a> {
     fn add_trees(&mut self, model_id: u128, trees: Vec<(TreeId, [f32; 3], f32)>) {
-        self.main_renderer.tree_renderer.add_trees(model_id, trees);
+        self.renderer.tree_renderer.add_trees(model_id, trees);
     }
 
     fn remove_tree(&mut self, tree_id: TreeId, model_id: u128) {
-        self.main_renderer
-            .tree_renderer
-            .remove_tree(tree_id, model_id);
+        self.renderer.tree_renderer.remove_tree(tree_id, model_id);
     }
 
     fn set_tree_markers(&mut self, positions: Vec<[f32; 3]>, color: Option<colors::RGBAColor>) {
-        self.main_renderer
+        self.renderer
             .tree_renderer
             .set_tree_markers(positions, color);
     }
 
     fn set_tree_tool(&mut self, model_id: u128, tree: Vec<([f32; 3], f32)>) {
-        self.main_renderer
-            .tree_renderer
-            .set_tree_tool(model_id, tree);
+        self.renderer.tree_renderer.set_tree_tool(model_id, tree);
     }
 }
 

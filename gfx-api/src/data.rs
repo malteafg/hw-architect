@@ -1,3 +1,5 @@
+use curves::CurveSum;
+
 pub struct RawCameraData {
     pub pos: [f32; 3],
     pub pitch: f32,
@@ -11,4 +13,10 @@ pub struct RoadMesh {
     pub indices: Vec<u32>,
     pub lane_vertices: Vec<[f32; 3]>,
     pub lane_indices: Vec<u32>,
+}
+
+#[derive(Clone, Debug)]
+pub struct GSegment {
+    pub road_mesh: RoadMesh,
+    pub curve: CurveSum,
 }

@@ -1,5 +1,6 @@
 mod model_renderer;
 mod road_renderer;
+mod static_world_renderer;
 mod terrain_renderer;
 mod tree_renderer;
 
@@ -111,8 +112,7 @@ impl Renderer {
             &light_bind_group_layout,
         );
 
-        let tree_renderer =
-            tree_renderer::TreeState::new(Rc::clone(&device), Rc::clone(&queue));
+        let tree_renderer = tree_renderer::TreeState::new(Rc::clone(&device), Rc::clone(&queue));
 
         let simple_renderer = model_renderer::SimpleModelRenderer::new(
             Rc::clone(&device),
