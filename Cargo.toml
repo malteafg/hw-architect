@@ -5,7 +5,8 @@ members = [
 "gfx-api",
 "gfx-wgpu",
 "tool",
-"utility-crates/*",
+"curves",
+"utils",
 "world",
 "world-api",
 ]
@@ -19,8 +20,8 @@ gfx-api = { path = "gfx-api" }
 gfx-wgpu = { path = "gfx-wgpu" }
 hw-architect = { path = "hw-architect" }
 tool = { path = "tool" }
-utils = { path = "utility-crates/utils" }
-curves = { path = "utility-crates/curves" }
+utils = { path = "utils" }
+curves = { path = "curves" }
 world = { path = "world" }
 world-api = { path = "world-api" }
 
