@@ -7,7 +7,7 @@ use super::model_renderer::{RenderSimpleModel, SimpleModelRenderer};
 use utils::id::{IdMap, SegmentId};
 
 use gfx_api::colors;
-use gfx_api::RoadMesh;
+use gfx_api::{GSegment, RoadMesh};
 use glam::*;
 
 use std::rc::Rc;
@@ -23,7 +23,7 @@ pub struct RoadState {
 
     road_render_pipeline: wgpu::RenderPipeline,
 
-    road_meshes: IdMap<SegmentId, RoadMesh>,
+    road_segments: IdMap<SegmentId, GSegment>,
     marked_meshes: Vec<SegmentId>,
 
     markers_buffer: DBuffer,
@@ -119,7 +119,7 @@ impl RoadState {
             tool_buffer,
             marked_buffer,
             road_render_pipeline,
-            road_meshes: IdMap::new(),
+            road_segments: IdMap::new(),
             marked_meshes: Vec::new(),
             markers_buffer,
             markers_color,
@@ -129,16 +129,16 @@ impl RoadState {
 
     /// Combines the road meshes that road renderer stores in memory, and writes this to the gpu.
     fn write_road_mesh(&mut self) {
-        let all = self.road_meshes.keys().fold(vec![], |mut acc, x| {
+        let all = self.road_segments.keys().fold(vec![], |mut acc, x| {
             if !self.marked_meshes.contains(&x) {
                 acc.push(x);
             }
             acc
         });
-        let road_mesh = combine_road_meshes(&self.road_meshes, &all);
+        let road_mesh = combine_road_meshes(&self.road_segments, &all);
         self.road_buffer.write(&self.queue, &self.device, road_mesh);
 
-        let marked_mesh = combine_road_meshes(&self.road_meshes, &self.marked_meshes);
+        let marked_mesh = combine_road_meshes(&self.road_segments, &self.marked_meshes);
         self.marked_buffer
             .write(&self.queue, &self.device, marked_mesh);
     }
@@ -147,8 +147,8 @@ impl RoadState {
 impl gfx_api::GfxRoadData for RoadState {
     /// Adds a set of road meshes to what is stored in memory, and updates the gpu road meshes
     /// buffer.
-    fn add_road_meshes(&mut self, meshes: IdMap<SegmentId, RoadMesh>) {
-        self.road_meshes.extend(meshes);
+    fn add_road_meshes(&mut self, meshes: IdMap<SegmentId, GSegment>) {
+        self.road_segments.extend(meshes);
         self.write_road_mesh();
     }
 
@@ -156,7 +156,7 @@ impl gfx_api::GfxRoadData for RoadState {
     /// the gpu road meshes buffer.
     fn remove_road_meshes(&mut self, ids: Vec<SegmentId>) {
         ids.iter().for_each(|id| {
-            self.road_meshes.remove(*id);
+            self.road_segments.remove(*id);
         });
         self.write_road_mesh();
     }
@@ -199,45 +199,49 @@ impl gfx_api::GfxRoadData for RoadState {
 
 /// Iterates over the given road_meshes and returns a vec of {`RoadVertex`} for writing to the gpu.
 fn combine_road_meshes(
-    road_meshes: &IdMap<SegmentId, RoadMesh>,
+    road_meshes: &IdMap<SegmentId, GSegment>,
     selected_segments: &Vec<SegmentId>,
 ) -> RoadMesh {
     let mut indices_count = 0;
     let mut road_mesh: RoadMesh = RoadMesh::default();
 
-    for (id, mesh) in road_meshes.iter() {
+    for (id, segment) in road_meshes.iter() {
         if !selected_segments.contains(&id) {
             continue;
         }
-        road_mesh.vertices.append(&mut mesh.vertices.clone());
+        road_mesh
+            .vertices
+            .append(&mut segment.road_mesh.vertices.clone());
         road_mesh.indices.append(
-            &mut mesh
+            &mut segment
+                .road_mesh
                 .indices
                 .clone()
                 .into_iter()
                 .map(|i| i + indices_count)
                 .collect(),
         );
-        indices_count += mesh.vertices.len() as u32;
+        indices_count += segment.road_mesh.vertices.len() as u32;
     }
 
     indices_count = 0;
-    for (id, mesh) in road_meshes.iter() {
+    for (id, segment) in road_meshes.iter() {
         if !selected_segments.contains(&id) {
             continue;
         }
         road_mesh
             .lane_vertices
-            .append(&mut mesh.lane_vertices.clone());
+            .append(&mut segment.road_mesh.lane_vertices.clone());
         road_mesh.lane_indices.append(
-            &mut mesh
+            &mut segment
+                .road_mesh
                 .lane_indices
                 .clone()
                 .into_iter()
                 .map(|i| i + indices_count)
                 .collect(),
         );
-        indices_count += mesh.lane_vertices.len() as u32;
+        indices_count += segment.road_mesh.lane_vertices.len() as u32;
     }
 
     road_mesh

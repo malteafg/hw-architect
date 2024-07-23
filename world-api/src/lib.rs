@@ -1,4 +1,3 @@
-mod builder;
 mod road_builder;
 mod road_type;
 mod snap;
@@ -6,7 +5,6 @@ mod tree;
 
 use std::time::Duration;
 
-pub use builder::*;
 pub use road_builder::*;
 pub use road_type::*;
 pub use snap::*;

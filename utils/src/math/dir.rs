@@ -15,6 +15,8 @@ impl PartialEq for DirXZ {
     fn eq(&self, other: &Self) -> bool {
         let this = format!("{:.4}", self.0);
         let other = format!("{:.4}", other.0);
+        // dbg!(this.clone());
+        // dbg!(other.clone());
         this == other
     }
 }

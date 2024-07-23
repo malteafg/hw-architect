@@ -39,7 +39,7 @@ impl<T: GfxRoadData + GfxTreeData> GfxWorldData for T {}
 pub trait GfxRoadData {
     /// Adds a set of road meshes to the renderer such that they are now rendered. Fewer calls
     /// to this is strongly preferred, for performance reasons.
-    fn add_road_meshes(&mut self, meshes: IdMap<SegmentId, RoadMesh>);
+    fn add_road_meshes(&mut self, meshes: IdMap<SegmentId, GSegment>);
 
     /// Removes a set of road meshes given by their ids, such that their are no longer rendered
     /// and stored by the renderer. Fewer calls to this is strongly preferred, for performance

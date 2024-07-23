@@ -3,6 +3,7 @@ use crate::render_utils;
 use crate::renderer;
 use crate::resources;
 
+use gfx_api::GSegment;
 use utils::id::{IdMap, SegmentId, TreeId};
 
 use gfx_api::{colors, GfxError, RawCameraData, RoadMesh};
@@ -221,7 +222,7 @@ impl<'a> gfx_api::Gfx for GfxState<'a> {
 
 /// This implementation simply passes the information along to the road_renderer
 impl<'a> gfx_api::GfxRoadData for GfxState<'a> {
-    fn add_road_meshes(&mut self, meshes: IdMap<SegmentId, RoadMesh>) {
+    fn add_road_meshes(&mut self, meshes: IdMap<SegmentId, GSegment>) {
         self.renderer.road_renderer.add_road_meshes(meshes);
     }
 

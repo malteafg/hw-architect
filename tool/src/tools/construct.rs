@@ -21,7 +21,7 @@ use world_api::{
     WorldManipulator,
 };
 
-use gfx_api::{GfxWorldData, RoadMesh};
+use gfx_api::{GSegment, GfxWorldData, RoadMesh};
 use glam::*;
 
 pub struct Construct {
@@ -242,12 +242,17 @@ impl<W: WorldManipulator> Tool<Construct, W> {
             }
         };
 
+        let curves = road_builder.get_curves();
         let road_meshes = self.gen_road_mesh_from_builder(&road_builder, self.get_sel_node_type());
         let (new_snap, segment_ids) = self.world.add_road(road_builder, self.get_sel_node_type());
 
-        let mut mesh_map: IdMap<SegmentId, RoadMesh> = IdMap::new();
+        let mut mesh_map: IdMap<SegmentId, GSegment> = IdMap::new();
         for i in 0..segment_ids.len() {
-            mesh_map.insert(segment_ids[i], road_meshes[i].clone());
+            let segment = GSegment {
+                road_mesh: road_meshes[i].clone(),
+                curve: curves[i].clone(),
+            };
+            mesh_map.insert(segment_ids[i], segment);
         }
         gfx_handle.add_road_meshes(mesh_map);
 
