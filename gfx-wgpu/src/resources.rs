@@ -17,7 +17,6 @@ pub mod shaders {
     pub const LIGHT: &str = "light";
     pub const SIMPLE: &str = "simple";
 }
-use shaders::ShaderMap;
 
 pub mod simple_models {
     use super::*;
@@ -27,7 +26,6 @@ pub mod simple_models {
     pub const ARROW_MODEL: SimpleModelId = 1;
     pub const SPHERE_MODEL: SimpleModelId = 2;
 }
-use simple_models::SimpleModelMap;
 
 pub mod models {
     use super::*;
@@ -36,7 +34,10 @@ pub mod models {
     pub const TREE_MODEL: ModelId = 0;
     // pub const SPEHRE_MODEL: ModelId = 1;
 }
+
 use models::ModelMap;
+use shaders::ShaderMap;
+use simple_models::SimpleModelMap;
 
 pub fn load_all(
     device: &wgpu::Device,
@@ -67,9 +68,7 @@ fn load_models(
     queue: &wgpu::Queue,
     texture_bind_group_layout: &wgpu::BindGroupLayout,
 ) -> ModelMap {
-    let tree_model =
-        load_model("tree_test", &device, &queue, &texture_bind_group_layout)
-            .unwrap();
+    let tree_model = load_model("tree_test", &device, &queue, &texture_bind_group_layout).unwrap();
 
     let mut models = HashMap::new();
     models.insert(models::TREE_MODEL, tree_model);
@@ -121,13 +120,7 @@ pub fn load_texture(
     queue: &wgpu::Queue,
 ) -> anyhow::Result<primitives::Texture> {
     let data = loader::load_binary(file_name)?;
-    primitives::Texture::from_bytes(
-        device,
-        queue,
-        &data,
-        file_name,
-        is_normal_map,
-    )
+    primitives::Texture::from_bytes(device, queue, &data, file_name, is_normal_map)
 }
 
 /// Loads 3D models from the res/models directory. To load the cube model for
@@ -164,8 +157,7 @@ pub fn load_model(
     for m in obj_materials? {
         let diffuse_path = format!("{}{}", path, m.diffuse_texture);
         let normal_path = format!("{}{}", path, m.normal_texture);
-        let diffuse_texture =
-            load_texture(&diffuse_path, false, device, queue)?;
+        let diffuse_texture = load_texture(&diffuse_path, false, device, queue)?;
         let normal_texture = load_texture(&normal_path, true, device, queue)?;
 
         materials.push(primitives::Material::new(
@@ -189,10 +181,7 @@ pub fn load_model(
                         m.mesh.positions[i * 3 + 1],
                         m.mesh.positions[i * 3 + 2],
                     ],
-                    tex_coords: [
-                        m.mesh.texcoords[i * 2],
-                        m.mesh.texcoords[i * 2 + 1],
-                    ],
+                    tex_coords: [m.mesh.texcoords[i * 2], m.mesh.texcoords[i * 2 + 1]],
                     normal: [
                         m.mesh.normals[i * 3],
                         m.mesh.normals[i * 3 + 1],
@@ -238,34 +227,25 @@ pub fn load_model(
                 //     delta_pos2 = delta_uv2.x * T + delta_uv2.y * B
                 // Luckily, the place I found this equation provided
                 // the solution!
-                let r = 1.0
-                    / (delta_uv1.x * delta_uv2.y - delta_uv1.y * delta_uv2.x);
-                let tangent =
-                    (delta_pos1 * delta_uv2.y - delta_pos2 * delta_uv1.y) * r;
+                let r = 1.0 / (delta_uv1.x * delta_uv2.y - delta_uv1.y * delta_uv2.x);
+                let tangent = (delta_pos1 * delta_uv2.y - delta_pos2 * delta_uv1.y) * r;
                 // We flip the bitangent to enable right-handed normal
                 // maps with wgpu texture coordinate system
-                let bitangent =
-                    (delta_pos2 * delta_uv1.x - delta_pos1 * delta_uv2.x) * -r;
+                let bitangent = (delta_pos2 * delta_uv1.x - delta_pos1 * delta_uv2.x) * -r;
 
                 // We'll use the same tangent/bitangent for each vertex in the triangle
-                vertices[c[0] as usize].tangent = (tangent
-                    + Vec3::from(vertices[c[0] as usize].tangent))
-                .into();
-                vertices[c[1] as usize].tangent = (tangent
-                    + Vec3::from(vertices[c[1] as usize].tangent))
-                .into();
-                vertices[c[2] as usize].tangent = (tangent
-                    + Vec3::from(vertices[c[2] as usize].tangent))
-                .into();
-                vertices[c[0] as usize].bitangent = (bitangent
-                    + Vec3::from(vertices[c[0] as usize].bitangent))
-                .into();
-                vertices[c[1] as usize].bitangent = (bitangent
-                    + Vec3::from(vertices[c[1] as usize].bitangent))
-                .into();
-                vertices[c[2] as usize].bitangent = (bitangent
-                    + Vec3::from(vertices[c[2] as usize].bitangent))
-                .into();
+                vertices[c[0] as usize].tangent =
+                    (tangent + Vec3::from(vertices[c[0] as usize].tangent)).into();
+                vertices[c[1] as usize].tangent =
+                    (tangent + Vec3::from(vertices[c[1] as usize].tangent)).into();
+                vertices[c[2] as usize].tangent =
+                    (tangent + Vec3::from(vertices[c[2] as usize].tangent)).into();
+                vertices[c[0] as usize].bitangent =
+                    (bitangent + Vec3::from(vertices[c[0] as usize].bitangent)).into();
+                vertices[c[1] as usize].bitangent =
+                    (bitangent + Vec3::from(vertices[c[1] as usize].bitangent)).into();
+                vertices[c[2] as usize].bitangent =
+                    (bitangent + Vec3::from(vertices[c[2] as usize].bitangent)).into();
 
                 // Used to average the tangents/bitangents
                 triangles_included[c[0] as usize] += 1;
@@ -281,18 +261,16 @@ pub fn load_model(
                 v.bitangent = (Vec3::from(v.bitangent) * denom).into();
             }
 
-            let vertex_buffer =
-                device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some(&format!("{:?} Vertex Buffer", file_name)),
-                    contents: bytemuck::cast_slice(&vertices),
-                    usage: wgpu::BufferUsages::VERTEX,
-                });
-            let index_buffer =
-                device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some(&format!("{:?} Index Buffer", file_name)),
-                    contents: bytemuck::cast_slice(&m.mesh.indices),
-                    usage: wgpu::BufferUsages::INDEX,
-                });
+            let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some(&format!("{:?} Vertex Buffer", file_name)),
+                contents: bytemuck::cast_slice(&vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+            let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some(&format!("{:?} Index Buffer", file_name)),
+                contents: bytemuck::cast_slice(&m.mesh.indices),
+                usage: wgpu::BufferUsages::INDEX,
+            });
 
             primitives::Mesh {
                 name: file_name.to_string(),
@@ -327,10 +305,7 @@ pub fn load_simple_model(
     //     .await?;
 
     let path = format!("res/models/{file_name}/");
-    let test = tobj::load_obj(
-        format!("{path}{file_name}.obj"),
-        &tobj::GPU_LOAD_OPTIONS,
-    );
+    let test = tobj::load_obj(format!("{path}{file_name}.obj"), &tobj::GPU_LOAD_OPTIONS);
 
     let (models, _materials) = test.expect("Failed to load OBJ file");
     assert!(models.len() == 1);
@@ -347,18 +322,16 @@ pub fn load_simple_model(
         })
         .collect();
 
-    let vertex_buffer =
-        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some(&format!("{:?} Vertex Buffer", file_name)),
-            contents: bytemuck::cast_slice(&vertices),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-    let index_buffer =
-        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some(&format!("{:?} Index Buffer", file_name)),
-            contents: bytemuck::cast_slice(&obj_indices),
-            usage: wgpu::BufferUsages::INDEX,
-        });
+    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some(&format!("{:?} Vertex Buffer", file_name)),
+        contents: bytemuck::cast_slice(&vertices),
+        usage: wgpu::BufferUsages::VERTEX,
+    });
+    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some(&format!("{:?} Index Buffer", file_name)),
+        contents: bytemuck::cast_slice(&obj_indices),
+        usage: wgpu::BufferUsages::INDEX,
+    });
     Result::Ok(primitives::SimpleModel {
         name: file_name.to_string(),
         vertex_buffer,
@@ -400,9 +373,7 @@ pub fn create_bind_group_layouts(
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
                         view_dimension: wgpu::TextureViewDimension::D2,
-                        sample_type: wgpu::TextureSampleType::Float {
-                            filterable: true,
-                        },
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
                     },
                     count: None,
                 },
@@ -411,9 +382,7 @@ pub fn create_bind_group_layouts(
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     // This should match the filterable field of the
                     // corresponding Texture entry above.
-                    ty: wgpu::BindingType::Sampler(
-                        wgpu::SamplerBindingType::Filtering,
-                    ),
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
@@ -421,9 +390,7 @@ pub fn create_bind_group_layouts(
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
-                        sample_type: wgpu::TextureSampleType::Float {
-                            filterable: true,
-                        },
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
                         view_dimension: wgpu::TextureViewDimension::D2,
                     },
                     count: None,
@@ -431,9 +398,7 @@ pub fn create_bind_group_layouts(
                 wgpu::BindGroupLayoutEntry {
                     binding: 3,
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(
-                        wgpu::SamplerBindingType::Filtering,
-                    ),
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
             ],
@@ -443,8 +408,7 @@ pub fn create_bind_group_layouts(
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX
-                    | wgpu::ShaderStages::FRAGMENT,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
@@ -459,8 +423,7 @@ pub fn create_bind_group_layouts(
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX
-                    | wgpu::ShaderStages::FRAGMENT,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
@@ -475,8 +438,7 @@ pub fn create_bind_group_layouts(
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX
-                    | wgpu::ShaderStages::FRAGMENT,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,

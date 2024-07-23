@@ -1,7 +1,8 @@
-use super::model_renderer::{ModelRenderer, RenderModel};
-use super::simple_renderer::{RenderSimpleModel, SimpleRenderer};
 use crate::primitives::{DBuffer, Instance, InstanceRaw};
 use crate::resources;
+
+use super::model_renderer::{ModelRenderer, RenderModel, RenderSimpleModel, SimpleModelRenderer};
+
 use gfx_api::colors;
 
 use utils::id::{IdMap, TreeId};
@@ -103,30 +104,6 @@ impl gfx_api::GfxTreeData for TreeState {
         }
     }
 
-    // Not smart as it cannot modify the size of the marker
-    fn mark_trees(&mut self, _ids: Vec<TreeId>) {
-        // let mut instance_data: Vec<InstanceRaw> = vec![];
-        // println!("marking trees");
-        // for (_, model_map) in self.tree_map.iter() {
-        //     ids.retain(|id| {
-        //         if let Some(instance) = model_map.get(id) {
-        //             println!("pushing instance");
-        //             instance_data.push(*instance);
-        //             false
-        //         } else {
-        //             true
-        //         }
-        //     })
-        // }
-
-        // self.num_markers = instance_data.len() as u32;
-        // self.markers_buffer.write(
-        //     &self.queue,
-        //     &self.device,
-        //     &bytemuck::cast_slice(&instance_data),
-        // );
-    }
-
     fn set_tree_markers(&mut self, positions: Vec<[f32; 3]>, color: Option<colors::RGBAColor>) {
         self.num_markers = positions.len() as u32;
         let instance_data = positions
@@ -170,7 +147,7 @@ pub trait RenderTrees<'a> {
     fn render_trees(
         &mut self,
         tree_state: &'a TreeState,
-        simple_renderer: &'a SimpleRenderer,
+        simple_renderer: &'a SimpleModelRenderer,
         model_renderer: &'a ModelRenderer,
     );
 }
@@ -182,7 +159,7 @@ where
     fn render_trees(
         &mut self,
         tree_state: &'a TreeState,
-        simple_renderer: &'a SimpleRenderer,
+        simple_renderer: &'a SimpleModelRenderer,
         model_renderer: &'a ModelRenderer,
     ) {
         self.render_model(
@@ -201,6 +178,7 @@ where
 
         self.render_simple_model(
             simple_renderer,
+            &tree_state.queue,
             resources::simple_models::TORUS_MODEL,
             tree_state.markers_color,
             &tree_state.markers_buffer,

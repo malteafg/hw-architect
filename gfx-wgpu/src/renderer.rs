@@ -1,7 +1,6 @@
 mod main_renderer;
 mod model_renderer;
 mod road_renderer;
-mod simple_renderer;
 pub mod terrain_renderer;
 mod tree_renderer;
 
@@ -281,10 +280,6 @@ impl<'a> gfx_api::GfxTreeData for GfxState<'a> {
         self.main_renderer
             .tree_renderer
             .remove_tree(tree_id, model_id);
-    }
-
-    fn mark_trees(&mut self, ids: Vec<TreeId>) {
-        self.main_renderer.tree_renderer.mark_trees(ids);
     }
 
     fn set_tree_markers(&mut self, positions: Vec<[f32; 3]>, color: Option<colors::RGBAColor>) {

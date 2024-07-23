@@ -335,6 +335,18 @@ fn parse_key_code(key: &String) -> anyhow::Result<Key> {
         "7" => Ok(Key::Character("7".into())),
         "8" => Ok(Key::Character("8".into())),
         "9" => Ok(Key::Character("9".into())),
+        "f1" => Ok(Key::Named(NamedKey::F1)),
+        "f2" => Ok(Key::Named(NamedKey::F2)),
+        "f3" => Ok(Key::Named(NamedKey::F3)),
+        "f4" => Ok(Key::Named(NamedKey::F4)),
+        "f5" => Ok(Key::Named(NamedKey::F5)),
+        "f6" => Ok(Key::Named(NamedKey::F6)),
+        "f7" => Ok(Key::Named(NamedKey::F7)),
+        "f8" => Ok(Key::Named(NamedKey::F8)),
+        "f9" => Ok(Key::Named(NamedKey::F9)),
+        "f10" => Ok(Key::Named(NamedKey::F10)),
+        "f11" => Ok(Key::Named(NamedKey::F11)),
+        "f12" => Ok(Key::Named(NamedKey::F12)),
         _ => Err(anyhow::anyhow!(format!("could not parse key: {}", key))),
     }
 }

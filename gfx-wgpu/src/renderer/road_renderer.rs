@@ -1,19 +1,17 @@
 use crate::primitives;
 use crate::primitives::{DBuffer, Instance, VIBuffer};
 use crate::render_utils::create_color;
-use crate::renderer::simple_renderer::RenderSimpleModel;
 use crate::resources;
+
+use super::model_renderer::{RenderSimpleModel, SimpleModelRenderer};
 
 use utils::id::{IdMap, SegmentId};
 
-// temporary, remove once proper road markings
-use gfx_api::colors::{self, rgba};
+use gfx_api::colors;
 use gfx_api::RoadMesh;
 use glam::*;
 
 use std::rc::Rc;
-
-use super::simple_renderer::SimpleRenderer;
 
 /// The information needed on gpu to render a set of road meshes.
 struct RoadBuffer {
@@ -128,28 +126,28 @@ impl RoadState {
         let (_, asphalt_color) = create_color(
             &device,
             &color_bind_group_layout,
-            rgba(colors::ASPHALT_COLOR, 1.0),
+            colors::rgba(colors::ASPHALT_COLOR, 1.0),
             "asphalt",
         );
         let asphalt_color = Rc::new(asphalt_color);
         let (_, markings_color) = create_color(
             &device,
             &color_bind_group_layout,
-            rgba(colors::LANE_MARKINGS_COLOR, 1.0),
+            colors::rgba(colors::LANE_MARKINGS_COLOR, 1.0),
             "markings",
         );
         let markings_color = Rc::new(markings_color);
         let (_, tool_color) = create_color(
             &device,
             &color_bind_group_layout,
-            rgba(colors::LIGHT_BLUE, 0.5),
+            colors::rgba(colors::LIGHT_BLUE, 0.5),
             "asphalt",
         );
         let tool_color = Rc::new(tool_color);
         let (_, marked_color) = create_color(
             &device,
             &color_bind_group_layout,
-            rgba(colors::RED, 0.7),
+            colors::rgba(colors::RED, 0.7),
             "marked",
         );
         let marked_color = Rc::new(marked_color);
@@ -192,7 +190,7 @@ impl RoadState {
         // )
 
         let markers_buffer = DBuffer::new("markers_buffer", wgpu::BufferUsages::VERTEX, &device);
-        let markers_color = rgba(colors::RED, 0.8);
+        let markers_color = colors::rgba(colors::RED, 0.8);
 
         Self {
             device,
@@ -329,14 +327,14 @@ fn combine_road_meshes(
 /// A trait used by the main renderer to render the roads.
 pub trait RenderRoad<'a> {
     /// The function that implements rendering for roads.
-    fn render_roads(&mut self, road_state: &'a RoadState, simple_renderer: &'a SimpleRenderer);
+    fn render_roads(&mut self, road_state: &'a RoadState, simple_renderer: &'a SimpleModelRenderer);
 }
 
 impl<'a, 'b> RenderRoad<'b> for wgpu::RenderPass<'a>
 where
     'b: 'a,
 {
-    fn render_roads(&mut self, road_state: &'b RoadState, simple_renderer: &'a SimpleRenderer) {
+    fn render_roads(&mut self, road_state: &'b RoadState, simple_renderer: &'a SimpleModelRenderer) {
         self.set_pipeline(&road_state.road_render_pipeline);
         self.set_bind_group(0, &road_state.camera_bind_group, &[]);
         self.render(&road_state.road_buffer);
@@ -345,6 +343,7 @@ where
 
         self.render_simple_model(
             simple_renderer,
+            &road_state.queue,
             resources::simple_models::ARROW_MODEL,
             road_state.markers_color,
             &road_state.markers_buffer,

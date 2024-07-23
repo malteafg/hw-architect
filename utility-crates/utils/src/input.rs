@@ -48,6 +48,8 @@ pub enum Action {
     EnterConstruct,
     EnterTreePlopper,
 
+    ToggleCurvatureGfx,
+
     Exit,
     Esc,
 }

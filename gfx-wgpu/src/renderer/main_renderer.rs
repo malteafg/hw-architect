@@ -29,7 +29,7 @@ pub struct MainRenderer {
     pub road_renderer: renderer::road_renderer::RoadState,
     pub tree_renderer: renderer::tree_renderer::TreeState,
 
-    pub simple_renderer: renderer::simple_renderer::SimpleRenderer,
+    pub simple_renderer: renderer::model_renderer::SimpleModelRenderer,
     pub model_renderer: renderer::model_renderer::ModelRenderer,
 
     /// temporary
@@ -109,7 +109,7 @@ impl MainRenderer {
         let tree_renderer =
             renderer::tree_renderer::TreeState::new(Rc::clone(&device), Rc::clone(&queue));
 
-        let simple_renderer = renderer::simple_renderer::SimpleRenderer::new(
+        let simple_renderer = renderer::model_renderer::SimpleModelRenderer::new(
             Rc::clone(&device),
             Rc::clone(&queue),
             color_format,

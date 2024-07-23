@@ -42,3 +42,7 @@ bulldoze:
     - "1"
   - toggle_bulldoze_trees:
     - "2"
+
+overlay:
+  - toggle_curvature_gfx:
+    - f1
