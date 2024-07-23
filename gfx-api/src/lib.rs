@@ -20,7 +20,7 @@ impl<T: Gfx + GfxWorldData + GfxCameraData + GfxCarData> GfxSuper for T {}
 pub trait Gfx {
     /// This method should be changed to a generic way of handling errors, such that this crate
     /// does not depend on wgpu
-    fn render(&mut self) -> Result<(), GfxFrameError>;
+    fn render(&mut self) -> Result<(), GfxError>;
 
     /// Resizes the window. The unit of the parameters are in pixels.
     fn resize(&mut self, width: u32, height: u32);

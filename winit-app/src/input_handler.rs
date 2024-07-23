@@ -4,8 +4,6 @@
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
-use anyhow::anyhow;
-
 use winit::dpi::PhysicalPosition;
 use winit::event::*;
 use winit::keyboard::{Key, ModifiersKeyState, NamedKey};
@@ -229,14 +227,14 @@ type KeyLoaderConfig = BTreeMap<String, Vec<BTreeMap<String, Vec<String>>>>;
 /// # Arguments
 ///
 /// * `key_map` - Default and ONLY (for now) options are "qwerty" "wokmok"
-pub fn load_key_map(key_map: String) -> anyhow::Result<KeyMap> {
+pub fn load_key_map(key_map: String) -> KeyMap {
     let key_config_path = format!("config/{}.yml", &key_map);
     #[cfg(debug_assertions)]
     {
         dbg!(key_config_path.clone());
     }
-    let key_config_file = loader::load_string(&key_config_path)?;
-    let key_config: KeyLoaderConfig = serde_yaml::from_str(&key_config_file)?;
+    let key_config_file = loader::load_string(&key_config_path).unwrap();
+    let key_config: KeyLoaderConfig = serde_yaml::from_str(&key_config_file).unwrap();
 
     let mut group_maps: BTreeMap<String, KeyMap> = BTreeMap::new();
     for (group, key_maps) in key_config.into_iter() {
@@ -244,7 +242,7 @@ pub fn load_key_map(key_map: String) -> anyhow::Result<KeyMap> {
         for key_map in key_maps.into_iter() {
             // this loop is silly as there is only one entry in the map
             for (action, keys) in key_map.into_iter() {
-                let key_code = parse_key_code(&keys[0]).unwrap();
+                let key_code = parse_key_code(&keys[0]);
                 let mod_state = keys
                     .iter()
                     .fold(ModifierState::default(), |mod_state, key| {
@@ -274,14 +272,14 @@ pub fn load_key_map(key_map: String) -> anyhow::Result<KeyMap> {
     // Merge group maps and check for conflicting keybindings
     let mut general_key_bindings: KeyMap = group_maps
         .remove("general")
-        .ok_or(anyhow!("Could not find general key bindings"))?;
+        .expect("Could not find general key bindings");
 
     let mut final_key_map: KeyMap = BTreeMap::new();
     for (_, group_map) in group_maps.into_iter() {
         for (key, mut action) in group_map.into_iter() {
             if general_key_bindings.contains_key(&key) {
                 dbg!(key);
-                return Err(anyhow!("Duplicate key binding"));
+                panic!("Duplicate key binding");
             }
             let Some(actions) = final_key_map.get_mut(&key) else {
                 final_key_map.insert(key, action);
@@ -293,61 +291,61 @@ pub fn load_key_map(key_map: String) -> anyhow::Result<KeyMap> {
 
     // Add general_key_bindings to final_key_map
     final_key_map.append(&mut general_key_bindings);
-    Ok(final_key_map)
+    final_key_map
 }
 
 /// Translates the keycode as it is written in the keymap config to a winit [`Key`]
-fn parse_key_code(key: &String) -> anyhow::Result<Key> {
+fn parse_key_code(key: &String) -> Key {
     match key.to_lowercase().as_str() {
-        "esc" => Ok(Key::Named(NamedKey::Escape)),
-        "space" => Ok(Key::Named(NamedKey::Space)),
-        "a" => Ok(Key::Character("a".into())),
-        "b" => Ok(Key::Character("b".into())),
-        "c" => Ok(Key::Character("c".into())),
-        "d" => Ok(Key::Character("d".into())),
-        "e" => Ok(Key::Character("e".into())),
-        "f" => Ok(Key::Character("f".into())),
-        "g" => Ok(Key::Character("g".into())),
-        "h" => Ok(Key::Character("h".into())),
-        "j" => Ok(Key::Character("j".into())),
-        "k" => Ok(Key::Character("k".into())),
-        "l" => Ok(Key::Character("l".into())),
-        "m" => Ok(Key::Character("m".into())),
-        "n" => Ok(Key::Character("n".into())),
-        "o" => Ok(Key::Character("o".into())),
-        "p" => Ok(Key::Character("p".into())),
-        "q" => Ok(Key::Character("q".into())),
-        "r" => Ok(Key::Character("r".into())),
-        "s" => Ok(Key::Character("s".into())),
-        "t" => Ok(Key::Character("t".into())),
-        "u" => Ok(Key::Character("u".into())),
-        "v" => Ok(Key::Character("v".into())),
-        "w" => Ok(Key::Character("w".into())),
-        "x" => Ok(Key::Character("x".into())),
-        "y" => Ok(Key::Character("y".into())),
-        "z" => Ok(Key::Character("z".into())),
-        "1" => Ok(Key::Character("1".into())),
-        "2" => Ok(Key::Character("2".into())),
-        "3" => Ok(Key::Character("3".into())),
-        "4" => Ok(Key::Character("4".into())),
-        "5" => Ok(Key::Character("5".into())),
-        "6" => Ok(Key::Character("6".into())),
-        "7" => Ok(Key::Character("7".into())),
-        "8" => Ok(Key::Character("8".into())),
-        "9" => Ok(Key::Character("9".into())),
-        "f1" => Ok(Key::Named(NamedKey::F1)),
-        "f2" => Ok(Key::Named(NamedKey::F2)),
-        "f3" => Ok(Key::Named(NamedKey::F3)),
-        "f4" => Ok(Key::Named(NamedKey::F4)),
-        "f5" => Ok(Key::Named(NamedKey::F5)),
-        "f6" => Ok(Key::Named(NamedKey::F6)),
-        "f7" => Ok(Key::Named(NamedKey::F7)),
-        "f8" => Ok(Key::Named(NamedKey::F8)),
-        "f9" => Ok(Key::Named(NamedKey::F9)),
-        "f10" => Ok(Key::Named(NamedKey::F10)),
-        "f11" => Ok(Key::Named(NamedKey::F11)),
-        "f12" => Ok(Key::Named(NamedKey::F12)),
-        _ => Err(anyhow::anyhow!(format!("could not parse key: {}", key))),
+        "esc" => Key::Named(NamedKey::Escape),
+        "space" => Key::Named(NamedKey::Space),
+        "a" => Key::Character("a".into()),
+        "b" => Key::Character("b".into()),
+        "c" => Key::Character("c".into()),
+        "d" => Key::Character("d".into()),
+        "e" => Key::Character("e".into()),
+        "f" => Key::Character("f".into()),
+        "g" => Key::Character("g".into()),
+        "h" => Key::Character("h".into()),
+        "j" => Key::Character("j".into()),
+        "k" => Key::Character("k".into()),
+        "l" => Key::Character("l".into()),
+        "m" => Key::Character("m".into()),
+        "n" => Key::Character("n".into()),
+        "o" => Key::Character("o".into()),
+        "p" => Key::Character("p".into()),
+        "q" => Key::Character("q".into()),
+        "r" => Key::Character("r".into()),
+        "s" => Key::Character("s".into()),
+        "t" => Key::Character("t".into()),
+        "u" => Key::Character("u".into()),
+        "v" => Key::Character("v".into()),
+        "w" => Key::Character("w".into()),
+        "x" => Key::Character("x".into()),
+        "y" => Key::Character("y".into()),
+        "z" => Key::Character("z".into()),
+        "1" => Key::Character("1".into()),
+        "2" => Key::Character("2".into()),
+        "3" => Key::Character("3".into()),
+        "4" => Key::Character("4".into()),
+        "5" => Key::Character("5".into()),
+        "6" => Key::Character("6".into()),
+        "7" => Key::Character("7".into()),
+        "8" => Key::Character("8".into()),
+        "9" => Key::Character("9".into()),
+        "f1" => Key::Named(NamedKey::F1),
+        "f2" => Key::Named(NamedKey::F2),
+        "f3" => Key::Named(NamedKey::F3),
+        "f4" => Key::Named(NamedKey::F4),
+        "f5" => Key::Named(NamedKey::F5),
+        "f6" => Key::Named(NamedKey::F6),
+        "f7" => Key::Named(NamedKey::F7),
+        "f8" => Key::Named(NamedKey::F8),
+        "f9" => Key::Named(NamedKey::F9),
+        "f10" => Key::Named(NamedKey::F10),
+        "f11" => Key::Named(NamedKey::F11),
+        "f12" => Key::Named(NamedKey::F12),
+        _ => panic!("could not parse key: {}", key),
     }
 }
 

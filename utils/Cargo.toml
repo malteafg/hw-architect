@@ -12,7 +12,6 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 glam = { workspace = true }
 
-anyhow = { version = "1.0" }
 serde = { workspace = true }
 num = { workspace = true }
 fixedbitset = { workspace = true }

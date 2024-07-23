@@ -14,7 +14,7 @@ pub async fn run() {
     let window_width = config.window.width;
     let window_height = config.window.height;
 
-    let key_map = input_handler::load_key_map(config.key_map).unwrap();
+    let key_map = input_handler::load_key_map(config.key_map);
     let mut input_handler = input_handler::InputHandler::new(key_map);
 
     // create event_loop and window
@@ -66,18 +66,22 @@ pub async fn run() {
                                 state.update(dt);
                                 let render_error = state.render();
 
-                                use gfx_api::GfxFrameError;
+                                use gfx_api::GfxError;
                                 match render_error {
                                     Ok(_) => {}
                                     // Reconfigure the surface if it's lost or outdated
-                                    Err(GfxFrameError::Lost | GfxFrameError::Outdated) => {
+                                    Err(GfxError::SurfaceLost | GfxError::SurfaceOutdated) => {
                                         state.redraw();
                                     }
                                     // The system is out of memory, we should probably quit
-                                    Err(GfxFrameError::OutOfMemory) => window_target.exit(),
+                                    Err(GfxError::SurfaceOutOfMemory) => window_target.exit(),
                                     // We're ignoring timeouts
-                                    Err(GfxFrameError::Timeout) => {
-                                        log::warn!("Surface timeout")
+                                    Err(GfxError::SurfaceTimeout) => {
+                                        log::warn!("Surface timeout");
+                                    }
+                                    Err(error) => {
+                                        dbg!(error);
+                                        window_target.exit();
                                     }
                                 }
                             }

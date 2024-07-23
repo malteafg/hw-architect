@@ -94,7 +94,7 @@ impl<G: GfxSuper> State<G> {
         self.resize(self.window_width, self.window_height);
     }
 
-    pub fn render(&mut self) -> Result<(), gfx_api::GfxFrameError> {
+    pub fn render(&mut self) -> Result<(), gfx_api::GfxError> {
         self.gfx_handle.render()
     }
 }

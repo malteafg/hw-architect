@@ -1,4 +1,4 @@
-use anyhow::*;
+use gfx_api::{GfxError, GfxResult};
 use image::GenericImageView;
 
 pub struct Texture {
@@ -55,10 +55,8 @@ impl Texture {
         bytes: &[u8],
         label: &str,
         is_normal_map: bool,
-    ) -> Result<Self> {
-        // let mut timer = utils::time::Timer::new();
-        let img = image::load_from_memory(bytes)?;
-        // timer.emit("from_memory_loaded");
+    ) -> GfxResult<Self> {
+        let img = image::load_from_memory(bytes).map_err(|e| GfxError::LoadResourceFailed)?;
         Self::from_image(device, queue, &img, Some(label), is_normal_map)
     }
 
@@ -68,7 +66,7 @@ impl Texture {
         img: &image::DynamicImage,
         label: Option<&str>,
         is_normal_map: bool,
-    ) -> Result<Self> {
+    ) -> GfxResult<Self> {
         let dimensions = img.dimensions();
         let rgba = img.to_rgba8();
 

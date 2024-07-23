@@ -5,7 +5,7 @@ use crate::resources;
 
 use utils::id::{IdMap, SegmentId, TreeId};
 
-use gfx_api::{colors, GfxFrameError, RawCameraData, RoadMesh};
+use gfx_api::{colors, GfxError, RawCameraData, RoadMesh};
 
 use std::rc::Rc;
 use std::time::Duration;
@@ -140,17 +140,17 @@ impl<'a> GfxState<'a> {
     }
 }
 
-fn map_error(err: wgpu::SurfaceError) -> GfxFrameError {
+fn map_error(err: wgpu::SurfaceError) -> GfxError {
     match err {
-        wgpu::SurfaceError::Timeout => GfxFrameError::Timeout,
-        wgpu::SurfaceError::Outdated => GfxFrameError::Outdated,
-        wgpu::SurfaceError::Lost => GfxFrameError::Lost,
-        wgpu::SurfaceError::OutOfMemory => GfxFrameError::OutOfMemory,
+        wgpu::SurfaceError::Timeout => GfxError::SurfaceTimeout,
+        wgpu::SurfaceError::Outdated => GfxError::SurfaceOutdated,
+        wgpu::SurfaceError::Lost => GfxError::SurfaceLost,
+        wgpu::SurfaceError::OutOfMemory => GfxError::SurfaceOutOfMemory,
     }
 }
 
 impl<'a> gfx_api::Gfx for GfxState<'a> {
-    fn render(&mut self) -> Result<(), GfxFrameError> {
+    fn render(&mut self) -> Result<(), GfxError> {
         let output = self.surface.get_current_texture().map_err(map_error)?;
         let view = output
             .texture

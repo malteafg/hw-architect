@@ -21,8 +21,6 @@ raw-window-handle = "0.6"
 
 bytemuck = { workspace = true }
 
-anyhow = { version = "1.0" }
-
 glam = { workspace = true }
 rand = { workspace = true }
 

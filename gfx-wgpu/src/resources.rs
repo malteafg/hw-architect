@@ -1,5 +1,6 @@
 use crate::primitives::{self, Model, SimpleModel};
 
+use gfx_api::{GfxError, GfxResult};
 use utils::loader;
 
 use wgpu::util::DeviceExt;
@@ -118,8 +119,8 @@ pub fn load_texture(
     is_normal_map: bool,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
-) -> anyhow::Result<primitives::Texture> {
-    let data = loader::load_binary(file_name)?;
+) -> GfxResult<primitives::Texture> {
+    let data = loader::load_binary(file_name).map_err(|_| GfxError::LoadResourceFailed)?;
     primitives::Texture::from_bytes(device, queue, &data, file_name, is_normal_map)
 }
 
@@ -131,9 +132,10 @@ pub fn load_model(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     layout: &wgpu::BindGroupLayout,
-) -> anyhow::Result<primitives::Model> {
+) -> GfxResult<primitives::Model> {
     let path = format!("models/{file_name}/");
-    let obj_text = loader::load_string(&format!("{path}{file_name}.obj"))?;
+    let obj_text = loader::load_string(&format!("{path}{file_name}.obj"))
+        .map_err(|_| GfxError::LoadResourceFailed)?;
     let obj_cursor = Cursor::new(obj_text);
     let mut obj_reader = BufReader::new(obj_cursor);
 
@@ -151,10 +153,11 @@ pub fn load_model(
             let mat_text = loader::load_string(&path).unwrap();
             tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mat_text)))
         },
-    )?;
+    )
+    .map_err(|_| GfxError::LoadResourceFailed)?;
 
     let mut materials = Vec::new();
-    for m in obj_materials? {
+    for m in obj_materials.map_err(|_| GfxError::LoadResourceFailed)? {
         let diffuse_path = format!("{}{}", path, m.diffuse_texture);
         let normal_path = format!("{}{}", path, m.normal_texture);
         let diffuse_texture = load_texture(&diffuse_path, false, device, queue)?;
@@ -289,7 +292,7 @@ pub fn load_model(
 pub fn load_simple_model(
     file_name: &str,
     device: &wgpu::Device,
-) -> anyhow::Result<primitives::SimpleModel> {
+) -> GfxResult<primitives::SimpleModel> {
     // let path = format!("models/{file_name}/");
     // let obj_text = loader::load_string(&format!("{path}{file_name}.obj")).await?;
     // let obj_cursor = Cursor::new(obj_text);
@@ -305,9 +308,10 @@ pub fn load_simple_model(
     //     .await?;
 
     let path = format!("res/models/{file_name}/");
-    let test = tobj::load_obj(format!("{path}{file_name}.obj"), &tobj::GPU_LOAD_OPTIONS);
+    let (models, _materials) =
+        tobj::load_obj(format!("{path}{file_name}.obj"), &tobj::GPU_LOAD_OPTIONS)
+            .map_err(|_| GfxError::LoadResourceFailed)?;
 
-    let (models, _materials) = test.expect("Failed to load OBJ file");
     assert!(models.len() == 1);
 
     let obj_vertices = &models[0].mesh.positions;

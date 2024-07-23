@@ -1,7 +1,6 @@
 use std::rc::Rc;
 
-use anyhow::anyhow;
-use gfx_api::RoadMesh;
+use gfx_api::{GfxError, GfxResult, RoadMesh};
 use wgpu::util::DeviceExt;
 use wgpu::{Buffer, BufferSlice, BufferUsages, Device, Queue};
 
@@ -68,6 +67,10 @@ impl DBuffer {
             usage: self.usage,
         });
     }
+
+    pub fn get_label(&self) -> &str {
+        &self.label
+    }
 }
 
 /// A buffer for storing both vertices and indices. Uses DBuffer as its underlying implementation.
@@ -107,15 +110,13 @@ impl VIBuffer {
         self.num_indices = num_indices;
     }
 
-    pub fn get_buffer_slice(&self) -> anyhow::Result<(BufferSlice, BufferSlice)> {
-        let vertices = self
-            .vertex_buffer
-            .get_buffer_slice()
-            .ok_or_else(|| return anyhow!("no contents in vertex buffer"))?;
-        let indices = self
-            .index_buffer
-            .get_buffer_slice()
-            .ok_or_else(|| return anyhow!("no contents in index buffer"))?;
+    pub fn get_buffer_slice(&self) -> GfxResult<(BufferSlice, BufferSlice)> {
+        let vertices = self.vertex_buffer.get_buffer_slice().ok_or_else(|| {
+            return GfxError::BufferEmpty(self.vertex_buffer.get_label().to_string());
+        })?;
+        let indices = self.index_buffer.get_buffer_slice().ok_or_else(|| {
+            return GfxError::BufferEmpty(self.index_buffer.get_label().to_string());
+        })?;
         Ok((vertices, indices))
     }
 
