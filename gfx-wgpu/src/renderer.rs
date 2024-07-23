@@ -30,12 +30,12 @@ pub struct Renderer {
     camera_bind_group: Rc<wgpu::BindGroup>,
     light_bind_group: Rc<wgpu::BindGroup>,
 
-    terrain_renderer: renderer::terrain_renderer::TerrainState,
-    pub road_renderer: renderer::road_renderer::RoadState,
-    pub tree_renderer: renderer::tree_renderer::TreeState,
+    terrain_renderer: terrain_renderer::TerrainState,
+    pub road_renderer: road_renderer::RoadState,
+    pub tree_renderer: tree_renderer::TreeState,
 
-    simple_renderer: renderer::model_renderer::SimpleModelRenderer,
-    model_renderer: renderer::model_renderer::ModelRenderer,
+    simple_renderer: model_renderer::SimpleModelRenderer,
+    model_renderer: model_renderer::ModelRenderer,
 
     /// temporary
     obj_model: primitives::Model,
@@ -93,7 +93,7 @@ impl Renderer {
             "light",
         );
 
-        let terrain_renderer = renderer::terrain_renderer::TerrainState::new(
+        let terrain_renderer = terrain_renderer::TerrainState::new(
             Rc::clone(&device),
             // Rc::clone(&queue),
             color_format,
@@ -101,7 +101,7 @@ impl Renderer {
             &camera_bind_group_layout,
         );
 
-        let road_renderer = renderer::road_renderer::RoadState::new(
+        let road_renderer = road_renderer::RoadState::new(
             Rc::clone(&device),
             Rc::clone(&queue),
             color_format,
@@ -112,9 +112,9 @@ impl Renderer {
         );
 
         let tree_renderer =
-            renderer::tree_renderer::TreeState::new(Rc::clone(&device), Rc::clone(&queue));
+            tree_renderer::TreeState::new(Rc::clone(&device), Rc::clone(&queue));
 
-        let simple_renderer = renderer::model_renderer::SimpleModelRenderer::new(
+        let simple_renderer = model_renderer::SimpleModelRenderer::new(
             Rc::clone(&device),
             Rc::clone(&queue),
             color_format,
@@ -125,7 +125,7 @@ impl Renderer {
             &color_bind_group_layout,
         );
 
-        let model_renderer = renderer::model_renderer::ModelRenderer::new(
+        let model_renderer = model_renderer::ModelRenderer::new(
             Rc::clone(&device),
             color_format,
             model_map,
@@ -174,14 +174,14 @@ impl Renderer {
 }
 
 pub trait RenderMain<'a> {
-    fn render_main(&mut self, renderer: &'a Renderer);
+    fn render(&mut self, renderer: &'a Renderer);
 }
 
 impl<'a, 'b> RenderMain<'b> for wgpu::RenderPass<'a>
 where
     'b: 'a,
 {
-    fn render_main(&mut self, renderer: &'a Renderer) {
+    fn render(&mut self, renderer: &'a Renderer) {
         use terrain_renderer::RenderTerrain;
         self.render_terrain(&renderer.terrain_renderer, &renderer.camera_bind_group);
 

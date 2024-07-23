@@ -1,5 +1,4 @@
-use crate::primitives;
-use crate::primitives::{DBuffer, Instance, VIBuffer};
+use crate::primitives::{self, DBuffer, Instance, RoadBuffer, VIBuffer};
 use crate::render_utils;
 use crate::resources;
 
@@ -12,86 +11,6 @@ use gfx_api::RoadMesh;
 use glam::*;
 
 use std::rc::Rc;
-
-/// The information needed on gpu to render a set of road meshes.
-struct RoadBuffer {
-    pub mesh_buffer: VIBuffer,
-    pub lane_buffer: VIBuffer,
-    asphalt_color: Rc<wgpu::BindGroup>,
-    lane_color: Rc<wgpu::BindGroup>,
-}
-
-impl<'a, 'b> RoadBuffer {
-    fn new(
-        device: &wgpu::Device,
-        label: &str,
-        asphalt_color: Rc<wgpu::BindGroup>,
-        lane_color: Rc<wgpu::BindGroup>,
-    ) -> Self {
-        let mesh_buffer = VIBuffer::new(&(label.to_owned() + "_buffer"), &device);
-        let lane_buffer = VIBuffer::new(&(label.to_owned() + "_markings_buffer"), &device);
-
-        Self {
-            mesh_buffer,
-            lane_buffer,
-            asphalt_color,
-            lane_color,
-        }
-    }
-
-    fn write(&mut self, queue: &wgpu::Queue, device: &wgpu::Device, mesh: RoadMesh) {
-        self.mesh_buffer.write(
-            queue,
-            device,
-            bytemuck::cast_slice(&mesh.vertices),
-            bytemuck::cast_slice(&mesh.indices),
-            mesh.indices.len() as u32,
-        );
-        self.lane_buffer.write(
-            queue,
-            device,
-            bytemuck::cast_slice(&mesh.lane_vertices),
-            bytemuck::cast_slice(&mesh.lane_indices),
-            mesh.lane_indices.len() as u32,
-        );
-    }
-}
-
-trait RenderRoadBuffer<'a> {
-    /// The function that implements rendering for a road buffer.
-    fn render(&mut self, road_buffer: &'a RoadBuffer);
-}
-
-impl<'a, 'b> RenderRoadBuffer<'b> for wgpu::RenderPass<'a>
-where
-    'b: 'a,
-{
-    fn render(&mut self, road_buffer: &'b RoadBuffer) {
-        if let Ok((vertices, indices)) = road_buffer.mesh_buffer.get_buffer_slice() {
-            self.set_bind_group(1, &road_buffer.asphalt_color, &[]);
-            self.set_vertex_buffer(0, vertices);
-            self.set_index_buffer(indices, wgpu::IndexFormat::Uint32);
-            // render_pass.set_bind_group(0, &self.road_material.bind_group, &[]);
-            self.draw_indexed(0..road_buffer.mesh_buffer.get_num_indices(), 0, 0..1);
-        }
-        if let Ok((vertices, indices)) = road_buffer.lane_buffer.get_buffer_slice() {
-            self.set_bind_group(1, &road_buffer.lane_color, &[]);
-            self.set_vertex_buffer(0, vertices);
-            self.set_index_buffer(indices, wgpu::IndexFormat::Uint32);
-            // render_pass.set_bind_group(0, &self.road_material.bind_group, &[]);
-            self.draw_indexed(0..road_buffer.lane_buffer.get_num_indices(), 0, 0..1);
-        }
-    }
-}
-
-fn empty_road_mesh() -> RoadMesh {
-    RoadMesh {
-        vertices: Vec::new(),
-        indices: Vec::new(),
-        lane_vertices: Vec::new(),
-        lane_indices: Vec::new(),
-    }
-}
 
 pub struct RoadState {
     device: Rc<wgpu::Device>,
@@ -251,7 +170,7 @@ impl gfx_api::GfxRoadData for RoadState {
     fn set_road_tool_mesh(&mut self, mesh: Option<RoadMesh>) {
         let Some(mesh) = mesh else {
             self.tool_buffer
-                .write(&self.queue, &self.device, empty_road_mesh());
+                .write(&self.queue, &self.device, RoadMesh::default());
             return;
         };
         self.tool_buffer.write(&self.queue, &self.device, mesh);
@@ -353,5 +272,32 @@ where
             &road_state.markers_buffer,
             road_state.num_markers,
         );
+    }
+}
+
+trait RenderRoadBuffer<'a> {
+    /// The function that implements rendering for a road buffer.
+    fn render(&mut self, road_buffer: &'a RoadBuffer);
+}
+
+impl<'a, 'b> RenderRoadBuffer<'b> for wgpu::RenderPass<'a>
+where
+    'b: 'a,
+{
+    fn render(&mut self, road_buffer: &'b RoadBuffer) {
+        if let Ok((vertices, indices)) = road_buffer.mesh_buffer.get_buffer_slice() {
+            self.set_bind_group(1, &road_buffer.asphalt_color, &[]);
+            self.set_vertex_buffer(0, vertices);
+            self.set_index_buffer(indices, wgpu::IndexFormat::Uint32);
+            // render_pass.set_bind_group(0, &self.road_material.bind_group, &[]);
+            self.draw_indexed(0..road_buffer.mesh_buffer.get_num_indices(), 0, 0..1);
+        }
+        if let Ok((vertices, indices)) = road_buffer.lane_buffer.get_buffer_slice() {
+            self.set_bind_group(1, &road_buffer.lane_color, &[]);
+            self.set_vertex_buffer(0, vertices);
+            self.set_index_buffer(indices, wgpu::IndexFormat::Uint32);
+            // render_pass.set_bind_group(0, &self.road_material.bind_group, &[]);
+            self.draw_indexed(0..road_buffer.lane_buffer.get_num_indices(), 0, 0..1);
+        }
     }
 }

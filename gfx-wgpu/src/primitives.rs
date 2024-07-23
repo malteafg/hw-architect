@@ -7,7 +7,7 @@ mod texture;
 mod vertex;
 
 // TODO move all the draw traits to some rendering place
-pub use buffer::{DBuffer, VIBuffer};
+pub use buffer::{DBuffer, RoadBuffer, VIBuffer};
 pub use camera::Camera;
 pub use instance::{Instance, InstanceRaw};
 pub use model::{DrawLight, DrawModel, Material, Mesh, Model, ModelVertex};

@@ -191,7 +191,7 @@ impl<'a> gfx_api::Gfx for GfxState<'a> {
             });
 
             use renderer::RenderMain;
-            render_pass.render_main(&self.main_renderer);
+            render_pass.render(&self.main_renderer);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));

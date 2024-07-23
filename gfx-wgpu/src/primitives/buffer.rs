@@ -1,8 +1,11 @@
+use std::rc::Rc;
+
 use anyhow::anyhow;
+use gfx_api::RoadMesh;
 use wgpu::util::DeviceExt;
 use wgpu::{Buffer, BufferSlice, BufferUsages, Device, Queue};
 
-/// sizes are in number of bytes
+/// A dynamically sizable Buffer. Sizes are in number of bytes.
 pub struct DBuffer {
     label: String,
     alloc_size: u64,
@@ -67,6 +70,7 @@ impl DBuffer {
     }
 }
 
+/// A buffer for storing both vertices and indices. Uses DBuffer as its underlying implementation.
 pub struct VIBuffer {
     vertex_buffer: DBuffer,
     index_buffer: DBuffer,
@@ -141,4 +145,48 @@ impl VIBuffer {
 
     //     Ok(())
     // }
+}
+
+/// The information needed on gpu to render a set of road meshes.
+pub struct RoadBuffer {
+    pub mesh_buffer: VIBuffer,
+    pub lane_buffer: VIBuffer,
+    pub asphalt_color: Rc<wgpu::BindGroup>,
+    pub lane_color: Rc<wgpu::BindGroup>,
+}
+
+impl<'a, 'b> RoadBuffer {
+    pub fn new(
+        device: &wgpu::Device,
+        label: &str,
+        asphalt_color: Rc<wgpu::BindGroup>,
+        lane_color: Rc<wgpu::BindGroup>,
+    ) -> Self {
+        let mesh_buffer = VIBuffer::new(&(label.to_owned() + "_buffer"), &device);
+        let lane_buffer = VIBuffer::new(&(label.to_owned() + "_markings_buffer"), &device);
+
+        Self {
+            mesh_buffer,
+            lane_buffer,
+            asphalt_color,
+            lane_color,
+        }
+    }
+
+    pub fn write(&mut self, queue: &wgpu::Queue, device: &wgpu::Device, mesh: RoadMesh) {
+        self.mesh_buffer.write(
+            queue,
+            device,
+            bytemuck::cast_slice(&mesh.vertices),
+            bytemuck::cast_slice(&mesh.indices),
+            mesh.indices.len() as u32,
+        );
+        self.lane_buffer.write(
+            queue,
+            device,
+            bytemuck::cast_slice(&mesh.lane_vertices),
+            bytemuck::cast_slice(&mesh.lane_indices),
+            mesh.lane_indices.len() as u32,
+        );
+    }
 }
