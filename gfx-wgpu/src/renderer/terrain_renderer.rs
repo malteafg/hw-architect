@@ -1,11 +1,11 @@
 use crate::{primitives, render_utils, resources};
 
 use rand::prelude::*;
-use wgpu::util::DeviceExt;
+use wgpu::{util::DeviceExt, RenderPass};
 
 use std::rc::Rc;
 
-use super::{GfxHandle, GfxInit};
+use super::{GfxHandle, GfxInit, StateRender};
 
 pub struct TerrainState {
     terrain_mesh: TerrainMesh,
@@ -26,34 +26,25 @@ impl TerrainState {
         );
 
         Self {
-            // device,
-            // queue,
             terrain_mesh,
             terrain_render_pipeline,
         }
     }
 }
 
-pub trait RenderTerrain<'a> {
-    fn render_terrain(&mut self, gfx_handle: &GfxHandle, terrain_state: &'a TerrainState);
-}
-
-impl<'a, 'b> RenderTerrain<'b> for wgpu::RenderPass<'a>
-where
-    'b: 'a,
-{
-    fn render_terrain(&mut self, gfx_handle: &GfxHandle, terrain_state: &'b TerrainState) {
-        self.set_pipeline(&terrain_state.terrain_render_pipeline);
+impl<'a> StateRender<'a> for TerrainState {
+    fn render(&self, gfx_handle: &'a GfxHandle, render_pass: &mut wgpu::RenderPass<'a>) {
+        render_pass.set_pipeline(&self.terrain_render_pipeline);
 
         // render terrain
-        self.set_pipeline(&terrain_state.terrain_render_pipeline);
-        self.set_vertex_buffer(0, terrain_state.terrain_mesh.vertex_buffer.slice(..));
-        self.set_index_buffer(
-            terrain_state.terrain_mesh.index_buffer.slice(..),
+        render_pass.set_pipeline(&self.terrain_render_pipeline);
+        render_pass.set_vertex_buffer(0, self.terrain_mesh.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(
+            self.terrain_mesh.index_buffer.slice(..),
             wgpu::IndexFormat::Uint32,
         );
-        self.set_bind_group(0, &gfx_handle.camera_bg, &[]);
-        self.draw_indexed(0..terrain_state.terrain_mesh.size as u32, 0, 0..1);
+        render_pass.set_bind_group(0, &gfx_handle.camera_bg, &[]);
+        render_pass.draw_indexed(0..self.terrain_mesh.size as u32, 0, 0..1);
     }
 }
 

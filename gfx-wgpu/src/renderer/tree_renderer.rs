@@ -1,8 +1,8 @@
 use crate::primitives::{DBuffer, Instance, InstanceRaw};
 use crate::resources;
 
-use super::model_renderer::{ModelRenderer, RenderModel};
-use super::GfxHandle;
+use super::model_renderer::ModelRenderer;
+use super::{GfxHandle, StateRender};
 
 use gfx_api::colors;
 
@@ -77,6 +77,35 @@ impl TreeState {
     }
 }
 
+impl<'a> StateRender<'a> for TreeState {
+    fn render(&'a self, gfx_handle: &'a GfxHandle, render_pass: &mut wgpu::RenderPass<'a>) {
+        gfx_handle.model_renderer.render_model(
+            gfx_handle,
+            render_pass,
+            resources::models::TREE_MODEL,
+            &self.tree_buffer,
+            self.num_trees(),
+        );
+
+        gfx_handle.model_renderer.render_model(
+            gfx_handle,
+            render_pass,
+            resources::models::TREE_MODEL,
+            &self.tool_buffer,
+            self.num_markers,
+        );
+
+        gfx_handle.model_renderer.render_simple_model(
+            gfx_handle,
+            render_pass,
+            resources::simple_models::TORUS_MODEL,
+            self.markers_color,
+            &self.markers_buffer,
+            self.num_markers,
+        );
+    }
+}
+
 fn tree_to_raw(pos: [f32; 3], yrot: f32) -> InstanceRaw {
     Instance::to_raw(&Instance::new(
         Vec3::from_array(pos),
@@ -141,42 +170,5 @@ impl gfx_api::GfxTreeData for TreeState {
 
         self.tool_buffer
             .write(&bytemuck::cast_slice(&instance_data));
-    }
-}
-
-pub trait RenderTrees<'a> {
-    /// The function that implements rendering for roads.
-    fn render_trees(&mut self, gfx_handle: &'a GfxHandle, tree_state: &'a TreeState);
-}
-
-impl<'a, 'b> RenderTrees<'b> for wgpu::RenderPass<'a>
-where
-    'b: 'a,
-{
-    fn render_trees(&mut self, gfx_handle: &'a GfxHandle, tree_state: &'a TreeState) {
-        self.render_model(
-            gfx_handle,
-            &gfx_handle.model_renderer,
-            resources::models::TREE_MODEL,
-            &tree_state.tree_buffer,
-            tree_state.num_trees(),
-        );
-
-        self.render_model(
-            gfx_handle,
-            &gfx_handle.model_renderer,
-            resources::models::TREE_MODEL,
-            &tree_state.tool_buffer,
-            tree_state.num_markers,
-        );
-
-        self.render_simple_model(
-            gfx_handle,
-            &gfx_handle.model_renderer,
-            resources::simple_models::TORUS_MODEL,
-            tree_state.markers_color,
-            &tree_state.markers_buffer,
-            tree_state.num_markers,
-        );
     }
 }

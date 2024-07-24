@@ -246,3 +246,7 @@ impl GfxHandle {
         }
     }
 }
+
+pub trait StateRender<'a> {
+    fn render(&'a self, gfx_handle: &'a GfxHandle, render_pass: &mut wgpu::RenderPass<'a>);
+}

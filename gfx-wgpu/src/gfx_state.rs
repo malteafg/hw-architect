@@ -1,12 +1,10 @@
 use crate::primitives;
-use crate::render_utils::{GfxHandle, GfxInit};
+use crate::render_utils::{GfxHandle, GfxInit, StateRender};
 use crate::renderer;
 use crate::resources;
 
-use gfx_api::GSegment;
+use gfx_api::{colors, GSegment, GfxError, RawCameraData, RoadMesh};
 use utils::id::{IdMap, SegmentId, TreeId};
-
-use gfx_api::{colors, GfxError, RawCameraData, RoadMesh};
 
 use std::rc::Rc;
 use std::time::Duration;
@@ -186,8 +184,7 @@ impl<'a> gfx_api::Gfx for GfxState<'a> {
                 timestamp_writes: None,
             });
 
-            use renderer::RenderMain;
-            render_pass.render(&self.gfx_handle, &self.renderer);
+            self.renderer.render(&self.gfx_handle, &mut render_pass);
         }
 
         self.gfx_handle

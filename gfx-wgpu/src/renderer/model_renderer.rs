@@ -52,48 +52,22 @@ impl ModelRenderer {
             color_buffer,
         }
     }
-}
 
-pub trait RenderModel<'a> {
-    fn render_model(
-        &mut self,
+    pub fn render_model<'a>(
+        &'a self,
         gfx_handle: &'a GfxHandle,
-        model_renderer: &'a ModelRenderer,
-        model: ModelId,
-        instances_buffer: &'a DBuffer,
-        no_instances: u32,
-    );
-
-    fn render_simple_model(
-        &mut self,
-        gfx_handle: &'a GfxHandle,
-        model_renderer: &'a ModelRenderer,
-        model: SimpleModelId,
-        color: colors::RGBAColor,
-        instances_buffer: &'a DBuffer,
-        no_instances: u32,
-    );
-}
-
-impl<'a, 'b> RenderModel<'b> for wgpu::RenderPass<'a>
-where
-    'b: 'a,
-{
-    fn render_model(
-        &mut self,
-        gfx_handle: &'a GfxHandle,
-        model_renderer: &'a ModelRenderer,
+        render_pass: &mut wgpu::RenderPass<'a>,
         model: ModelId,
         instances_buffer: &'a DBuffer,
         no_instances: u32,
     ) {
         use crate::primitives::DrawModel;
         if let Some(buffer_slice) = instances_buffer.get_buffer_slice() {
-            let model = model_renderer.models.get(&model).unwrap();
+            let model = self.models.get(&model).unwrap();
 
-            self.set_vertex_buffer(1, buffer_slice);
-            self.set_pipeline(&model_renderer.model_rp);
-            self.draw_model_instanced(
+            render_pass.set_vertex_buffer(1, buffer_slice);
+            render_pass.set_pipeline(&self.model_rp);
+            render_pass.draw_model_instanced(
                 &model,
                 0..no_instances,
                 &gfx_handle.camera_bg,
@@ -101,10 +75,11 @@ where
             );
         }
     }
-    fn render_simple_model(
-        &mut self,
+
+    pub fn render_simple_model<'a>(
+        &'a self,
         gfx_handle: &'a GfxHandle,
-        model_renderer: &'a ModelRenderer,
+        render_pass: &mut wgpu::RenderPass<'a>,
         model: SimpleModelId,
         color: colors::RGBAColor,
         instances_buffer: &'a DBuffer,
@@ -112,18 +87,16 @@ where
     ) {
         use crate::primitives::DrawSimpleModel;
         if let Some(buffer_slice) = instances_buffer.get_buffer_slice() {
-            gfx_handle.queue.write_buffer(
-                &model_renderer.color_buffer,
-                0,
-                &bytemuck::cast_slice(&color),
-            );
+            gfx_handle
+                .queue
+                .write_buffer(&self.color_buffer, 0, &bytemuck::cast_slice(&color));
 
-            let model = model_renderer.simple_models.get(&model).unwrap();
+            let model = self.simple_models.get(&model).unwrap();
 
-            self.set_vertex_buffer(1, buffer_slice);
-            self.set_pipeline(&model_renderer.simple_model_rp);
-            self.set_bind_group(1, &model_renderer.color_bg, &[]);
-            self.draw_mesh_instanced(&model, 0..no_instances, &gfx_handle.camera_bg);
+            render_pass.set_vertex_buffer(1, buffer_slice);
+            render_pass.set_pipeline(&self.simple_model_rp);
+            render_pass.set_bind_group(1, &self.color_bg, &[]);
+            render_pass.draw_mesh_instanced(&model, 0..no_instances, &gfx_handle.camera_bg);
         }
     }
 }

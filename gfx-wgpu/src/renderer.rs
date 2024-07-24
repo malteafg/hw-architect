@@ -65,30 +65,15 @@ impl Renderer {
     }
 }
 
-pub trait RenderMain<'a> {
-    fn render(&mut self, gfx_handle: &'a GfxHandle, renderer: &'a Renderer);
-}
-
-impl<'a, 'b> RenderMain<'b> for wgpu::RenderPass<'a>
-where
-    'b: 'a,
-{
-    fn render(&mut self, gfx_handle: &'a GfxHandle, renderer: &'a Renderer) {
-        use terrain_renderer::RenderTerrain;
-        self.render_terrain(gfx_handle, &renderer.terrain_renderer);
+impl<'a> StateRender<'a> for Renderer {
+    fn render(&'a self, gfx_handle: &'a GfxHandle, render_pass: &mut wgpu::RenderPass<'a>) {
+        self.terrain_renderer.render(gfx_handle, render_pass);
 
         use primitives::DrawLight;
-        self.set_pipeline(&renderer.light_render_pipeline);
-        self.draw_light_model(
-            &renderer.obj_model,
-            &gfx_handle.camera_bg,
-            &gfx_handle.light_bg,
-        );
+        render_pass.set_pipeline(&self.light_render_pipeline);
+        render_pass.draw_light_model(&self.obj_model, &gfx_handle.camera_bg, &gfx_handle.light_bg);
 
-        use road_renderer::RenderRoad;
-        self.render_roads(gfx_handle, &renderer.road_renderer);
-
-        use tree_renderer::RenderTrees;
-        self.render_trees(gfx_handle, &renderer.tree_renderer);
+        self.road_renderer.render(gfx_handle, render_pass);
+        self.tree_renderer.render(gfx_handle, render_pass);
     }
 }
