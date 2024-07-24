@@ -13,7 +13,6 @@ use glam::*;
 use std::rc::Rc;
 
 pub struct RoadState {
-    device: Rc<wgpu::Device>,
     queue: Rc<wgpu::Queue>,
     camera_bind_group: Rc<wgpu::BindGroup>,
 
@@ -71,10 +70,27 @@ impl RoadState {
         );
         let marked_color = Rc::new(marked_color);
 
-        let road_buffer =
-            RoadBuffer::new(&device, "road", asphalt_color, Rc::clone(&markings_color));
-        let tool_buffer = RoadBuffer::new(&device, "tool", tool_color, Rc::clone(&markings_color));
-        let marked_buffer = RoadBuffer::new(&device, "marked", marked_color, markings_color);
+        let road_buffer = RoadBuffer::new(
+            device.clone(),
+            queue.clone(),
+            "road",
+            asphalt_color,
+            Rc::clone(&markings_color),
+        );
+        let tool_buffer = RoadBuffer::new(
+            device.clone(),
+            queue.clone(),
+            "tool",
+            tool_color,
+            Rc::clone(&markings_color),
+        );
+        let marked_buffer = RoadBuffer::new(
+            device.clone(),
+            queue.clone(),
+            "marked",
+            marked_color,
+            markings_color,
+        );
 
         use primitives::Vertex;
         let road_render_pipeline = render_utils::create_render_pipeline(
@@ -108,11 +124,15 @@ impl RoadState {
         //     &texture_bind_group_layout,
         // )
 
-        let markers_buffer = DBuffer::new("markers_buffer", wgpu::BufferUsages::VERTEX, &device);
+        let markers_buffer = DBuffer::new(
+            device.clone(),
+            queue.clone(),
+            "markers_buffer",
+            wgpu::BufferUsages::VERTEX,
+        );
         let markers_color = colors::rgba(colors::RED, 0.8);
 
         Self {
-            device,
             queue,
             camera_bind_group,
             road_buffer,
@@ -136,11 +156,10 @@ impl RoadState {
             acc
         });
         let road_mesh = combine_road_meshes(&self.road_segments, &all);
-        self.road_buffer.write(&self.queue, &self.device, road_mesh);
+        self.road_buffer.write(road_mesh);
 
         let marked_mesh = combine_road_meshes(&self.road_segments, &self.marked_meshes);
-        self.marked_buffer
-            .write(&self.queue, &self.device, marked_mesh);
+        self.marked_buffer.write(marked_mesh);
     }
 }
 
@@ -169,11 +188,10 @@ impl gfx_api::GfxRoadData for RoadState {
     /// Updates the road tool buffer with the given mesh.
     fn set_road_tool_mesh(&mut self, mesh: Option<RoadMesh>) {
         let Some(mesh) = mesh else {
-            self.tool_buffer
-                .write(&self.queue, &self.device, RoadMesh::default());
+            self.tool_buffer.write(RoadMesh::default());
             return;
         };
-        self.tool_buffer.write(&self.queue, &self.device, mesh);
+        self.tool_buffer.write(mesh);
     }
 
     fn set_node_markers(&mut self, markers: Vec<([f32; 3], [f32; 3])>) {
@@ -189,11 +207,8 @@ impl gfx_api::GfxRoadData for RoadState {
             .iter()
             .map(Instance::to_raw)
             .collect::<Vec<_>>();
-        self.markers_buffer.write(
-            &self.queue,
-            &self.device,
-            &bytemuck::cast_slice(&instance_data),
-        );
+        self.markers_buffer
+            .write(&bytemuck::cast_slice(&instance_data));
     }
 }
 

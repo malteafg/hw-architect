@@ -6,6 +6,9 @@ use wgpu::{Buffer, BufferSlice, BufferUsages, Device, Queue};
 
 /// A dynamically sizable Buffer. Sizes are in number of bytes.
 pub struct DBuffer {
+    device: Rc<Device>,
+    queue: Rc<Queue>,
+
     label: String,
     alloc_size: u64,
     use_size: u64,
@@ -14,7 +17,7 @@ pub struct DBuffer {
 }
 
 impl DBuffer {
-    pub fn new(label: &str, usage: BufferUsages, device: &Device) -> Self {
+    pub fn new(device: Rc<Device>, queue: Rc<Queue>, label: &str, usage: BufferUsages) -> Self {
         let alloc_size = 256;
         let empty_data = (0..alloc_size).map(|_| 0u8).collect::<Vec<_>>();
         let usage = usage | BufferUsages::COPY_DST;
@@ -26,6 +29,8 @@ impl DBuffer {
         });
 
         DBuffer {
+            device,
+            queue,
             label: label.to_string(),
             alloc_size,
             use_size: 0,
@@ -34,11 +39,11 @@ impl DBuffer {
         }
     }
 
-    pub fn write(&mut self, queue: &Queue, device: &Device, data: &[u8]) {
+    pub fn write(&mut self, data: &[u8]) {
         if self.alloc_size < data.len() as u64 || self.alloc_size > 2 * data.len() as u64 {
-            self.alloc_buffer(device, data);
+            self.alloc_buffer(data);
         } else {
-            queue.write_buffer(&self.buffer, 0, data);
+            self.queue.write_buffer(&self.buffer, 0, data);
             self.use_size = data.len() as u64;
         }
     }
@@ -50,7 +55,7 @@ impl DBuffer {
         }
     }
 
-    fn alloc_buffer(&mut self, device: &Device, data: &[u8]) {
+    fn alloc_buffer(&mut self, data: &[u8]) {
         let data_size = data.len() as u64;
         let new_size = 1 << (data_size as f32).log2().ceil() as u64;
 
@@ -61,11 +66,13 @@ impl DBuffer {
 
         self.alloc_size = new_size;
         self.use_size = data_size;
-        self.buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some(&self.label),
-            contents: bytemuck::cast_slice(&data),
-            usage: self.usage,
-        });
+        self.buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some(&self.label),
+                contents: bytemuck::cast_slice(&data),
+                usage: self.usage,
+            });
     }
 
     pub fn get_label(&self) -> &str {
@@ -81,14 +88,19 @@ pub struct VIBuffer {
 }
 
 impl VIBuffer {
-    pub fn new(label: &str, device: &Device) -> Self {
+    pub fn new(device: Rc<Device>, queue: Rc<Queue>, label: &str) -> Self {
         let vertex_buffer = DBuffer::new(
+            device.clone(),
+            queue.clone(),
             &("vertex_".to_owned() + label),
             BufferUsages::VERTEX,
-            device,
         );
-        let index_buffer =
-            DBuffer::new(&("index_".to_owned() + label), BufferUsages::INDEX, device);
+        let index_buffer = DBuffer::new(
+            device,
+            queue,
+            &("index_".to_owned() + label),
+            BufferUsages::INDEX,
+        );
 
         VIBuffer {
             vertex_buffer,
@@ -97,16 +109,9 @@ impl VIBuffer {
         }
     }
 
-    pub fn write(
-        &mut self,
-        queue: &Queue,
-        device: &Device,
-        vertices: &[u8],
-        indices: &[u8],
-        num_indices: u32,
-    ) {
-        self.vertex_buffer.write(queue, device, vertices);
-        self.index_buffer.write(queue, device, indices);
+    pub fn write(&mut self, vertices: &[u8], indices: &[u8], num_indices: u32) {
+        self.vertex_buffer.write(vertices);
+        self.index_buffer.write(indices);
         self.num_indices = num_indices;
     }
 
@@ -158,13 +163,18 @@ pub struct RoadBuffer {
 
 impl<'a, 'b> RoadBuffer {
     pub fn new(
-        device: &wgpu::Device,
+        device: Rc<Device>,
+        queue: Rc<Queue>,
         label: &str,
         asphalt_color: Rc<wgpu::BindGroup>,
         lane_color: Rc<wgpu::BindGroup>,
     ) -> Self {
-        let mesh_buffer = VIBuffer::new(&(label.to_owned() + "_buffer"), &device);
-        let lane_buffer = VIBuffer::new(&(label.to_owned() + "_markings_buffer"), &device);
+        let mesh_buffer = VIBuffer::new(
+            device.clone(),
+            queue.clone(),
+            &(label.to_owned() + "_buffer"),
+        );
+        let lane_buffer = VIBuffer::new(device, queue, &(label.to_owned() + "_markings_buffer"));
 
         Self {
             mesh_buffer,
@@ -174,17 +184,13 @@ impl<'a, 'b> RoadBuffer {
         }
     }
 
-    pub fn write(&mut self, queue: &wgpu::Queue, device: &wgpu::Device, mesh: RoadMesh) {
+    pub fn write(&mut self, mesh: RoadMesh) {
         self.mesh_buffer.write(
-            queue,
-            device,
             bytemuck::cast_slice(&mesh.vertices),
             bytemuck::cast_slice(&mesh.indices),
             mesh.indices.len() as u32,
         );
         self.lane_buffer.write(
-            queue,
-            device,
             bytemuck::cast_slice(&mesh.lane_vertices),
             bytemuck::cast_slice(&mesh.lane_indices),
             mesh.lane_indices.len() as u32,

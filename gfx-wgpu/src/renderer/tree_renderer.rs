@@ -15,7 +15,6 @@ use std::rc::Rc;
 pub type TreeMap = BTreeMap<u128, IdMap<TreeId, InstanceRaw>>;
 
 pub struct TreeState {
-    device: Rc<wgpu::Device>,
     queue: Rc<wgpu::Queue>,
     tree_map: TreeMap,
     /// TODO in the future we need to have a buffer for every model probably.
@@ -30,14 +29,27 @@ pub struct TreeState {
 
 impl TreeState {
     pub fn new(device: Rc<wgpu::Device>, queue: Rc<wgpu::Queue>) -> Self {
-        let tree_buffer = DBuffer::new("tree_buffer", wgpu::BufferUsages::VERTEX, &device);
-        let tool_buffer = DBuffer::new("tree_tool_buffer", wgpu::BufferUsages::VERTEX, &device);
-        let markers_buffer =
-            DBuffer::new("tree_markers_buffer", wgpu::BufferUsages::VERTEX, &device);
+        let tree_buffer = DBuffer::new(
+            device.clone(),
+            queue.clone(),
+            "tree_buffer",
+            wgpu::BufferUsages::VERTEX,
+        );
+        let tool_buffer = DBuffer::new(
+            device.clone(),
+            queue.clone(),
+            "tree_tool_buffer",
+            wgpu::BufferUsages::VERTEX,
+        );
+        let markers_buffer = DBuffer::new(
+            device,
+            queue.clone(),
+            "tree_markers_buffer",
+            wgpu::BufferUsages::VERTEX,
+        );
         let markers_color = colors::DEFAULT;
 
         Self {
-            device,
             queue,
             tree_map: BTreeMap::new(),
             tree_buffer,
@@ -57,11 +69,8 @@ impl TreeState {
             .flat_map(|model_map| model_map.values().map(|t| *t))
             .collect();
 
-        self.tree_buffer.write(
-            &self.queue,
-            &self.device,
-            &bytemuck::cast_slice(&instance_data),
-        );
+        self.tree_buffer
+            .write(&bytemuck::cast_slice(&instance_data));
     }
 
     fn num_trees(&self) -> u32 {
@@ -119,11 +128,8 @@ impl gfx_api::GfxTreeData for TreeState {
         if let Some(color) = color {
             self.markers_color = color;
         }
-        self.markers_buffer.write(
-            &self.queue,
-            &self.device,
-            &bytemuck::cast_slice(&instance_data),
-        );
+        self.markers_buffer
+            .write(&bytemuck::cast_slice(&instance_data));
     }
 
     /// model_id should be used when there are several trees models.
@@ -134,11 +140,8 @@ impl gfx_api::GfxTreeData for TreeState {
             .map(|(pos, yrot)| tree_to_raw(pos, yrot))
             .collect::<Vec<_>>();
 
-        self.tool_buffer.write(
-            &self.queue,
-            &self.device,
-            &bytemuck::cast_slice(&instance_data),
-        );
+        self.tool_buffer
+            .write(&bytemuck::cast_slice(&instance_data));
     }
 }
 
