@@ -64,6 +64,7 @@ impl<'a> GfxState<'a> {
                     } else {
                         wgpu::Limits::default()
                     },
+                    memory_hints: wgpu::MemoryHints::default(),
                 },
                 None, // Trace path
             )
