@@ -22,7 +22,6 @@ struct LightUniform {
     // Due to uniforms requiring 16 byte (4 float) spacing, we need to use a padding field here
     _padding2: u32,
 }
-
 pub struct Renderer {
     light_uniform: LightUniform,
     light_buffer: wgpu::Buffer,
@@ -44,16 +43,7 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(
-        device: Rc<wgpu::Device>,
-        queue: Rc<wgpu::Queue>,
-        color_format: wgpu::TextureFormat,
-
-        texture_bind_group_layout: &wgpu::BindGroupLayout,
-        camera_bind_group_layout: &wgpu::BindGroupLayout,
-        light_bind_group_layout: &wgpu::BindGroupLayout,
-        color_bind_group_layout: &wgpu::BindGroupLayout,
-
-        camera_bind_group: Rc<wgpu::BindGroup>,
+        gfx: GfxInit,
 
         mut shader_map: resources::shaders::ShaderMap,
         simple_model_map: resources::simple_models::SimpleModelMap,
@@ -68,14 +58,16 @@ impl Renderer {
             _padding2: 0,
         };
 
-        let light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Light VB"),
-            contents: bytemuck::cast_slice(&[light_uniform]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
+        let light_buffer = gfx
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Light VB"),
+                contents: bytemuck::cast_slice(&[light_uniform]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            });
 
-        let light_bind_group = Rc::new(device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &light_bind_group_layout,
+        let light_bind_group = Rc::new(gfx.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &gfx.light_bgl(),
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: light_buffer.as_entire_binding(),
@@ -84,10 +76,9 @@ impl Renderer {
         }));
 
         use primitives::Vertex;
-        let light_render_pipeline = create_render_pipeline(
-            &device,
-            &[&camera_bind_group_layout, &light_bind_group_layout],
-            color_format,
+        let light_render_pipeline = gfx.create_render_pipeline(
+            &[gfx.camera_bgl(), gfx.light_bgl()],
+            gfx.color_format(),
             Some(primitives::Texture::DEPTH_FORMAT),
             &[primitives::ModelVertex::desc()],
             shader_map.remove(resources::shaders::LIGHT).unwrap(),
@@ -95,45 +86,27 @@ impl Renderer {
         );
 
         let terrain_renderer = terrain_renderer::TerrainState::new(
-            Rc::clone(&device),
-            // Rc::clone(&queue),
-            color_format,
+            &gfx,
             shader_map.remove(resources::shaders::TERRAIN).unwrap(),
-            &camera_bind_group_layout,
         );
 
         let road_renderer = road_renderer::RoadState::new(
-            Rc::clone(&device),
-            Rc::clone(&queue),
-            color_format,
+            &gfx,
             shader_map.remove(resources::shaders::ROAD).unwrap(),
-            Rc::clone(&camera_bind_group),
-            &camera_bind_group_layout,
-            &light_bind_group_layout,
         );
 
-        let tree_renderer = tree_renderer::TreeState::new(Rc::clone(&device), Rc::clone(&queue));
+        let tree_renderer = tree_renderer::TreeState::new(gfx.device(), gfx.queue());
 
         let simple_renderer = model_renderer::SimpleModelRenderer::new(
-            Rc::clone(&device),
-            Rc::clone(&queue),
-            color_format,
+            &gfx,
             simple_model_map,
             shader_map.remove(resources::shaders::SIMPLE).unwrap(),
-            Rc::clone(&camera_bind_group),
-            &camera_bind_group_layout,
-            &color_bind_group_layout,
         );
 
         let model_renderer = model_renderer::ModelRenderer::new(
-            Rc::clone(&device),
-            color_format,
+            &gfx,
             model_map,
             shader_map.remove(resources::shaders::BASIC).unwrap(),
-            &texture_bind_group_layout,
-            &camera_bind_group_layout,
-            &light_bind_group_layout,
-            Rc::clone(&camera_bind_group),
             Rc::clone(&light_bind_group),
         );
 
@@ -143,7 +116,7 @@ impl Renderer {
             light_render_pipeline,
 
             light_bind_group,
-            camera_bind_group,
+            camera_bind_group: gfx.camera_bg(),
 
             terrain_renderer,
             road_renderer,

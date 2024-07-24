@@ -7,6 +7,8 @@ use gfx_api::colors;
 
 use std::rc::Rc;
 
+use super::GfxInit;
+
 pub struct ModelRenderer {
     render_pipeline: wgpu::RenderPipeline,
     camera_bind_group: Rc<wgpu::BindGroup>,
@@ -18,27 +20,16 @@ pub struct ModelRenderer {
 
 impl ModelRenderer {
     pub fn new(
-        device: Rc<wgpu::Device>,
-        color_format: wgpu::TextureFormat,
+        gfx: &GfxInit,
 
         models: ModelMap,
         shader: wgpu::ShaderModule,
 
-        texture_bind_group_layout: &wgpu::BindGroupLayout,
-        camera_bind_group_layout: &wgpu::BindGroupLayout,
-        light_bind_group_layout: &wgpu::BindGroupLayout,
-
-        camera_bind_group: Rc<wgpu::BindGroup>,
         light_bind_group: Rc<wgpu::BindGroup>,
     ) -> Self {
-        let render_pipeline = render_utils::create_render_pipeline(
-            &device,
-            &[
-                &texture_bind_group_layout,
-                &camera_bind_group_layout,
-                &light_bind_group_layout,
-            ],
-            color_format,
+        let render_pipeline = gfx.create_render_pipeline(
+            &[gfx.texture_bgl(), gfx.camera_bgl(), gfx.light_bgl()],
+            gfx.color_format(),
             Some(Texture::DEPTH_FORMAT),
             &[ModelVertex::desc(), InstanceRaw::desc()],
             shader,
@@ -47,7 +38,7 @@ impl ModelRenderer {
         Self {
             render_pipeline,
             models,
-            camera_bind_group,
+            camera_bind_group: gfx.camera_bg(),
             light_bind_group,
         }
     }
@@ -101,41 +92,23 @@ pub struct SimpleModelRenderer {
 }
 
 impl SimpleModelRenderer {
-    pub fn new(
-        device: Rc<wgpu::Device>,
-        queue: Rc<wgpu::Queue>,
-        color_format: wgpu::TextureFormat,
-
-        models: SimpleModelMap,
-        shader: wgpu::ShaderModule,
-
-        camera_bind_group: Rc<wgpu::BindGroup>,
-        camera_bind_group_layout: &wgpu::BindGroupLayout,
-        color_bind_group_layout: &wgpu::BindGroupLayout,
-    ) -> Self {
-        let render_pipeline = render_utils::create_render_pipeline(
-            &device,
-            &[&camera_bind_group_layout, &color_bind_group_layout],
-            color_format,
+    pub fn new(gfx: &GfxInit, models: SimpleModelMap, shader: wgpu::ShaderModule) -> Self {
+        let render_pipeline = gfx.create_render_pipeline(
+            &[gfx.camera_bgl(), gfx.color_bgl()],
+            gfx.color_format(),
             Some(Texture::DEPTH_FORMAT),
             &[SimpleModelVertex::desc(), InstanceRaw::desc()],
             shader,
             "simple",
         );
 
-        let (color_buffer, color_bind_group) = render_utils::create_color(
-            &device,
-            color_bind_group_layout,
-            colors::DEFAULT,
-            "simple_color",
-        );
+        let (color_buffer, color_bind_group) = gfx.create_color(colors::DEFAULT, "simple_color");
 
         Self {
             render_pipeline,
-
             models,
 
-            camera_bind_group,
+            camera_bind_group: gfx.camera_bg(),
             color_bind_group,
 
             color_buffer,

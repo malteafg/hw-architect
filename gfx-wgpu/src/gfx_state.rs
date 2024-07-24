@@ -1,5 +1,6 @@
 use crate::primitives;
 use crate::render_utils;
+use crate::render_utils::GfxInit;
 use crate::renderer;
 use crate::resources;
 
@@ -93,41 +94,27 @@ impl<'a> GfxState<'a> {
         let depth_texture =
             primitives::Texture::create_depth_texture(&device, &config, "depth_texture");
 
-        let (
-            texture_bind_group_layout,
-            camera_bind_group_layout,
-            light_bind_group_layout,
-            color_bind_group_layout,
-        ) = resources::create_bind_group_layouts(&device);
+        let (texture_bgl, camera_bgl, light_bgl, color_bgl) =
+            resources::create_bind_group_layouts(&device);
 
         // load everything
-        let (shaders, simple_models, models) =
-            resources::load_all(&device, &queue, &texture_bind_group_layout);
+        let (shaders, simple_models, models) = resources::load_all(&device, &queue, &texture_bgl);
+        let obj_model = resources::load_model("sphere", &device, &queue, &texture_bgl).unwrap();
 
-        let obj_model =
-            resources::load_model("sphere", &device, &queue, &texture_bind_group_layout).unwrap();
+        let camera = primitives::Camera::new(&device, config.width, config.height, &camera_bgl);
 
-        let camera = primitives::Camera::new(
-            &device,
-            config.width,
-            config.height,
-            &camera_bind_group_layout,
-        );
-
-        let main_renderer = renderer::Renderer::new(
-            Rc::clone(&device),
-            Rc::clone(&queue),
+        let gfx = GfxInit::new(
+            device.clone(),
+            queue.clone(),
             config.format,
-            &texture_bind_group_layout,
-            &camera_bind_group_layout,
-            &light_bind_group_layout,
-            &color_bind_group_layout,
-            Rc::clone(camera.get_bind_group()),
-            shaders,
-            simple_models,
-            models,
-            obj_model,
+            texture_bgl,
+            camera_bgl,
+            light_bgl,
+            color_bgl,
+            camera.get_bind_group().clone(),
         );
+
+        let main_renderer = renderer::Renderer::new(gfx, shaders, simple_models, models, obj_model);
 
         Self {
             surface,
@@ -209,8 +196,11 @@ impl<'a> gfx_api::Gfx for GfxState<'a> {
         self.surface_config.height = height;
         self.surface.configure(&self.device, &self.surface_config);
 
-        self.depth_texture =
-            primitives::Texture::create_depth_texture(&self.device, &self.surface_config, "depth_texture");
+        self.depth_texture = primitives::Texture::create_depth_texture(
+            &self.device,
+            &self.surface_config,
+            "depth_texture",
+        );
 
         self.camera.resize(width, height);
     }

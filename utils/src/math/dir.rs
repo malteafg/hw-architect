@@ -13,8 +13,8 @@ pub struct DirXZ(Vec3);
 
 impl PartialEq for DirXZ {
     fn eq(&self, other: &Self) -> bool {
-        let this = format!("{:.4}", self.0);
-        let other = format!("{:.4}", other.0);
+        let this = format!("{:.3}", self.0);
+        let other = format!("{:.3}", other.0);
         // dbg!(this.clone());
         // dbg!(other.clone());
         this == other

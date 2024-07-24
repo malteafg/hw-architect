@@ -5,27 +5,20 @@ use wgpu::util::DeviceExt;
 
 use std::rc::Rc;
 
+use super::GfxInit;
+
 pub struct TerrainState {
-    // device: Rc<wgpu::Device>,
-    // queue: Rc<wgpu::Queue>,
     terrain_mesh: TerrainMesh,
     terrain_render_pipeline: wgpu::RenderPipeline,
 }
 
 impl TerrainState {
-    pub fn new(
-        device: Rc<wgpu::Device>,
-        // queue: Rc<wgpu::Queue>,
-        color_format: wgpu::TextureFormat,
-        terrain_shader: wgpu::ShaderModule,
-        camera_bind_group_layout: &wgpu::BindGroupLayout,
-    ) -> Self {
-        let terrain_mesh = TerrainMesh::new(&device);
+    pub fn new(gfx: &GfxInit, terrain_shader: wgpu::ShaderModule) -> Self {
+        let terrain_mesh = TerrainMesh::new(&gfx.device);
         use primitives::Vertex;
-        let terrain_render_pipeline = render_utils::create_render_pipeline(
-            &device,
-            &[camera_bind_group_layout],
-            color_format,
+        let terrain_render_pipeline = gfx.create_render_pipeline(
+            &[gfx.camera_bgl()],
+            gfx.color_format(),
             Some(primitives::Texture::DEPTH_FORMAT),
             &[primitives::TerrainVertex::desc()],
             terrain_shader,

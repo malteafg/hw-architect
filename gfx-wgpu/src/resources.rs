@@ -358,17 +358,15 @@ fn load_shader(
     shaders.insert(name, device.create_shader_module(shader_desc));
 }
 
-use wgpu::BindGroupLayout;
-
 pub fn create_bind_group_layouts(
     device: &wgpu::Device,
 ) -> (
-    BindGroupLayout,
-    BindGroupLayout,
-    BindGroupLayout,
-    BindGroupLayout,
+    wgpu::BindGroupLayout,
+    wgpu::BindGroupLayout,
+    wgpu::BindGroupLayout,
+    wgpu::BindGroupLayout,
 ) {
-    let texture_bind_group_layout =
+    let texture_bgl =
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
                 wgpu::BindGroupLayoutEntry {
@@ -408,7 +406,7 @@ pub fn create_bind_group_layouts(
             ],
             label: Some("texture_bind_group_layout"),
         });
-    let camera_bind_group_layout =
+    let camera_bgl =
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
@@ -423,7 +421,7 @@ pub fn create_bind_group_layouts(
             label: Some("camera_bind_group_layout"),
         });
 
-    let light_bind_group_layout =
+    let light_bgl =
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
@@ -438,7 +436,7 @@ pub fn create_bind_group_layouts(
             label: None,
         });
 
-    let color_bind_group_layout =
+    let color_bgl =
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
@@ -454,9 +452,9 @@ pub fn create_bind_group_layouts(
         });
 
     (
-        texture_bind_group_layout,
-        camera_bind_group_layout,
-        light_bind_group_layout,
-        color_bind_group_layout,
+        texture_bgl,
+        camera_bgl,
+        light_bgl,
+        color_bgl,
     )
 }
