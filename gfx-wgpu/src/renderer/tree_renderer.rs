@@ -2,6 +2,7 @@ use crate::primitives::{DBuffer, Instance, InstanceRaw};
 use crate::resources;
 
 use super::model_renderer::{ModelRenderer, RenderModel, RenderSimpleModel, SimpleModelRenderer};
+use super::GfxHandle;
 
 use gfx_api::colors;
 
@@ -15,7 +16,6 @@ use std::rc::Rc;
 pub type TreeMap = BTreeMap<u128, IdMap<TreeId, InstanceRaw>>;
 
 pub struct TreeState {
-    queue: Rc<wgpu::Queue>,
     tree_map: TreeMap,
     /// TODO in the future we need to have a buffer for every model probably.
     tree_buffer: DBuffer,
@@ -50,7 +50,6 @@ impl TreeState {
         let markers_color = colors::DEFAULT;
 
         Self {
-            queue,
             tree_map: BTreeMap::new(),
             tree_buffer,
             tool_buffer,
@@ -149,6 +148,7 @@ pub trait RenderTrees<'a> {
     /// The function that implements rendering for roads.
     fn render_trees(
         &mut self,
+        gfx_handle: &'a GfxHandle,
         tree_state: &'a TreeState,
         simple_renderer: &'a SimpleModelRenderer,
         model_renderer: &'a ModelRenderer,
@@ -161,11 +161,13 @@ where
 {
     fn render_trees(
         &mut self,
+        gfx_handle: &'a GfxHandle,
         tree_state: &'a TreeState,
         simple_renderer: &'a SimpleModelRenderer,
         model_renderer: &'a ModelRenderer,
     ) {
         self.render_model(
+            gfx_handle,
             model_renderer,
             resources::models::TREE_MODEL,
             &tree_state.tree_buffer,
@@ -173,6 +175,7 @@ where
         );
 
         self.render_model(
+            gfx_handle,
             model_renderer,
             resources::models::TREE_MODEL,
             &tree_state.tool_buffer,
@@ -180,8 +183,8 @@ where
         );
 
         self.render_simple_model(
+            gfx_handle,
             simple_renderer,
-            &tree_state.queue,
             resources::simple_models::TORUS_MODEL,
             tree_state.markers_color,
             &tree_state.markers_buffer,

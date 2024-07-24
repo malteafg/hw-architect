@@ -3,7 +3,7 @@ use crate::render_utils;
 use crate::resources;
 
 use super::model_renderer::{RenderSimpleModel, SimpleModelRenderer};
-use super::GfxInit;
+use super::{GfxHandle, GfxInit};
 
 use utils::id::{IdMap, SegmentId};
 
@@ -14,9 +14,6 @@ use glam::*;
 use std::rc::Rc;
 
 pub struct RoadState {
-    queue: Rc<wgpu::Queue>,
-    camera_bind_group: Rc<wgpu::BindGroup>,
-
     road_buffer: RoadBuffer,
     tool_buffer: RoadBuffer,
     marked_buffer: RoadBuffer,
@@ -109,8 +106,6 @@ impl RoadState {
         let markers_color = colors::rgba(colors::RED, 0.8);
 
         Self {
-            queue: gfx.queue(),
-            camera_bind_group: gfx.camera_bg(),
             road_buffer,
             tool_buffer,
             marked_buffer,
@@ -241,7 +236,12 @@ fn combine_road_meshes(
 /// A trait used by the main renderer to render the roads.
 pub trait RenderRoad<'a> {
     /// The function that implements rendering for roads.
-    fn render_roads(&mut self, road_state: &'a RoadState, simple_renderer: &'a SimpleModelRenderer);
+    fn render_roads(
+        &mut self,
+        gfx_handle: &'a GfxHandle,
+        road_state: &'a RoadState,
+        simple_renderer: &'a SimpleModelRenderer,
+    );
 }
 
 impl<'a, 'b> RenderRoad<'b> for wgpu::RenderPass<'a>
@@ -250,18 +250,19 @@ where
 {
     fn render_roads(
         &mut self,
+        gfx_handle: &'a GfxHandle,
         road_state: &'b RoadState,
         simple_renderer: &'a SimpleModelRenderer,
     ) {
         self.set_pipeline(&road_state.road_render_pipeline);
-        self.set_bind_group(0, &road_state.camera_bind_group, &[]);
+        self.set_bind_group(0, &gfx_handle.camera_bg, &[]);
         self.render(&road_state.road_buffer);
         self.render(&road_state.tool_buffer);
         self.render(&road_state.marked_buffer);
 
         self.render_simple_model(
+            gfx_handle,
             simple_renderer,
-            &road_state.queue,
             resources::simple_models::ARROW_MODEL,
             road_state.markers_color,
             &road_state.markers_buffer,

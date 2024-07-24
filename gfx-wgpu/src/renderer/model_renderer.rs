@@ -7,19 +7,15 @@ use gfx_api::colors;
 
 use std::rc::Rc;
 
-use super::GfxInit;
+use super::{GfxHandle, GfxInit};
 
 pub struct ModelRenderer {
     render_pipeline: wgpu::RenderPipeline,
-    camera_bind_group: Rc<wgpu::BindGroup>,
-
     models: ModelMap,
-
-    light_bind_group: Rc<wgpu::BindGroup>,
 }
 
 impl ModelRenderer {
-    pub fn new(gfx: &GfxInit, models: ModelMap, light_bind_group: Rc<wgpu::BindGroup>) -> Self {
+    pub fn new(gfx: &GfxInit, models: ModelMap) -> Self {
         let render_pipeline = gfx.create_render_pipeline(
             &[gfx.texture_bgl(), gfx.camera_bgl(), gfx.light_bgl()],
             gfx.color_format(),
@@ -31,8 +27,6 @@ impl ModelRenderer {
         Self {
             render_pipeline,
             models,
-            camera_bind_group: gfx.camera_bg(),
-            light_bind_group,
         }
     }
 }
@@ -40,6 +34,7 @@ impl ModelRenderer {
 pub trait RenderModel<'a> {
     fn render_model(
         &mut self,
+        gfx_handle: &'a GfxHandle,
         model_renderer: &'a ModelRenderer,
         model: ModelId,
         instances_buffer: &'a DBuffer,
@@ -53,6 +48,7 @@ where
 {
     fn render_model(
         &mut self,
+        gfx_handle: &'a GfxHandle,
         model_renderer: &'a ModelRenderer,
         model: ModelId,
         instances_buffer: &'a DBuffer,
@@ -67,8 +63,8 @@ where
             self.draw_model_instanced(
                 &model,
                 0..no_instances,
-                &model_renderer.camera_bind_group,
-                &model_renderer.light_bind_group,
+                &gfx_handle.camera_bg,
+                &gfx_handle.light_bg,
             );
         }
     }
@@ -76,11 +72,8 @@ where
 
 pub struct SimpleModelRenderer {
     render_pipeline: wgpu::RenderPipeline,
-    camera_bind_group: Rc<wgpu::BindGroup>,
-
     models: SimpleModelMap,
-
-    color_bind_group: wgpu::BindGroup,
+    color_bg: wgpu::BindGroup,
     color_buffer: wgpu::Buffer,
 }
 
@@ -100,10 +93,7 @@ impl SimpleModelRenderer {
         Self {
             render_pipeline,
             models,
-
-            camera_bind_group: gfx.camera_bg(),
-            color_bind_group,
-
+            color_bg: color_bind_group,
             color_buffer,
         }
     }
@@ -112,8 +102,8 @@ impl SimpleModelRenderer {
 pub trait RenderSimpleModel<'a> {
     fn render_simple_model(
         &mut self,
+        gfx_handle: &'a GfxHandle,
         simple_renderer: &'a SimpleModelRenderer,
-        queue: &'a wgpu::Queue,
         model: SimpleModelId,
         color: colors::RGBAColor,
         instances_buffer: &'a DBuffer,
@@ -127,8 +117,8 @@ where
 {
     fn render_simple_model(
         &mut self,
+        gfx_handle: &'a GfxHandle,
         simple_renderer: &'a SimpleModelRenderer,
-        queue: &'a wgpu::Queue,
         model: SimpleModelId,
         color: colors::RGBAColor,
         instances_buffer: &'a DBuffer,
@@ -136,7 +126,7 @@ where
     ) {
         use crate::primitives::DrawSimpleModel;
         if let Some(buffer_slice) = instances_buffer.get_buffer_slice() {
-            queue.write_buffer(
+            gfx_handle.queue.write_buffer(
                 &simple_renderer.color_buffer,
                 0,
                 &bytemuck::cast_slice(&color),
@@ -146,8 +136,8 @@ where
 
             self.set_vertex_buffer(1, buffer_slice);
             self.set_pipeline(&simple_renderer.render_pipeline);
-            self.set_bind_group(1, &simple_renderer.color_bind_group, &[]);
-            self.draw_mesh_instanced(&model, 0..no_instances, &simple_renderer.camera_bind_group);
+            self.set_bind_group(1, &simple_renderer.color_bg, &[]);
+            self.draw_mesh_instanced(&model, 0..no_instances, &gfx_handle.camera_bg);
         }
     }
 }

@@ -1,6 +1,5 @@
 use crate::primitives;
-use crate::render_utils;
-use crate::render_utils::GfxInit;
+use crate::render_utils::{GfxHandle, GfxInit};
 use crate::renderer;
 use crate::resources;
 
@@ -17,11 +16,9 @@ pub struct GfxState<'a> {
     depth_texture: primitives::Texture,
     surface_config: wgpu::SurfaceConfiguration,
 
-    device: Rc<wgpu::Device>,
-    queue: Rc<wgpu::Queue>,
-
     camera: primitives::Camera,
     renderer: renderer::Renderer,
+    gfx_handle: GfxHandle,
 }
 
 impl<'a> GfxState<'a> {
@@ -102,7 +99,8 @@ impl<'a> GfxState<'a> {
         let (shaders, simple_models, models) = resources::load_all(&device, &queue, &texture_bgl);
         let obj_model = resources::load_model("sphere", &device, &queue, &texture_bgl).unwrap();
 
-        let camera = primitives::Camera::new(&device, config.width, config.height, &camera_bgl);
+        let (camera, camera_bg) =
+            primitives::Camera::new(&device, config.width, config.height, &camera_bgl);
 
         let gfx = GfxInit::new(
             device.clone(),
@@ -112,20 +110,20 @@ impl<'a> GfxState<'a> {
             camera_bgl,
             light_bgl,
             color_bgl,
-            camera.get_bind_group().clone(),
             shaders,
         );
 
-        let main_renderer = renderer::Renderer::new(gfx, simple_models, models, obj_model);
+        let main_renderer = renderer::Renderer::new(&gfx, simple_models, models, obj_model);
+
+        let gfx_handle = GfxHandle::new(&gfx, device.clone(), queue.clone(), camera_bg);
 
         Self {
             surface,
-            device,
-            queue,
             depth_texture,
             surface_config: config,
             renderer: main_renderer,
             camera,
+            gfx_handle,
         }
     }
 }
@@ -146,11 +144,12 @@ impl<'a> gfx_api::Gfx for GfxState<'a> {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("render_encoder"),
-            });
+        let mut encoder =
+            self.gfx_handle
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("render_encoder"),
+                });
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -181,10 +180,12 @@ impl<'a> gfx_api::Gfx for GfxState<'a> {
             });
 
             use renderer::RenderMain;
-            render_pass.render(&self.renderer);
+            render_pass.render(&self.gfx_handle, &self.renderer);
         }
 
-        self.queue.submit(std::iter::once(encoder.finish()));
+        self.gfx_handle
+            .queue
+            .submit(std::iter::once(encoder.finish()));
         output.present();
 
         Ok(())
@@ -196,10 +197,11 @@ impl<'a> gfx_api::Gfx for GfxState<'a> {
         }
         self.surface_config.width = width;
         self.surface_config.height = height;
-        self.surface.configure(&self.device, &self.surface_config);
+        self.surface
+            .configure(&self.gfx_handle.device, &self.surface_config);
 
         self.depth_texture = primitives::Texture::create_depth_texture(
-            &self.device,
+            &self.gfx_handle.device,
             &self.surface_config,
             "depth_texture",
         );
@@ -208,7 +210,7 @@ impl<'a> gfx_api::Gfx for GfxState<'a> {
     }
 
     fn update(&mut self, dt: Duration) {
-        self.renderer.update(dt, &self.queue);
+        self.renderer.update(dt, &mut self.gfx_handle);
     }
 }
 
@@ -257,7 +259,7 @@ impl<'a> gfx_api::GfxTreeData for GfxState<'a> {
 
 impl<'a> gfx_api::GfxCameraData for GfxState<'a> {
     fn update_camera(&mut self, camera: RawCameraData) {
-        self.camera.update_camera(camera, &self.queue);
+        self.camera.update_camera(camera, &self.gfx_handle.queue);
     }
 
     fn compute_ray(&self, mouse_pos: [f32; 2], camera: RawCameraData) -> [f32; 3] {

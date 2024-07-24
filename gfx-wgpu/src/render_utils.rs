@@ -14,9 +14,6 @@ pub struct GfxInit {
     light_bgl: wgpu::BindGroupLayout,
     color_bgl: wgpu::BindGroupLayout,
 
-    /// Maybe have as part of state
-    camera_bg: Rc<wgpu::BindGroup>,
-
     /// Used only to create the render pipelines.
     shader_map: shaders::ShaderMap,
 }
@@ -32,7 +29,6 @@ impl GfxInit {
         light_bgl: wgpu::BindGroupLayout,
         color_bgl: wgpu::BindGroupLayout,
 
-        camera_bg: Rc<wgpu::BindGroup>,
         shader_map: shaders::ShaderMap,
     ) -> Self {
         Self {
@@ -43,7 +39,6 @@ impl GfxInit {
             camera_bgl,
             light_bgl,
             color_bgl,
-            camera_bg,
             shader_map,
         }
     }
@@ -74,10 +69,6 @@ impl GfxInit {
 
     pub fn color_bgl(&self) -> &wgpu::BindGroupLayout {
         &self.color_bgl
-    }
-
-    pub fn camera_bg(&self) -> Rc<wgpu::BindGroup> {
-        self.camera_bg.clone()
     }
 
     pub fn shader(&self, shader: &str) -> &wgpu::ShaderModule {
@@ -180,5 +171,67 @@ impl GfxInit {
                 multiview: None,
                 cache: None,
             })
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct LightUniform {
+    pub position: [f32; 3],
+    // Due to uniforms requiring 16 byte (4 float) spacing, we need to use a padding field here
+    _padding: u32,
+    pub color: [f32; 3],
+    // Due to uniforms requiring 16 byte (4 float) spacing, we need to use a padding field here
+    _padding2: u32,
+}
+
+/// Represents the data needed to render on the gpu.
+pub struct GfxHandle {
+    pub device: Rc<wgpu::Device>,
+    pub queue: Rc<wgpu::Queue>,
+
+    pub camera_bg: wgpu::BindGroup,
+    pub light_bg: Rc<wgpu::BindGroup>,
+
+    pub light_uniform: LightUniform,
+    pub light_buffer: wgpu::Buffer,
+}
+
+impl GfxHandle {
+    pub fn new(
+        gfx: &GfxInit,
+        device: Rc<wgpu::Device>,
+        queue: Rc<wgpu::Queue>,
+        camera_bg: wgpu::BindGroup,
+    ) -> Self {
+        let light_uniform = LightUniform {
+            position: [2.0, 2.0, 2.0],
+            _padding: 0,
+            color: [1.0, 1.0, 1.0],
+            _padding2: 0,
+        };
+
+        let light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Light VB"),
+            contents: bytemuck::cast_slice(&[light_uniform]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let light_bg = Rc::new(device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &gfx.light_bgl(),
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: light_buffer.as_entire_binding(),
+            }],
+            label: None,
+        }));
+        Self {
+            device,
+            queue,
+            camera_bg,
+            light_bg,
+            light_uniform,
+            light_buffer,
+        }
     }
 }

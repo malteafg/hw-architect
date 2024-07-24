@@ -5,7 +5,7 @@ use wgpu::util::DeviceExt;
 
 use std::rc::Rc;
 
-use super::GfxInit;
+use super::{GfxHandle, GfxInit};
 
 pub struct TerrainState {
     terrain_mesh: TerrainMesh,
@@ -35,22 +35,14 @@ impl TerrainState {
 }
 
 pub trait RenderTerrain<'a> {
-    fn render_terrain(
-        &mut self,
-        terrain_state: &'a TerrainState,
-        camera_bind_group: &'a wgpu::BindGroup,
-    );
+    fn render_terrain(&mut self, gfx_handle: &GfxHandle, terrain_state: &'a TerrainState);
 }
 
 impl<'a, 'b> RenderTerrain<'b> for wgpu::RenderPass<'a>
 where
     'b: 'a,
 {
-    fn render_terrain(
-        &mut self,
-        terrain_state: &'b TerrainState,
-        camera_bind_group: &'b wgpu::BindGroup,
-    ) {
+    fn render_terrain(&mut self, gfx_handle: &GfxHandle, terrain_state: &'b TerrainState) {
         self.set_pipeline(&terrain_state.terrain_render_pipeline);
 
         // render terrain
@@ -60,7 +52,7 @@ where
             terrain_state.terrain_mesh.index_buffer.slice(..),
             wgpu::IndexFormat::Uint32,
         );
-        self.set_bind_group(0, camera_bind_group, &[]);
+        self.set_bind_group(0, &gfx_handle.camera_bg, &[]);
         self.draw_indexed(0..terrain_state.terrain_mesh.size as u32, 0, 0..1);
     }
 }

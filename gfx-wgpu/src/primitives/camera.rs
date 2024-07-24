@@ -91,7 +91,6 @@ fn compute_view_matrix(camera: RawCameraData) -> Mat4 {
 pub struct Camera {
     projection: Projection,
     camera_buffer: wgpu::Buffer,
-    camera_bind_group: Rc<wgpu::BindGroup>,
 }
 
 impl Camera {
@@ -99,8 +98,8 @@ impl Camera {
         device: &wgpu::Device,
         window_width: u32,
         window_height: u32,
-        camera_bind_group_layout: &wgpu::BindGroupLayout,
-    ) -> Self {
+        camera_bgl: &wgpu::BindGroupLayout,
+    ) -> (Self, wgpu::BindGroup) {
         let projection = Projection::new(
             window_width,
             window_height,
@@ -115,24 +114,22 @@ impl Camera {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let camera_bind_group = Rc::new(device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &camera_bind_group_layout,
+        let camera_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_bgl,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: camera_buffer.as_entire_binding(),
             }],
             label: Some("camera_bind_group"),
-        }));
+        });
 
-        Self {
-            projection,
-            camera_buffer,
-            camera_bind_group,
-        }
-    }
-
-    pub fn get_bind_group(&self) -> &Rc<wgpu::BindGroup> {
-        &self.camera_bind_group
+        (
+            Self {
+                projection,
+                camera_buffer,
+            },
+            camera_bg,
+        )
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
