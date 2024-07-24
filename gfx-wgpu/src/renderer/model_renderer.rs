@@ -1,7 +1,7 @@
 use crate::primitives::{DBuffer, InstanceRaw, ModelVertex, SimpleModelVertex, Texture, Vertex};
-use crate::render_utils;
 use crate::resources::models::{ModelId, ModelMap};
 use crate::resources::simple_models::{SimpleModelId, SimpleModelMap};
+use crate::{render_utils, resources};
 
 use gfx_api::colors;
 
@@ -19,20 +19,13 @@ pub struct ModelRenderer {
 }
 
 impl ModelRenderer {
-    pub fn new(
-        gfx: &GfxInit,
-
-        models: ModelMap,
-        shader: wgpu::ShaderModule,
-
-        light_bind_group: Rc<wgpu::BindGroup>,
-    ) -> Self {
+    pub fn new(gfx: &GfxInit, models: ModelMap, light_bind_group: Rc<wgpu::BindGroup>) -> Self {
         let render_pipeline = gfx.create_render_pipeline(
             &[gfx.texture_bgl(), gfx.camera_bgl(), gfx.light_bgl()],
             gfx.color_format(),
             Some(Texture::DEPTH_FORMAT),
             &[ModelVertex::desc(), InstanceRaw::desc()],
-            shader,
+            gfx.shader(resources::shaders::BASIC),
             "model",
         );
         Self {
@@ -92,13 +85,13 @@ pub struct SimpleModelRenderer {
 }
 
 impl SimpleModelRenderer {
-    pub fn new(gfx: &GfxInit, models: SimpleModelMap, shader: wgpu::ShaderModule) -> Self {
+    pub fn new(gfx: &GfxInit, models: SimpleModelMap) -> Self {
         let render_pipeline = gfx.create_render_pipeline(
             &[gfx.camera_bgl(), gfx.color_bgl()],
             gfx.color_format(),
             Some(Texture::DEPTH_FORMAT),
             &[SimpleModelVertex::desc(), InstanceRaw::desc()],
-            shader,
+            gfx.shader(resources::shaders::SIMPLE),
             "simple",
         );
 

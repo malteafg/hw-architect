@@ -45,7 +45,6 @@ impl Renderer {
     pub fn new(
         gfx: GfxInit,
 
-        mut shader_map: resources::shaders::ShaderMap,
         simple_model_map: resources::simple_models::SimpleModelMap,
         model_map: resources::models::ModelMap,
 
@@ -81,34 +80,16 @@ impl Renderer {
             gfx.color_format(),
             Some(primitives::Texture::DEPTH_FORMAT),
             &[primitives::ModelVertex::desc()],
-            shader_map.remove(resources::shaders::LIGHT).unwrap(),
+            gfx.shader(resources::shaders::LIGHT),
             "light",
         );
 
-        let terrain_renderer = terrain_renderer::TerrainState::new(
-            &gfx,
-            shader_map.remove(resources::shaders::TERRAIN).unwrap(),
-        );
-
-        let road_renderer = road_renderer::RoadState::new(
-            &gfx,
-            shader_map.remove(resources::shaders::ROAD).unwrap(),
-        );
-
+        let terrain_renderer = terrain_renderer::TerrainState::new(&gfx);
+        let road_renderer = road_renderer::RoadState::new(&gfx);
         let tree_renderer = tree_renderer::TreeState::new(gfx.device(), gfx.queue());
-
-        let simple_renderer = model_renderer::SimpleModelRenderer::new(
-            &gfx,
-            simple_model_map,
-            shader_map.remove(resources::shaders::SIMPLE).unwrap(),
-        );
-
-        let model_renderer = model_renderer::ModelRenderer::new(
-            &gfx,
-            model_map,
-            shader_map.remove(resources::shaders::BASIC).unwrap(),
-            Rc::clone(&light_bind_group),
-        );
+        let simple_renderer = model_renderer::SimpleModelRenderer::new(&gfx, simple_model_map);
+        let model_renderer =
+            model_renderer::ModelRenderer::new(&gfx, model_map, Rc::clone(&light_bind_group));
 
         Self {
             light_uniform,

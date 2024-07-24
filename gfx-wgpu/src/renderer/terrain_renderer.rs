@@ -1,4 +1,4 @@
-use crate::{primitives, render_utils};
+use crate::{primitives, render_utils, resources};
 
 use rand::prelude::*;
 use wgpu::util::DeviceExt;
@@ -13,7 +13,7 @@ pub struct TerrainState {
 }
 
 impl TerrainState {
-    pub fn new(gfx: &GfxInit, terrain_shader: wgpu::ShaderModule) -> Self {
+    pub fn new(gfx: &GfxInit) -> Self {
         let terrain_mesh = TerrainMesh::new(&gfx.device);
         use primitives::Vertex;
         let terrain_render_pipeline = gfx.create_render_pipeline(
@@ -21,7 +21,7 @@ impl TerrainState {
             gfx.color_format(),
             Some(primitives::Texture::DEPTH_FORMAT),
             &[primitives::TerrainVertex::desc()],
-            terrain_shader,
+            gfx.shader(resources::shaders::TERRAIN),
             "terrain",
         );
 

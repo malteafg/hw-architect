@@ -32,7 +32,7 @@ pub struct RoadState {
 }
 
 impl RoadState {
-    pub fn new(gfx: &GfxInit, road_shader: wgpu::ShaderModule) -> Self {
+    pub fn new(gfx: &GfxInit) -> Self {
         let (_, asphalt_color) =
             gfx.create_color(colors::rgba(colors::ASPHALT_COLOR, 1.0), "asphalt");
         let asphalt_color = Rc::new(asphalt_color);
@@ -79,7 +79,7 @@ impl RoadState {
             gfx.color_format(),
             Some(primitives::Texture::DEPTH_FORMAT),
             &[<[f32; 3]>::desc()],
-            road_shader,
+            gfx.shader(resources::shaders::ROAD),
             "road",
         );
 

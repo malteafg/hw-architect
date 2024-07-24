@@ -1,3 +1,5 @@
+use crate::resources::shaders;
+
 use std::rc::Rc;
 
 use wgpu::util::DeviceExt;
@@ -12,7 +14,11 @@ pub struct GfxInit {
     light_bgl: wgpu::BindGroupLayout,
     color_bgl: wgpu::BindGroupLayout,
 
+    /// Maybe have as part of state
     camera_bg: Rc<wgpu::BindGroup>,
+
+    /// Used only to create the render pipelines.
+    shader_map: shaders::ShaderMap,
 }
 
 impl GfxInit {
@@ -27,6 +33,7 @@ impl GfxInit {
         color_bgl: wgpu::BindGroupLayout,
 
         camera_bg: Rc<wgpu::BindGroup>,
+        shader_map: shaders::ShaderMap,
     ) -> Self {
         Self {
             device,
@@ -37,6 +44,7 @@ impl GfxInit {
             light_bgl,
             color_bgl,
             camera_bg,
+            shader_map,
         }
     }
 
@@ -72,6 +80,10 @@ impl GfxInit {
         self.camera_bg.clone()
     }
 
+    pub fn shader(&self, shader: &str) -> &wgpu::ShaderModule {
+        self.shader_map.get(shader).unwrap()
+    }
+
     pub fn create_color(
         &self,
         init_color: gfx_api::colors::RGBAColor,
@@ -101,7 +113,7 @@ impl GfxInit {
         color_format: wgpu::TextureFormat,
         depth_format: Option<wgpu::TextureFormat>,
         vertex_layouts: &[wgpu::VertexBufferLayout],
-        shader: wgpu::ShaderModule,
+        shader: &wgpu::ShaderModule,
         name: &str,
     ) -> wgpu::RenderPipeline {
         let layout = self
@@ -116,14 +128,14 @@ impl GfxInit {
                 label: Some(&(name.to_owned() + "_render_pipeline")),
                 layout: Some(&layout),
                 vertex: wgpu::VertexState {
-                    module: &shader,
+                    module: shader,
                     entry_point: "vs_main",
                     buffers: vertex_layouts,
 
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
-                    module: &shader,
+                    module: shader,
                     entry_point: "fs_main",
                     targets: &[Some(wgpu::ColorTargetState {
                         format: color_format,

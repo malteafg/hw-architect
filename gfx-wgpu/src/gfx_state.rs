@@ -113,9 +113,10 @@ impl<'a> GfxState<'a> {
             light_bgl,
             color_bgl,
             camera.get_bind_group().clone(),
+            shaders,
         );
 
-        let main_renderer = renderer::Renderer::new(gfx, shaders, simple_models, models, obj_model);
+        let main_renderer = renderer::Renderer::new(gfx, simple_models, models, obj_model);
 
         Self {
             surface,
