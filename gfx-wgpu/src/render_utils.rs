@@ -1,4 +1,7 @@
-use crate::resources::shaders;
+use crate::{
+    renderer::model_renderer::{self, ModelRenderer},
+    resources::{models::ModelMap, shaders, simple_models::SimpleModelMap},
+};
 
 use std::rc::Rc;
 
@@ -195,6 +198,8 @@ pub struct GfxHandle {
 
     pub light_uniform: LightUniform,
     pub light_buffer: wgpu::Buffer,
+
+    pub model_renderer: ModelRenderer,
 }
 
 impl GfxHandle {
@@ -203,6 +208,8 @@ impl GfxHandle {
         device: Rc<wgpu::Device>,
         queue: Rc<wgpu::Queue>,
         camera_bg: wgpu::BindGroup,
+        models: ModelMap,
+        simple_models: SimpleModelMap,
     ) -> Self {
         let light_uniform = LightUniform {
             position: [2.0, 2.0, 2.0],
@@ -225,6 +232,9 @@ impl GfxHandle {
             }],
             label: None,
         }));
+
+        let model_renderer = ModelRenderer::new(gfx, models, simple_models);
+
         Self {
             device,
             queue,
@@ -232,6 +242,7 @@ impl GfxHandle {
             light_bg,
             light_uniform,
             light_buffer,
+            model_renderer,
         }
     }
 }

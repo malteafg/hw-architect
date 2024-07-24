@@ -1,7 +1,7 @@
 use crate::primitives::{DBuffer, Instance, InstanceRaw};
 use crate::resources;
 
-use super::model_renderer::{ModelRenderer, RenderModel, RenderSimpleModel, SimpleModelRenderer};
+use super::model_renderer::{ModelRenderer, RenderModel};
 use super::GfxHandle;
 
 use gfx_api::colors;
@@ -146,29 +146,17 @@ impl gfx_api::GfxTreeData for TreeState {
 
 pub trait RenderTrees<'a> {
     /// The function that implements rendering for roads.
-    fn render_trees(
-        &mut self,
-        gfx_handle: &'a GfxHandle,
-        tree_state: &'a TreeState,
-        simple_renderer: &'a SimpleModelRenderer,
-        model_renderer: &'a ModelRenderer,
-    );
+    fn render_trees(&mut self, gfx_handle: &'a GfxHandle, tree_state: &'a TreeState);
 }
 
 impl<'a, 'b> RenderTrees<'b> for wgpu::RenderPass<'a>
 where
     'b: 'a,
 {
-    fn render_trees(
-        &mut self,
-        gfx_handle: &'a GfxHandle,
-        tree_state: &'a TreeState,
-        simple_renderer: &'a SimpleModelRenderer,
-        model_renderer: &'a ModelRenderer,
-    ) {
+    fn render_trees(&mut self, gfx_handle: &'a GfxHandle, tree_state: &'a TreeState) {
         self.render_model(
             gfx_handle,
-            model_renderer,
+            &gfx_handle.model_renderer,
             resources::models::TREE_MODEL,
             &tree_state.tree_buffer,
             tree_state.num_trees(),
@@ -176,7 +164,7 @@ where
 
         self.render_model(
             gfx_handle,
-            model_renderer,
+            &gfx_handle.model_renderer,
             resources::models::TREE_MODEL,
             &tree_state.tool_buffer,
             tree_state.num_markers,
@@ -184,7 +172,7 @@ where
 
         self.render_simple_model(
             gfx_handle,
-            simple_renderer,
+            &gfx_handle.model_renderer,
             resources::simple_models::TORUS_MODEL,
             tree_state.markers_color,
             &tree_state.markers_buffer,

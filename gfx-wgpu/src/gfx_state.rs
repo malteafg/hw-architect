@@ -113,9 +113,16 @@ impl<'a> GfxState<'a> {
             shaders,
         );
 
-        let main_renderer = renderer::Renderer::new(&gfx, simple_models, models, obj_model);
+        let main_renderer = renderer::Renderer::new(&gfx, obj_model);
 
-        let gfx_handle = GfxHandle::new(&gfx, device.clone(), queue.clone(), camera_bg);
+        let gfx_handle = GfxHandle::new(
+            &gfx,
+            device.clone(),
+            queue.clone(),
+            camera_bg,
+            models,
+            simple_models,
+        );
 
         Self {
             surface,

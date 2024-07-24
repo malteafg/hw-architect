@@ -2,7 +2,7 @@ use crate::primitives::{self, DBuffer, Instance, RoadBuffer, VIBuffer};
 use crate::render_utils;
 use crate::resources;
 
-use super::model_renderer::{RenderSimpleModel, SimpleModelRenderer};
+use super::model_renderer::RenderModel;
 use super::{GfxHandle, GfxInit};
 
 use utils::id::{IdMap, SegmentId};
@@ -236,24 +236,14 @@ fn combine_road_meshes(
 /// A trait used by the main renderer to render the roads.
 pub trait RenderRoad<'a> {
     /// The function that implements rendering for roads.
-    fn render_roads(
-        &mut self,
-        gfx_handle: &'a GfxHandle,
-        road_state: &'a RoadState,
-        simple_renderer: &'a SimpleModelRenderer,
-    );
+    fn render_roads(&mut self, gfx_handle: &'a GfxHandle, road_state: &'a RoadState);
 }
 
 impl<'a, 'b> RenderRoad<'b> for wgpu::RenderPass<'a>
 where
     'b: 'a,
 {
-    fn render_roads(
-        &mut self,
-        gfx_handle: &'a GfxHandle,
-        road_state: &'b RoadState,
-        simple_renderer: &'a SimpleModelRenderer,
-    ) {
+    fn render_roads(&mut self, gfx_handle: &'a GfxHandle, road_state: &'b RoadState) {
         self.set_pipeline(&road_state.road_render_pipeline);
         self.set_bind_group(0, &gfx_handle.camera_bg, &[]);
         self.render(&road_state.road_buffer);
@@ -262,7 +252,7 @@ where
 
         self.render_simple_model(
             gfx_handle,
-            simple_renderer,
+            &gfx_handle.model_renderer,
             resources::simple_models::ARROW_MODEL,
             road_state.markers_color,
             &road_state.markers_buffer,

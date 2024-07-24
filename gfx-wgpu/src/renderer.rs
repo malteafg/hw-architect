@@ -1,4 +1,4 @@
-mod model_renderer;
+pub mod model_renderer;
 mod road_renderer;
 mod static_world_renderer;
 mod terrain_renderer;
@@ -19,20 +19,12 @@ pub struct Renderer {
     pub road_renderer: road_renderer::RoadState,
     pub tree_renderer: tree_renderer::TreeState,
 
-    simple_renderer: model_renderer::SimpleModelRenderer,
-    model_renderer: model_renderer::ModelRenderer,
-
     /// temporary
     obj_model: primitives::Model,
 }
 
 impl Renderer {
-    pub fn new(
-        gfx: &GfxInit,
-        simple_model_map: resources::simple_models::SimpleModelMap,
-        model_map: resources::models::ModelMap,
-        obj_model: primitives::Model,
-    ) -> Self {
+    pub fn new(gfx: &GfxInit, obj_model: primitives::Model) -> Self {
         use primitives::Vertex;
         let light_render_pipeline = gfx.create_render_pipeline(
             &[gfx.camera_bgl(), gfx.light_bgl()],
@@ -46,19 +38,12 @@ impl Renderer {
         let terrain_renderer = terrain_renderer::TerrainState::new(gfx);
         let road_renderer = road_renderer::RoadState::new(gfx);
         let tree_renderer = tree_renderer::TreeState::new(gfx.device(), gfx.queue());
-        let simple_renderer = model_renderer::SimpleModelRenderer::new(gfx, simple_model_map);
-        let model_renderer = model_renderer::ModelRenderer::new(gfx, model_map);
 
         Self {
             light_render_pipeline,
-
             terrain_renderer,
             road_renderer,
             tree_renderer,
-
-            simple_renderer,
-            model_renderer,
-
             obj_model,
         }
     }
@@ -101,18 +86,9 @@ where
         );
 
         use road_renderer::RenderRoad;
-        self.render_roads(
-            gfx_handle,
-            &renderer.road_renderer,
-            &renderer.simple_renderer,
-        );
+        self.render_roads(gfx_handle, &renderer.road_renderer);
 
         use tree_renderer::RenderTrees;
-        self.render_trees(
-            gfx_handle,
-            &renderer.tree_renderer,
-            &renderer.simple_renderer,
-            &renderer.model_renderer,
-        );
+        self.render_trees(gfx_handle, &renderer.tree_renderer);
     }
 }
