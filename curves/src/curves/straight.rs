@@ -9,27 +9,27 @@ use crate::{CtrlPoints, Curve, CurveError, CurveInfo, CurveResult, Spine};
 /// Represents a completely straight line. Should not use guide_points
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Straight {
-    guide_points: CtrlPoints,
+    ctrl_points: CtrlPoints,
 }
 
 impl Straight {
     fn new(first_pos: Vec3, last_pos: Vec3) -> Self {
         let guide_points = CtrlPoints::from_two_points(first_pos, last_pos);
-        Self { guide_points }
+        Self { ctrl_points: guide_points }
     }
 }
 
 impl CurveUnique for Straight {
     fn compute_spine(&self) -> Spine {
-        self.guide_points.gen_loc_curve().into()
+        self.ctrl_points.gen_loc_curve().into()
     }
 
     fn reverse(&mut self) {
-        self.guide_points.reverse()
+        self.ctrl_points.reverse()
     }
 
     fn contains_pos(&self, pos: Vec3, width: f32) -> bool {
-        self.guide_points.contains_pos(pos, width)
+        self.ctrl_points.contains_pos(pos, width)
     }
 }
 

@@ -15,32 +15,32 @@ const MIN_SEGMENT_LENGTH: f32 = 10.0;
 /// A circular curve approximated using cubic bezier curves
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Circular {
-    guide_points: CtrlPoints,
+    ctrl_points: CtrlPoints,
 }
 
 impl Circular {
     fn new(first: Loc, last_pos: Vec3) -> Self {
         Circular {
-            guide_points: circle_curve(first, last_pos),
+            ctrl_points: circle_curve(first, last_pos),
         }
     }
 
     fn from_guide_points(guide_points: CtrlPoints) -> Self {
-        Circular { guide_points }
+        Circular { ctrl_points: guide_points }
     }
 }
 
 impl CurveUnique for Circular {
     fn compute_spine(&self) -> Spine {
-        self.guide_points.gen_loc_curve().into()
+        self.ctrl_points.gen_loc_curve().into()
     }
 
     fn reverse(&mut self) {
-        self.guide_points.reverse()
+        self.ctrl_points.reverse()
     }
 
     fn contains_pos(&self, pos: Vec3, width: f32) -> bool {
-        self.guide_points.contains_pos(pos, width)
+        self.ctrl_points.contains_pos(pos, width)
     }
 }
 
