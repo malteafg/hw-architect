@@ -182,6 +182,25 @@ impl gfx_api::GfxRoadData for RoadState {
     }
 }
 
+impl<'a> StateRender<'a> for RoadState {
+    fn render(&'a self, gfx_handle: &'a GfxHandle, render_pass: &mut wgpu::RenderPass<'a>) {
+        render_pass.set_pipeline(&self.road_render_pipeline);
+        render_pass.set_bind_group(0, &gfx_handle.camera_bg, &[]);
+        render_pass.render(&self.road_buffer);
+        render_pass.render(&self.tool_buffer);
+        render_pass.render(&self.marked_buffer);
+
+        gfx_handle.model_renderer.render_simple_model(
+            gfx_handle,
+            render_pass,
+            resources::simple_models::ARROW_MODEL,
+            self.markers_color,
+            &self.markers_buffer,
+            self.num_markers,
+        );
+    }
+}
+
 /// Iterates over the given road_meshes and returns a vec of {`RoadVertex`} for writing to the gpu.
 fn combine_road_meshes(
     road_meshes: &IdMap<SegmentId, GSegment>,
@@ -230,25 +249,6 @@ fn combine_road_meshes(
     }
 
     road_mesh
-}
-
-impl<'a> StateRender<'a> for RoadState {
-    fn render(&'a self, gfx_handle: &'a GfxHandle, render_pass: &mut wgpu::RenderPass<'a>) {
-        render_pass.set_pipeline(&self.road_render_pipeline);
-        render_pass.set_bind_group(0, &gfx_handle.camera_bg, &[]);
-        render_pass.render(&self.road_buffer);
-        render_pass.render(&self.tool_buffer);
-        render_pass.render(&self.marked_buffer);
-
-        gfx_handle.model_renderer.render_simple_model(
-            gfx_handle,
-            render_pass,
-            resources::simple_models::ARROW_MODEL,
-            self.markers_color,
-            &self.markers_buffer,
-            self.num_markers,
-        );
-    }
 }
 
 trait RenderRoadBuffer<'a> {

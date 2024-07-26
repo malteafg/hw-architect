@@ -1,10 +1,13 @@
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
+use utils::math::Loc;
+
+use crate::{LocCurve, PosCurve};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GuidePoints(Vec<Vec3>);
+pub struct CtrlPoints(Vec<Vec3>);
 
-impl core::ops::Deref for GuidePoints {
+impl core::ops::Deref for CtrlPoints {
     type Target = Vec<Vec3>;
 
     fn deref(self: &'_ Self) -> &'_ Self::Target {
@@ -12,19 +15,15 @@ impl core::ops::Deref for GuidePoints {
     }
 }
 
-impl core::ops::DerefMut for GuidePoints {
+impl core::ops::DerefMut for CtrlPoints {
     fn deref_mut(self: &'_ mut Self) -> &'_ mut Self::Target {
         &mut self.0
     }
 }
 
-impl GuidePoints {
-    pub(crate) fn from_vec(vec: Vec<Vec3>) -> Self {
+impl CtrlPoints {
+    pub fn from_vec(vec: Vec<Vec3>) -> Self {
         Self(vec)
-    }
-
-    pub(crate) fn _empty() -> Self {
-        Self(vec![])
     }
 
     /// Creates four points on a straight line between the two given points (containing them).
@@ -34,12 +33,12 @@ impl GuidePoints {
         let dir = (p2 - p1).normalize();
         let dist = (p2 - p1).length();
         let dist_dir = dir * (dist / 3.);
-        GuidePoints::from_vec(vec![p1, p1 + dist_dir, p1 + (2. * dist_dir), p2])
+        CtrlPoints::from_vec(vec![p1, p1 + dist_dir, p1 + (2. * dist_dir), p2])
     }
 
     /// Computes and returns the summed distance from the path starting in the first point to the
     /// last point, visiting all points.
-    pub(crate) fn dist(&self) -> f32 {
+    pub fn dist(&self) -> f32 {
         let mut sum = 0.0;
         for i in 0..self.len() - 1 {
             sum += (self[i] - self[i + 1]).length()
@@ -47,7 +46,38 @@ impl GuidePoints {
         sum
     }
 
-    pub(crate) fn calc_bezier_pos(&self, t: f32) -> Vec3 {
+    pub fn gen_pos_curve(&self) -> PosCurve {
+        let mut pos_curve = PosCurve::empty();
+
+        let num_of_cuts = (utils::consts::VERTEX_DENSITY * (1000.0 + self.dist())) as u32;
+        let dt = 1.0 / (num_of_cuts as f32 - 1.0);
+        let mut t = 0.0;
+
+        for _ in 0..num_of_cuts {
+            let pos = self.calc_bezier_pos(t);
+            pos_curve.push(pos);
+            t += dt;
+        }
+        pos_curve
+    }
+
+    pub fn gen_loc_curve(&self) -> LocCurve {
+        let mut loc_curve = LocCurve::empty();
+
+        let num_of_cuts = (utils::consts::VERTEX_DENSITY * (1000.0 + self.dist())) as u32;
+        let dt = 1.0 / (num_of_cuts as f32 - 1.0);
+        let mut t = 0.0;
+
+        for _ in 0..num_of_cuts {
+            let pos = self.calc_bezier_pos(t);
+            let dir = self.calc_bezier_dir(t);
+            loc_curve.push(Loc::new(pos, dir.into()));
+            t += dt;
+        }
+        loc_curve
+    }
+
+    pub fn calc_bezier_pos(&self, t: f32) -> Vec3 {
         let mut v = Vec3::new(0.0, 0.0, 0.0);
         let mut r = (1.0 - t).powi(self.len() as i32 - 1);
         let mut l = 1.0;
@@ -68,7 +98,7 @@ impl GuidePoints {
         v
     }
 
-    pub(crate) fn calc_bezier_dir(&self, t: f32) -> Vec3 {
+    pub fn calc_bezier_dir(&self, t: f32) -> Vec3 {
         let mut v = Vec3::new(0.0, 0.0, 0.0);
         let mut r = (1.0 - t).powi(self.len() as i32 - 2);
         let mut l = 1.0;
@@ -88,14 +118,14 @@ impl GuidePoints {
         v.normalize()
     }
 
-    pub fn reverse_vec(vec: &mut Vec<Self>) {
+    pub fn reverse(vec: &mut Vec<Self>) {
         vec.reverse();
         for guide_points in vec.iter_mut() {
             guide_points.reverse();
         }
     }
 
-    pub fn is_inside(&self, ground_pos: Vec3, width: f32) -> bool {
+    pub fn contains_pos(&self, ground_pos: Vec3, width: f32) -> bool {
         let direct_dist = (self[self.len() - 1] - self[0]).length_squared();
 
         let mut close = false;

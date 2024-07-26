@@ -1,3 +1,4 @@
+use gfx_api::colors::RGBAColor;
 use utils::math::{Mat3Utils, Mat4Utils};
 
 use glam::{Mat3, Mat4, Quat, Vec3};
@@ -38,4 +39,33 @@ impl Instance {
 pub struct InstanceRaw {
     pub model: [[f32; 4]; 4],
     pub normal: [[f32; 3]; 3],
+}
+
+pub struct ColoredInstance {
+    instance: Instance,
+    color: RGBAColor,
+}
+
+impl ColoredInstance {
+    pub fn new(position: Vec3, rotation: Quat, color: RGBAColor) -> Self {
+        let instance = Instance::new(position, rotation);
+        Self { instance, color }
+    }
+
+    pub fn to_raw(&self) -> ColoredInstanceRaw {
+        let instance_raw = self.instance.to_raw();
+        ColoredInstanceRaw {
+            model: instance_raw.model,
+            normal: Mat3::from_quat(self.instance.rotation).to_3x3(),
+            color: self.color,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct ColoredInstanceRaw {
+    pub model: [[f32; 4]; 4],
+    pub normal: [[f32; 3]; 3],
+    pub color: [f32; 4],
 }

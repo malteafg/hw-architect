@@ -125,7 +125,6 @@ impl GfxInit {
                     module: shader,
                     entry_point: "vs_main",
                     buffers: vertex_layouts,
-
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 },
                 fragment: Some(wgpu::FragmentState {

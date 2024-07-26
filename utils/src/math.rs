@@ -4,11 +4,13 @@
 use glam::*;
 use std::f32::consts::PI;
 
+mod cur;
 mod dir;
 mod loc;
 mod mat;
 mod vec;
 
+pub use cur::Cur;
 pub use dir::DirXZ;
 pub use loc::{Loc, PosOrLoc};
 pub use mat::{Mat3Utils, Mat4Utils};

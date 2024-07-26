@@ -11,7 +11,7 @@ pub struct Quadratic;
 
 impl CurveUnique for Quadratic {
     fn compute_spine(&self) -> Spine {
-        Spine::empty()
+        unimplemented!()
     }
 
     fn reverse(&mut self) {}

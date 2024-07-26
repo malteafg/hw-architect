@@ -11,7 +11,7 @@ pub struct Cubic;
 
 impl CurveUnique for Cubic {
     fn compute_spine(&self) -> Spine {
-        Spine::empty()
+        unimplemented!()
     }
 
     fn reverse(&mut self) {}

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use utils::consts::ROAD_MIN_LENGTH;
 use utils::math::{DirXZ, Loc, VecUtils};
 
-use crate::{Curve, CurveError, CurveInfo, CurveResult, GuidePoints, Spine};
+use crate::{CtrlPoints, Curve, CurveError, CurveInfo, CurveResult, Spine};
 
 use super::{CompositeCurve, CurveUnique};
 
@@ -15,7 +15,7 @@ const MIN_SEGMENT_LENGTH: f32 = 10.0;
 /// A circular curve approximated using cubic bezier curves
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Circular {
-    guide_points: GuidePoints,
+    guide_points: CtrlPoints,
 }
 
 impl Circular {
@@ -25,14 +25,14 @@ impl Circular {
         }
     }
 
-    fn from_guide_points(guide_points: GuidePoints) -> Self {
+    fn from_guide_points(guide_points: CtrlPoints) -> Self {
         Circular { guide_points }
     }
 }
 
 impl CurveUnique for Circular {
     fn compute_spine(&self) -> Spine {
-        Spine::from_guide_points(&self.guide_points)
+        self.guide_points.gen_loc_curve().into()
     }
 
     fn reverse(&mut self) {
@@ -40,7 +40,7 @@ impl CurveUnique for Circular {
     }
 
     fn contains_pos(&self, pos: Vec3, width: f32) -> bool {
-        self.guide_points.is_inside(pos, width)
+        self.guide_points.contains_pos(pos, width)
     }
 }
 
@@ -175,11 +175,11 @@ fn curve_mid(first: Loc, last_pos: Vec3) -> Loc {
 }
 
 /// The guidepoints for a curve as circular as possible with four guide points, up to half a circle
-fn circle_curve(first: Loc, last_pos: Vec3) -> GuidePoints {
+fn circle_curve(first: Loc, last_pos: Vec3) -> CtrlPoints {
     let diff = last_pos - first.pos;
     let r = first.dir * circle_scale(diff, first.dir);
 
-    GuidePoints::from_vec(vec![
+    CtrlPoints::from_vec(vec![
         first.pos,
         first.pos + r,
         last_pos + r - diff * (2.0 * diff.dot(r) / diff.length_squared()),
@@ -188,11 +188,11 @@ fn circle_curve(first: Loc, last_pos: Vec3) -> GuidePoints {
 }
 
 /// Best approximation of circular curve when constrained by directions at both points
-fn circle_curve_fudged(first: Loc, last: Loc) -> GuidePoints {
+fn circle_curve_fudged(first: Loc, last: Loc) -> CtrlPoints {
     let diff = last.pos - first.pos;
     let r = first.dir * circle_scale(diff, first.dir);
 
-    GuidePoints::from_vec(vec![
+    CtrlPoints::from_vec(vec![
         first.pos,
         first.pos + r,
         last.pos + last.dir * r.length(),
@@ -201,9 +201,9 @@ fn circle_curve_fudged(first: Loc, last: Loc) -> GuidePoints {
 }
 
 /// Only used if the double snap is elliptical. Simply creates a 3 point bezier curve.
-fn simple_curve_points(first: Loc, last: Loc) -> CurveResult<GuidePoints> {
+fn simple_curve_points(first: Loc, last: Loc) -> CurveResult<CtrlPoints> {
     if (*first.dir).intersects_in_xz(*last.dir) {
-        Ok(GuidePoints::from_vec(vec![
+        Ok(CtrlPoints::from_vec(vec![
             first.pos,
             first
                 .pos
@@ -215,7 +215,7 @@ fn simple_curve_points(first: Loc, last: Loc) -> CurveResult<GuidePoints> {
     }
 }
 
-fn double_curve(first: Loc, center: Vec3, last: Loc) -> (GuidePoints, GuidePoints) {
+fn double_curve(first: Loc, center: Vec3, last: Loc) -> (CtrlPoints, CtrlPoints) {
     let first_half = circle_curve(first, center);
     let mut second_half = circle_curve(last, center);
     second_half.reverse();

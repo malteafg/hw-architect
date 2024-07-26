@@ -1,25 +1,28 @@
 mod circular;
 mod cubic;
 mod quadratic;
+mod raw_curve;
 mod straight;
 
 pub use circular::Circular;
 pub use cubic::Cubic;
 pub use quadratic::Quadratic;
+pub use raw_curve::{LocCurve, PosCurve};
 pub use straight::Straight;
-use utils::math::Loc;
 
 use crate::Spine;
 
-use thiserror::Error;
+use utils::math::Loc;
 
 use enum_dispatch::enum_dispatch;
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 #[enum_dispatch]
 pub trait CurveSpec: CurveShared {}
 
+/// Represents the behavior that all curve types share.
 #[enum_dispatch]
 pub trait CurveShared {
     /// Returns the spine of this curve segment
@@ -43,6 +46,8 @@ pub trait CurveShared {
     fn reverse(&mut self);
 }
 
+/// Represents the behavior that is unique to each curve type. This must be implemented for a
+/// specification of a curve, to allow for constructing a concrete `Curve`.
 trait CurveUnique {
     fn compute_spine(&self) -> Spine;
     fn reverse(&mut self);
@@ -86,6 +91,8 @@ impl<C: Into<CurveSum> + CurveShared> From<CompositeCurve<C>> for CompositeCurve
     }
 }
 
+/// Defines the errors that can occur when attempting to create a curve from specified positions,
+/// directions and curvatures.
 #[derive(Error, Debug)]
 pub enum CurveError {
     /// A curve can be constructed but the curve is too tight.
@@ -103,6 +110,7 @@ pub enum CurveError {
 
 pub type CurveResult<C> = std::result::Result<C, CurveError>;
 
+/// Reprensents the sum of all concrete `Curve`'s.
 #[enum_dispatch(CurveShared)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CurveSum {
@@ -112,11 +120,13 @@ pub enum CurveSum {
     Cubic(Curve<Cubic>),
 }
 
+/// A concrete type of curve. The curve is specified by the generic parameter `C` and has a
+/// `Spine` which guarantees that points have a uniform distance between them.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Curve<C> {
     instance: C,
-    length: f32,
     spine: Spine,
+    length: f32,
 }
 
 impl<C: CurveUnique> CurveSpec for Curve<C> {}
@@ -127,8 +137,8 @@ impl<C: CurveUnique> From<C> for Curve<C> {
 
         Self {
             instance: value,
-            length: 0.0,
             spine,
+            length: 0.0,
         }
     }
 }
